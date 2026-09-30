@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { access, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { runProcess, PROCESS_ERROR_CODES, MAX_PROCESS_OUTPUT_BYTES, MAX_PROCESS_ARGS, MAX_PROCESS_ARG_BYTES, MAX_PROCESS_TIMEOUT_MS } from '../packages/process-runner/src/index.mjs';
 import { EventEmitter } from 'node:events';
@@ -68,6 +69,20 @@ test('process runner reports timeout and cancellation', { skip: !processTestsEna
   controller.abort();
   const cancelled = await pending;
   assert.equal(cancelled.error, PROCESS_ERROR_CODES.CANCELLED);
+});
+
+test('process runner cancellation terminates grandchildren in the owned process group', { skip: !processTestsEnabled || process.platform === 'win32' }, async () => {
+  const marker = resolve(tmpdir(), `openentc-grandchild-${process.pid}`);
+  await rm(marker, { force: true });
+  const leaf = `setTimeout(() => require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'survived'), 800)`;
+  const parent = `require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(leaf)}], { stdio: 'ignore' }); setTimeout(() => {}, 5000)`;
+  const controller = new AbortController();
+  const pending = runProcess({ executable: node, args: ['-e', parent] }, { signal: controller.signal });
+  await new Promise((done) => setTimeout(done, 300));
+  controller.abort();
+  assert.equal((await pending).error, PROCESS_ERROR_CODES.CANCELLED);
+  await new Promise((done) => setTimeout(done, 1200));
+  await assert.rejects(access(marker), 'owned grandchild survived process-group cancellation');
 });
 
 test('process runner enforces an output limit', { skip: !processTestsEnabled }, async () => {

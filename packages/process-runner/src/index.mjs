@@ -37,7 +37,9 @@ function terminateOwnedTree(child, spawnTree = spawn) {
     else { try { child.kill(); } catch { /* already exited */ } }
     return;
   }
-  try { child.kill(-child.pid); } catch { try { child.kill(); } catch { /* already exited */ } }
+  // ChildProcess#kill takes a signal, not a pid; signal the detached child's whole group instead.
+  if (spawnTree !== null) { try { process.kill(-child.pid, 'SIGTERM'); return; } catch { /* fall back to the direct child */ } }
+  try { child.kill(); } catch { /* already exited */ }
 }
 
 export function runProcess(spec, { signal, spawnImpl = spawn } = {}) {
