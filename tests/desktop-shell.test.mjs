@@ -253,7 +253,7 @@ test('project switching validates the target before revoking the current session
   const lib = await readFile(new URL('../apps/desktop/src-tauri/src/lib.rs', import.meta.url), 'utf8');
   assert.match(project, /pub fn validate_project\(root: &str\)/);
   assert.match(lib, /native_project::validate_project\(&root\)\?/);
-  const openBody = lib.match(/fn open_project\([\s\S]*?\n}\n\n?pub fn run/)[0];
+  const openBody = lib.match(/fn open_project\([\s\S]*?\r?\n}\r?\n\r?\n?pub fn run/)[0];
   assert.ok(openBody.indexOf('native_project::validate_project(&root)?') < openBody.indexOf('runtime.processes.cancel_and_remove_project(&project_id)?'));
 });
 
@@ -292,7 +292,7 @@ test('desktop job declarations preserve native project ownership metadata', asyn
 
 test('native project open constructs its grant before mutating session state', async () => {
   const source = await readFile(new URL('../apps/desktop/src-tauri/src/native_project.rs', import.meta.url), 'utf8');
-  const openBody = source.match(/fn open_project_session\([\s\S]*?\n}\n\npub fn open_project/)[0];
+  const openBody = source.match(/fn open_project_session\([\s\S]*?\r?\n}\r?\n\r?\npub fn open_project/)[0];
   assert.match(openBody, /let grant = ProjectGrant::new/);
   assert.ok(openBody.indexOf('let grant = ProjectGrant::new') < openBody.indexOf('state.root.lock'));
   assert.match(openBody, /state\.grant\.lock[\s\S]*Some\(grant\)/);
