@@ -45,6 +45,14 @@ test('VCD parser imports bounded vector transitions from generated HDL waveforms
   assert.throws(() => parseVcd('$timescale 1 ns $end\n$var wire 2 ! q $end\n$enddefinitions $end\n#0\nb101 !'), /exceeds/);
 });
 
+test('VCD parser accepts a separate bit-range reference as emitted by Verilator', () => {
+  const trace = parseVcd('$timescale 1ps $end\n$scope module top $end\n$var wire 4 $ cnt [3:0] $end\n$upscope $end\n$enddefinitions $end\n#0\nb0000 $\n#5\nb0001 $');
+  assert.equal(trace.timescale, '1 ps');
+  assert.equal(trace.signals[0].name, 'cnt[3:0]');
+  assert.equal(trace.signals[0].fullName, 'top.cnt[3:0]');
+  assert.deepEqual(trace.signals[0].samples, [{ time: 0, value: '0000' }, { time: 5, value: '0001' }]);
+});
+
 test('VCD parser rejects incomplete definitions and unknown identifiers', () => {
   assert.throws(() => parseVcd('$timescale 1 ns $end\n$enddefinitions $end'), /definitions/);
   assert.throws(() => parseVcd('$timescale 1 ns $end\n$var wire 1 ! clk $end\n$enddefinitions $end\n#1\n1?'), /unknown/);

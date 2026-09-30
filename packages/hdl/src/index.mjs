@@ -92,7 +92,7 @@ export function parseVcd(text) {
   if (typeof text !== 'string' || new TextEncoder().encode(text).length > MAX_TEXT_BYTES) throw new TypeError('VCD input is missing or exceeds the size limit.');
   let timescale = null; let currentTime = 0; let inDefinitions = true; let samples = 0;
   const signals = []; const signalsById = new Map(); const scopes = [];
-  const normalizedText = text.replace(/\$timescale\s+([^\s]+)\s+([^\s]+)\s+\$end/g, '$timescale $1 $2 $end');
+  const normalizedText = text.replace(/\$timescale\s+(\d+)\s*([a-z]+)\s+\$end/g, '$timescale $1 $2 $end');
   for (const raw of normalizedText.split(/\r?\n/)) {
     const line = raw.trim();
     if (!line) continue;
@@ -100,9 +100,9 @@ export function parseVcd(text) {
     if (line.startsWith('$scope')) { const match = line.match(/^\$scope\s+\S+\s+(\S+)\s+\$end$/); if (!match) throw new TypeError('VCD scope is malformed.'); scopes.push(match[1]); continue; }
     if (line === '$upscope $end') { if (!scopes.length) throw new TypeError('VCD scope nesting is malformed.'); scopes.pop(); continue; }
     if (line.startsWith('$var')) {
-      const match = line.match(/^\$var\s+\S+\s+(\d+)\s+(\S+)\s+(\S+)\s+\$end$/); const width = Number(match?.[1]); if (!match || !Number.isInteger(width) || width < 1 || width > 4096) throw new TypeError('VCD signal width is invalid or unsupported.');
+      const match = line.match(/^\$var\s+\S+\s+(\d+)\s+(\S+)\s+(\S+)(?:\s+(\[\d+(?::\d+)?\]))?\s+\$end$/); const width = Number(match?.[1]); if (!match || !Number.isInteger(width) || width < 1 || width > 4096) throw new TypeError('VCD signal width is invalid or unsupported.');
       if (signals.length >= MAX_SIGNALS) throw new RangeError('VCD signal count exceeds the limit.');
-      const scope = scopes.join('.'); const signal = { id: match[2], name: match[3], fullName: [...scopes, match[3]].join('.'), scope, width, samples: [] };
+      const scope = scopes.join('.'); const name = match[3] + (match[4] || ''); const signal = { id: match[2], name, fullName: [...scopes, name].join('.'), scope, width, samples: [] };
       signals.push(signal); signalsById.set(match[2], [...(signalsById.get(match[2]) || []), signal]); continue;
     }
     if (line === '$enddefinitions $end') { if (scopes.length) throw new TypeError('VCD scope nesting is incomplete.'); inDefinitions = false; continue; }

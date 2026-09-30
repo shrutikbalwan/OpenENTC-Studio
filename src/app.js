@@ -486,7 +486,7 @@ function renderDsp(state) {
   const min = values.length ? Math.min(...values) : -1; const max = values.length ? Math.max(...values) : 1; const span = max - min || 1;
   const path = values.length > 1 ? values.map((value, index) => `${index ? 'L' : 'M'} ${(index / (values.length - 1) * 560).toFixed(1)} ${(150 - ((value - min) / span) * 130).toFixed(1)}`).join(' ') : '';
   const peak = result ? Math.max(...result.spectrum.real.map((real, index) => Math.hypot(real, result.spectrum.imaginary[index]))) : null;
-  const magnitudes = result ? result.spectrum.real.map((real, index) => Math.hypot(real, result.spectrum.imaginary[index])) : [];
+  const magnitudes = result ? Array.from(result.spectrum.real, (real, index) => Math.hypot(real, result.spectrum.imaginary[index])) : [];
   const magnitudeMax = Math.max(1e-12, ...magnitudes);
   const spectrumPath = magnitudes.length > 1 ? magnitudes.map((value, index) => `${index ? 'L' : 'M'} ${(index / (magnitudes.length - 1) * 560).toFixed(1)} ${(150 - (value / magnitudeMax) * 130).toFixed(1)}`).join(' ') : '';
   return `<div class="page scroll-page dsp-page">${pageHeader(modules.find((item) => item.id === 'dsp'), 'BUILT-IN NUMERICAL LAB', '<span class="pill live"><i></i> LOCAL COMPUTATION</span>')}

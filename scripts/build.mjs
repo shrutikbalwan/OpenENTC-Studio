@@ -19,6 +19,10 @@ await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
 await cp(resolve(root, 'index.html'), resolve(output, 'index.html'));
 await cp(resolve(root, 'src'), resolve(output, 'src'), { recursive: true });
+// src/app.js imports ../packages/<name>/src/*.mjs, so the preview must ship those modules.
+for (const entry of await readdir(resolve(root, 'packages'), { withFileTypes: true })) {
+  if (entry.isDirectory()) await cp(resolve(root, 'packages', entry.name, 'src'), resolve(output, 'packages', entry.name, 'src'), { recursive: true });
+}
 await cp(resolve(root, 'assets'), resolve(output, 'assets'), { recursive: true });
 await cp(resolve(root, 'LICENSE'), resolve(output, 'LICENSE'));
 await writeFile(resolve(output, 'THIRD-PARTY-NOTICES.txt'), 'OpenENTC Studio browser preview\n\nNo third-party engine binaries or libraries are bundled in this artifact. External toolchains remain user-managed and subject to their own upstream licence terms.\n');

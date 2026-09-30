@@ -220,6 +220,22 @@ test('browser build emits a verifiable sorted hash manifest', async () => {
   }
 });
 
+test('browser build ships every module statically imported by the application entry point', async () => {
+  const dist = resolve(root, 'dist');
+  const pending = [resolve(dist, 'src/app.js')];
+  const seen = new Set();
+  while (pending.length) {
+    const file = pending.pop();
+    if (seen.has(file)) continue;
+    seen.add(file);
+    const source = await readFile(file, 'utf8').catch(() => assert.fail(`dist is missing ${file.slice(dist.length + 1)}`));
+    for (const [, specifier] of source.matchAll(/^\s*(?:import|export)\s[^;]*?\bfrom\s+'([^']+)'/gm)) {
+      if (specifier.startsWith('.')) pending.push(resolve(file, '..', specifier));
+    }
+  }
+  assert.ok(seen.has(resolve(dist, 'packages/schematic/src/index.mjs')));
+});
+
 test('browser build metadata uses the authoritative package version', async () => {
   const packageJson = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8'));
   const metadata = JSON.parse(await readFile(resolve(root, 'dist/BUILD-METADATA.json'), 'utf8'));
@@ -595,7 +611,7 @@ test('Signals workspace exports real FFT columns only after a spectrum exists', 
 
 test('Signals workspace renders an FFT magnitude trace from computed bins', async () => {
   const source = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
-  assert.match(source, /const magnitudes = result \? result\.spectrum\.real/);
+  assert.match(source, /const magnitudes = result \? Array\.from\(result\.spectrum\.real,/);
   assert.match(source, /FFT MAGNITUDE/);
   assert.match(source, /spectrumPath/);
 });
