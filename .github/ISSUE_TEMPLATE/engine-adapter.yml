@@ -1,0 +1,45 @@
+name: Engine adapter report
+description: Report detection, compatibility, parsing, timeout, or cancellation problems
+title: "[Engine]: "
+labels: ["engine-adapter"]
+body:
+  - type: input
+    id: engine
+    attributes:
+      label: Engine and exact version
+      placeholder: ngspice 42
+    validations:
+      required: true
+  - type: input
+    id: opentc
+    attributes:
+      label: OpenENTC version or commit
+    validations:
+      required: true
+  - type: dropdown
+    id: operation
+    attributes:
+      label: Operation
+      options: [Detection, Self-test, Validation, Prepare, Run, Parse, Cancel, Clean]
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Reproduction and bounded logs
+      description: Include argument arrays and paths only after redacting private data. Never paste credentials.
+    validations:
+      required: true
+  - type: checkboxes
+    id: mutation
+    attributes:
+      label: Environment changes
+      options:
+        - label: Reproduction does not require OpenENTC to install or modify the engine automatically.
+          required: true

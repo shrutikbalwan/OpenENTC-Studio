@@ -1,0 +1,46 @@
+name: Bug report
+description: Report reproducible incorrect OpenENTC behavior
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Minimal steps and a safe sample project if possible. Remove secrets and private device data.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: OpenENTC version or commit
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options: [Browser preview, Windows desktop, Linux desktop, Documentation]
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs and evidence
+      description: Paste bounded, redacted logs. Do not include credentials or private project/device data.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed secrets, personal data, and private device identifiers.
+          required: true
+        - label: This is not a security vulnerability; security reports follow SECURITY.md.
+          required: true

@@ -1,0 +1,561 @@
+{
+  "$schema": "./ledger.schema.json",
+  "ledgerVersion": 1,
+  "productVersion": "0.1.0",
+  "auditedAt": "2026-09-29",
+  "states": ["built-in", "integrated", "interoperable", "unavailable", "unsupported"],
+  "capabilities": [
+    {
+      "id": "desktop.tauri-shell",
+      "surface": "Desktop shell: Tauri 2 core-only boundary",
+      "state": "built-in",
+      "evidence": ["apps/desktop/src-tauri/tauri.conf.json", "apps/desktop/src-tauri/capabilities/default.json", "apps/desktop/src-tauri/Cargo.toml", "apps/desktop/src-tauri/src/process_runner.rs", "apps/desktop/src-tauri/src/job.rs", "apps/desktop/src-tauri/src/project_fs.rs", "apps/desktop/src-tauri/src/native_project.rs", "apps/desktop/src-tauri/src/artifact_store.rs", "apps/desktop/src-tauri/src/events.rs", "apps/desktop/src-tauri/src/permissions.rs", "apps/desktop/src-tauri/src/platform.rs", "apps/desktop/src-tauri/src/discovery.rs", "src/core/desktop-bridge.js", "src/core/engine-registry.js", "src/app.js", "tests/desktop-shell.test.mjs"],
+      "limitations": "The Windows core-only shell, native folder picker, project-bound persistence, discovery, process, job, artifact and event services compile and pass native tests. Working directories and path-shaped arguments are confined to the canonical project root before enqueue/spawn. Spawned process trees are assigned to a Windows Job Object with fixed taskkill fallback, and real parent/grandchild cancellation passes. An unsigned NSIS development installer is produced; Linux, clean-machine installation and release signing remain unverified. No engineering engine or device permission is enabled by default.",
+      "plannedPhase": 2
+    },
+    {
+      "id": "project.local-autosave",
+      "surface": "Top bar and all workspaces",
+      "state": "built-in",
+      "evidence": ["src/core/store.js#saveProject", "src/app.js#save-local", "src/core/project-storage.js", "tests/project-storage.test.mjs"],
+      "limitations": "Browser preview stores one project in transactional localStorage and has no filesystem authority. Desktop project directories use bounded atomic manifest writes; clean-machine and Linux persistence verification remain pending.",
+      "plannedPhase": 1
+    },
+    {
+      "id": "project.create",
+      "surface": "Mission control: New engineering project",
+      "state": "built-in",
+      "evidence": ["src/core/project.js#createProject", "src/app.js#new-project"],
+      "limitations": "Creates the fixed alpha document shape.",
+      "plannedPhase": 1
+    },
+    {
+      "id": "project.import-export-json",
+      "surface": "Top bar: Import and Export project",
+      "state": "built-in",
+      "evidence": ["src/core/project.js", "src/app.js#importInput", "src/core/project.d.ts", "tests/project-model.test.mjs"],
+      "limitations": "JSON and .entcproj projects use bounded schema-aware validation, migration defaults and unknown-field preservation. Browser mode has no directory authority; desktop directory persistence is project-scoped and verified on Windows.",
+      "plannedPhase": 1
+    },
+    {
+      "id": "project.archive-boundary",
+      "surface": "Project model: archive entry safety boundary",
+      "state": "built-in",
+      "evidence": ["packages/project-model/src/index.mjs#validateArchiveEntries", "packages/project-model/src/archive.mjs", "src/core/project-file.js", "packages/project-model/src/types.d.ts", "tests/project-model.test.mjs", "tests/project-archive.test.mjs", "tests/project-file.test.mjs"],
+      "limitations": "The browser imports and exports a deterministic, store-only .entcproj ZIP containing the canonical manifest, with strict entry count, header, size, CRC and UTF-8 validation. Directory attachments and generated artifacts are not embedded in this manifest-only profile.",
+      "plannedPhase": 1
+    },
+    {
+      "id": "ui.theme",
+      "surface": "Top bar: theme toggle",
+      "state": "built-in",
+      "evidence": ["src/app.js#theme", "src/core/store.js"],
+      "limitations": "Stored inside project settings rather than user preferences.",
+      "plannedPhase": 1
+    },
+    {
+      "id": "ui.command-palette",
+      "surface": "Top bar and Ctrl+K",
+      "state": "built-in",
+      "evidence": ["src/app.js#showCommandPalette"],
+      "limitations": "Navigation commands only; focus management is incomplete.",
+      "plannedPhase": 3
+    },
+    {
+      "id": "circuit.component-editing",
+      "surface": "Circuit Lab palette, canvas and inspector",
+      "state": "built-in",
+      "evidence": ["src/app.js#addComponent", "src/app.js#annotateCircuitComponents", "src/core/circuit-editing.js", "src/core/wires.js", "packages/schematic/src/annotation.mjs", "packages/schematic/src/components.mjs", "packages/schematic/src/geometry.mjs", "src/data/modules.js", "src/app.js#beginDrag", "src/app.js#beginWireRouteDrag", "src/app.js#beginMarkerDrag", "src/app.js#deleteSelected", "src/app.js#addNetLabel", "src/app.js#addJunction", "tests/schematic.test.mjs", "tests/schematic-performance.test.mjs", "tests/phase0.test.mjs", "docs/PERFORMANCE-BUDGETS.md"],
+      "limitations": "Pin-to-pin aliases, persistent orthogonal routing with up to 64 ordered bend points, pointer and keyboard bend editing, graphical junction/net-label movement, and pin-level ERC highlighting are built in. Copy/paste remaps internal nodes and offsets preserved routes; component deletion prunes orphan aliases. Rendered screen-reader and browser input-latency qualification remain open, while selection history is runtime-only.",
+      "plannedPhase": 3
+    },
+    {
+      "id": "circuit.intermediate-netlist",
+      "surface": "Canonical project model and future engine adapters",
+      "state": "built-in",
+      "evidence": ["packages/schematic/src/index.mjs", "tests/schematic.test.mjs"],
+      "limitations": "Represents named component terminals plus bounded junction and net-label metadata deterministically; arbitrary graphical pin routing remains limited.",
+      "plannedPhase": 3
+    },
+    {
+      "id": "circuit.spice-netlist-export",
+      "surface": "Circuit Lab: Export SPICE",
+      "state": "built-in",
+      "evidence": ["packages/schematic/src/spice.mjs", "src/app.js#exportSpiceNetlist", "tests/schematic.test.mjs"],
+      "limitations": "Exports a deterministic subset for passive elements, independent DC/current sources and diode/LED models; it does not execute SPICE or claim ngspice compatibility for unsupported devices.",
+      "plannedPhase": 4
+    },
+    {
+      "id": "circuit.electrical-rule-checks",
+      "surface": "Canonical schematic validation",
+      "state": "built-in",
+      "evidence": ["packages/schematic/src/erc.mjs", "packages/schematic/src/erc.d.ts", "src/app.js#buildErcCanvasIssues", "src/app.js#renderCircuitPart", "src/app.js#renderBottomPanel", "src/app.js#bindCircuitEvents", "tests/erc.test.mjs", "tests/phase0.test.mjs"],
+      "limitations": "Checks the canonical component graph, grounded topology, duplicate references, source conflicts, numeric values and required n1/n2 pin presence. Diagnostics resolve through wire aliases to exact canvas pins, expose accessible invalid state and focus their source. Electrical pin-direction classes and advanced mixed-signal drive-conflict rules are not implemented.",
+      "plannedPhase": 3
+    },
+    {
+      "id": "circuit.si-value-entry",
+      "surface": "Circuit Lab: SI engineering-value parsing",
+      "state": "built-in",
+      "evidence": ["packages/schematic/src/units.mjs", "tests/units.test.mjs"],
+      "limitations": "Recognizes the supported SI/unit vocabulary; unit conversion beyond scalar prefixes is not implemented.",
+      "plannedPhase": 3
+    },
+    {
+      "id": "circuit.grid-toggle",
+      "surface": "Circuit Lab: Grid",
+      "state": "built-in",
+      "evidence": ["src/app.js#toggle-grid"],
+      "limitations": "Snapping offers fixed 10/20/40-pixel presets; arbitrary spacing and per-document unit scaling are not implemented.",
+      "plannedPhase": 3
+    },
+    {
+      "id": "circuit.fit-zoom",
+      "surface": "Circuit Lab: Fit and zoom controls",
+      "state": "built-in",
+      "evidence": ["src/app.js#bindCanvasViewport", "src/core/canvas.js", "tests/canvas.test.mjs"],
+      "limitations": "Pan/zoom is a browser-canvas viewport transform; minimap and persisted viewport preferences are not implemented.",
+      "plannedPhase": 3
+    },
+    {
+      "id": "circuit.builtin-dc",
+      "surface": "Circuit Lab: Run DC analysis",
+      "state": "built-in",
+      "evidence": ["src/engines/circuit-engine.js", "tests/circuit.test.mjs"],
+      "limitations": "Supports positive resistors, independent DC voltage/current sources and canonical wire/net-label aliases; capacitors, inductors, diodes, LEDs and switches remain ignored with warnings.",
+      "plannedPhase": 4
+    },
+    {
+      "id": "circuit.signal-preview",
+      "surface": "Circuit Lab: generated signal preview",
+      "state": "built-in",
+      "evidence": ["src/engines/circuit-engine.js#sampleWaveform", "tests/circuit.test.mjs"],
+      "limitations": "Generated preview only; it is not an oscilloscope or simulation waveform.",
+      "plannedPhase": 4
+    },
+    {
+      "id": "firmware.editor",
+      "surface": "Embedded Lab source editor",
+      "state": "built-in",
+      "evidence": ["src/app.js#renderEmbedded", "src/core/store.js"],
+      "limitations": "Plain textarea with local persistence; compiler diagnostics appear only after a detected, permissioned Arduino CLI compile.",
+      "plannedPhase": 5
+    },
+    {
+      "id": "firmware.structure-check",
+      "surface": "Embedded Lab: Structure check",
+      "state": "built-in",
+      "evidence": ["src/app.js#validateCode"],
+      "limitations": "Checks setup(), loop() and brace balance only; it does not compile C++.",
+      "plannedPhase": 5
+    },
+    {
+      "id": "firmware.build-upload-device",
+      "surface": "Embedded Lab inventory, compile, upload and device controls",
+      "state": "unavailable",
+      "evidence": ["src/app.js#renderEmbedded", "src/app.js#runNativeArduinoCompile", "src/core/desktop-process-adapter-runner.js", "packages/engine-sdk/src/arduino-cli.mjs", "tests/desktop-process-adapter-runner.test.mjs", "tests/phase0.test.mjs", "SECURITY.md"],
+      "limitations": "Read-only installed board/core/library inventory, explicit target selection, compilation/upload and a separately permissioned bounded serial terminal are implemented for desktop projects. Inventory does not discover attached devices or install packages. This host has no Arduino CLI or hardware execution evidence, so real compile, upload and serial I/O remain unverified.",
+      "plannedPhase": 5
+    },
+    {
+      "id": "pcb.workflow",
+      "surface": "PCB Studio",
+      "state": "unavailable",
+      "evidence": ["src/app.js#moduleDetails"],
+      "limitations": "Non-executable workflow preview; no KiCad detection or exchange.",
+      "plannedPhase": 7
+    },
+    {
+      "id": "pcb.fabrication-manifest",
+      "surface": "PCB: fabrication artifact manifest and checklist",
+      "state": "built-in",
+      "evidence": ["packages/fabrication/src/index.mjs", "packages/fabrication/src/index.d.ts", "schemas/fabrication-manifest.schema.json", "tests/fabrication.test.mjs"],
+      "limitations": "Records and validates bounded KiCad artifact metadata and hashes; KiCad execution and artifact generation remain unverified.",
+      "plannedPhase": 7
+    },
+    {
+      "id": "hdl.vcd-import",
+      "surface": "HDL: VCD digital waveform import",
+      "state": "built-in",
+      "evidence": ["packages/hdl/src/index.mjs", "packages/hdl/src/index.d.ts", "src/app.js#runNativeGhdlSimulation", "tests/hdl.test.mjs", "tests/phase0.test.mjs"],
+      "limitations": "Bounded scalar and vector VCD parsing is wired to pasted input and verified generated-artifact readback. No installed GHDL/Verilator waveform run or advanced grouped/cursor waveform viewer is claimed on this host.",
+      "plannedPhase": 6
+    },
+    {
+      "id": "hdl.project-document",
+      "surface": "HDL: versioned source-set, constraint and target document",
+      "state": "built-in",
+      "evidence": ["packages/hdl/src/index.mjs", "packages/hdl/src/index.d.ts", "schemas/hdl-project.schema.json", "tests/hdl.test.mjs"],
+      "limitations": "Validates bounded authored HDL metadata and separates simulation, synthesis and place-route job definitions; native engine execution, waveform generation and device implementation remain unverified.",
+      "plannedPhase": 6
+    },
+    {
+      "id": "engine.verilator-adapter",
+      "surface": "Verilator HDL adapter contract",
+      "state": "built-in",
+      "evidence": ["packages/engine-sdk/src/verilator.mjs", "packages/engine-sdk/src/verilator.d.ts", "src/app.js#runNativeVerilatorLint", "src/core/desktop-process-adapter-runner.js", "scripts/hdl-tool-smoke.mjs", "tests/contracts.test.mjs", "tests/phase0.test.mjs"],
+      "limitations": "The desktop UI can materialize bounded authored SystemVerilog under a project run, execute source-linked lint through the project-scoped runner, retain evidence and cancel the owned process. The hardware-free HDL smoke fixture has a real Verilator lint pass; desktop-shell invocation and compiled simulation remain unverified.",
+      "plannedPhase": 6
+    },
+    {
+      "id": "engine.ghdl-adapter",
+      "surface": "GHDL VHDL adapter contract",
+      "state": "built-in",
+      "evidence": ["packages/engine-sdk/src/ghdl.mjs", "packages/engine-sdk/src/ghdl.d.ts", "tests/contracts.test.mjs"],
+      "limitations": "The desktop UI can execute separate analyze, elaborate and simulate jobs in an isolated project run, request a bounded VCD, register and integrity-check it, and parse it locally. No installed GHDL run is claimed on this host.",
+      "plannedPhase": 6
+    },
+    {
+      "id": "hdl-fpga.workflow",
+      "surface": "FPGA & Digital",
+      "state": "unavailable",
+      "evidence": ["src/app.js#renderDigital", "src/app.js#runNativeVerilatorLint", "src/core/desktop-process-adapter-runner.js", "scripts/hdl-tool-smoke.mjs", "tests/phase0.test.mjs"],
+      "limitations": "Authored SystemVerilog/VHDL plus separately cancellable lint, simulation, synthesis and place/route workflows are wired behind exact desktop detection and process/artifact grants. Hardware-free smoke evidence covers GHDL simulation/VCD, Verilator lint and Yosys synthesis; board-specific constraints, bitstream generation, timing closure and programming remain unverified.",
+      "plannedPhase": 6
+    },
+    {
+      "id": "dsp.local-sine-fft",
+      "surface": "Signals & DSP: local sine and FFT experiment",
+      "state": "built-in",
+      "evidence": ["src/app.js#renderDsp", "packages/numerics/src/index.mjs", "tests/phase0.test.mjs"],
+      "limitations": "Bounded sine/FFT experiment with causal FIR filtering, window selection, waveform/spectrum views and CSV export; the isolated Python worker protocol and injected host lifecycle are implemented, but desktop process wiring and SciPy/NumPy integration remain unavailable.",
+      "plannedPhase": 8
+    },
+    {
+      "id": "dsp.workflow",
+      "surface": "Signals & DSP",
+      "state": "unavailable",
+      "evidence": ["src/app.js#moduleDetails"],
+      "limitations": "Non-executable workflow preview; no numerical worker.",
+      "plannedPhase": 8
+    },
+    {
+      "id": "project.authored-experiment-persistence",
+      "surface": "Project manifest: experiment definitions and restoration",
+      "state": "built-in",
+      "evidence": ["packages/project-model/src/experiments.mjs", "src/core/store.js", "src/app.js", "tests/project-model.test.mjs", "tests/phase0.test.mjs"],
+      "limitations": "Persists bounded authored configurations for built-in DSP, control, QPSK, topology, RF and VCD slices; generated results, large captures and native run artifacts remain separate or unavailable.",
+      "plannedPhase": 1
+    },
+    {
+      "id": "communications.qpsk-offline",
+      "surface": "Communications: deterministic QPSK and BER kernel",
+      "state": "built-in",
+      "evidence": ["packages/communications/src/index.mjs", "tests/communications.test.mjs"],
+      "limitations": "Offline QPSK/AWGN/BER only; no GNU Radio flowgraph execution or SDR hardware access.",
+      "plannedPhase": 9
+    },
+    {
+      "id": "communications.qpsk-workspace",
+      "surface": "Communication: offline QPSK Link Lab",
+      "state": "built-in",
+      "evidence": ["src/app.js#renderCommunication", "packages/communications/src/index.mjs", "tests/phase0.test.mjs"],
+      "limitations": "Bounded QPSK/AWGN/BER workspace only; no arbitrary flowgraphs, GNU Radio integration or SDR hardware.",
+      "plannedPhase": 9
+    },
+    {
+      "id": "communications.flowgraph-contract",
+      "surface": "Communications: typed flowgraph document and graph validation",
+      "state": "built-in",
+      "evidence": ["packages/flowgraph/src/index.mjs", "packages/flowgraph/src/index.d.ts", "schemas/flowgraph.schema.json", "tests/flowgraph.test.mjs"],
+      "limitations": "Validates bounded typed ports, rates, units, connections and acyclic graphs, and executes only the declared offline bit/QPSK/AWGN/BER block subset; no GNU Radio translation, general streaming runtime or SDR hardware access is claimed.",
+      "plannedPhase": 9
+    },
+    {
+      "id": "communications.workflow",
+      "surface": "Communication",
+      "state": "unavailable",
+      "evidence": ["src/app.js#moduleDetails"],
+      "limitations": "Non-executable workflow preview.",
+      "plannedPhase": 9
+    },
+    {
+      "id": "rf.touchstone-import",
+      "surface": "RF: Touchstone S-parameter import",
+      "state": "built-in",
+      "evidence": ["packages/rf/src/index.mjs", "tests/rf.test.mjs"],
+      "limitations": "Built-in bounded Touchstone parser, two-port S/Z/Y/ABCD conversion, ABCD cascade and reflection-coefficient calculations; scikit-rf integration, matching-network synthesis, QucsatorRF execution and openEMS remain unavailable.",
+      "plannedPhase": 10
+    },
+    {
+      "id": "rf.touchstone-workspace",
+      "surface": "RF & Antennas: Touchstone import workspace",
+      "state": "built-in",
+      "evidence": ["src/app.js#renderRf", "packages/rf/src/index.mjs", "tests/phase0.test.mjs"],
+      "limitations": "Pasted-file parsing, S11 Smith-view trace and summary only; full matching-network UI and RF engine execution remain unavailable.",
+      "plannedPhase": 10
+    },
+    {
+      "id": "engine.qucsator-rf-adapter",
+      "surface": "QucsatorRF RF circuit adapter contract",
+      "state": "built-in",
+      "evidence": ["packages/engine-sdk/src/qucsator-rf.mjs", "packages/engine-sdk/src/qucsator-rf.d.ts", "toolchains/manifests/qucsator-rf.json", "tests/contracts.test.mjs"],
+      "limitations": "Bounded netlist/output argument preparation, XML-dataset detection, diagnostics, cancellation and configured/unconfigured self-test only; no installed QucsatorRF run or numeric RF result is claimed.",
+      "plannedPhase": 10
+    },
+    {
+      "id": "rf.workflow",
+      "surface": "RF & Antennas",
+      "state": "unavailable",
+      "evidence": ["src/app.js#moduleDetails"],
+      "limitations": "Non-executable workflow preview.",
+      "plannedPhase": 10
+    },
+    {
+      "id": "control.transfer-function",
+      "surface": "Control: transfer function, Bode and step analysis",
+      "state": "built-in",
+      "evidence": ["packages/control/src/index.mjs", "tests/control.test.mjs"],
+      "limitations": "Deterministic first-order/transfer-function primitives only; no python-control or Octave integration yet.",
+      "plannedPhase": 8
+    },
+    {
+      "id": "control.workspace",
+      "surface": "IoT & Control: built-in step-response lab",
+      "state": "built-in",
+      "evidence": ["src/app.js#renderControl", "src/app.js#bindControlEvents", "tests/phase0.test.mjs"],
+      "limitations": "First-order deterministic model only; no ns-3, broker, python-control or hardware-in-the-loop integration.",
+      "plannedPhase": 8
+    },
+    {
+      "id": "iot.workflow",
+      "surface": "IoT & Control",
+      "state": "unavailable",
+      "evidence": ["src/app.js#moduleDetails"],
+      "limitations": "Non-executable workflow preview.",
+      "plannedPhase": 11
+    },
+    {
+      "id": "network.pcap-reader",
+      "surface": "Networks: saved PCAP/PCAPNG reader",
+      "state": "built-in",
+      "evidence": ["packages/packets/src/index.mjs", "tests/packets.test.mjs"],
+      "limitations": "Bounded metadata/payload parsing only; no TShark protocol tree, display filters or live capture.",
+      "plannedPhase": 11
+    },
+    {
+      "id": "network.packet-workspace",
+      "surface": "Networks: saved PCAP Packet Lab",
+      "state": "built-in",
+      "evidence": ["src/app.js#renderNetwork", "src/app.js#bindNetworkEvents", "packages/packets/src/index.mjs", "tests/phase0.test.mjs"],
+      "limitations": "Bounded PCAP/PCAPNG hex import and packet table only; no TShark filters, live capture or privileged interfaces.",
+      "plannedPhase": 11
+    },
+    {
+      "id": "network.topology-workspace",
+      "surface": "Networks: deterministic topology metrics",
+      "state": "built-in",
+      "evidence": ["src/app.js#renderNetwork", "src/app.js#bindNetworkEvents", "packages/topology/src/index.mjs", "tests/phase0.test.mjs"],
+      "limitations": "Offline JSON topology and reachability metrics only; no ns-3 execution, broker connection or live network access.",
+      "plannedPhase": 11
+    },
+    {
+      "id": "network.topology-metrics",
+      "surface": "Networks: validated topology and reachability metrics",
+      "state": "built-in",
+      "evidence": ["packages/topology/src/index.mjs", "tests/topology.test.mjs"],
+      "limitations": "Offline graph validation and hop metrics only; ns-3 execution, packet capture and live interfaces remain unavailable.",
+      "plannedPhase": 11
+    },
+    {
+      "id": "network.workflow",
+      "surface": "Networks",
+      "state": "unavailable",
+      "evidence": ["src/app.js#moduleDetails"],
+      "limitations": "Non-executable workflow preview; no capture access.",
+      "plannedPhase": 11
+    },
+    {
+      "id": "plugin.manifest-validation",
+      "surface": "Plugin SDK: manifest and permission validation",
+      "state": "built-in",
+      "evidence": ["packages/plugin-sdk/src/index.mjs", "packages/plugin-sdk/src/index.d.ts", "tests/plugin-sdk.test.mjs"],
+      "limitations": "Manifest validation, host-policy trust assessment, and declaration-plus-grant permission checks are built in; arbitrary plugin installation and execution remain disabled.",
+      "plannedPhase": 12
+    },
+    {
+      "id": "learning.checkpoint-evaluation",
+      "surface": "Learning: tolerance-based result checkpoints",
+      "state": "built-in",
+      "evidence": ["packages/learning/src/index.mjs", "packages/learning/src/catalog.mjs", "src/core/learning-progress.js", "tests/learning.test.mjs", "tests/learning-progress.test.mjs"],
+      "limitations": "Three built-in lesson checkpoints, prerequisite-graph validation and separate progress persistence are implemented; authored lesson editing and complete learning tracks remain future work.",
+      "plannedPhase": 12
+    },
+    {
+      "id": "learning.progress-persistence",
+      "surface": "Learning: separate progress persistence",
+      "state": "built-in",
+      "evidence": ["src/core/learning-progress.js", "tests/learning-progress.test.mjs"],
+      "limitations": "Local browser progress only; no sync, account or cross-device learning state.",
+      "plannedPhase": 12
+    },
+    {
+      "id": "learning.voltage-divider-ui",
+      "surface": "Learning: voltage-divider checkpoint workspace",
+      "state": "built-in",
+      "evidence": ["src/app.js#renderVerifiedLearning", "packages/learning/src/index.mjs", "tests/phase0.test.mjs"],
+      "limitations": "Circuit, DSP and QPSK checkpoints are implemented; broader lesson authoring and complete learning tracks remain future work.",
+      "plannedPhase": 12
+    },
+    {
+      "id": "learning.dsp-qpsk-checkpoints",
+      "surface": "Learning Hub: DSP and QPSK result checkpoints",
+      "state": "built-in",
+      "evidence": ["src/app.js#renderVerifiedLearning", "src/app.js#bindEvents", "packages/learning/src/index.mjs", "tests/phase0.test.mjs"],
+      "limitations": "Checkpoints consume built-in offline results only; no external engine, hardware or cloud progress is required.",
+      "plannedPhase": 12
+    },
+    {
+      "id": "learning.tracks",
+      "surface": "Learning Hub",
+      "state": "built-in",
+      "evidence": ["src/app.js#renderVerifiedLearning", "src/app.js#bindEvents", "src/core/learning-progress.js", "packages/learning/src/index.mjs", "tests/learning.test.mjs", "tests/learning-progress.test.mjs"],
+      "limitations": "Three offline checkpoints (DC voltage divider, DSP sample count, and QPSK BER) use real built-in results. Broader lesson authoring, prerequisite graphs and the remaining catalog tracks are not implemented.",
+      "plannedPhase": 12
+    },
+    {
+      "id": "engine.ngspice",
+      "surface": "Mission control engine table and Circuit Lab analysis workflow",
+      "state": "unavailable",
+      "evidence": ["src/core/engine-registry.js", "src/core/desktop-engine-runner.js", "src/core/desktop-process-adapter-runner.js", "src/app.js#runNativeNgspice", "packages/engine-sdk/src/ngspice.mjs", "scripts/ngspice-tool-smoke.mjs", "tests/ngspice.integration.test.mjs", "docs/release-evidence/ngspice-build-2026-09-29.md", "tests/contracts.test.mjs", "tests/desktop-engine-runner.test.mjs", "tests/phase0.test.mjs"],
+      "limitations": "The adapter and Circuit Lab configure operating-point, DC, AC and transient jobs, perform a permissioned version self-test, retain project-confined inputs/process evidence, parse scalar/table/error output, persist the exact observed engine version, and source-link recognizable device failures. AC jobs select an independent source, add AC 1 excitation and request magnitude plus phase output. A reproducible MSYS2 console build and deterministic resistor-divider batch result are software-verified. Broad model coverage, desktop-shell invocation and physical circuit behavior remain unverified; browser preview remains unavailable.",
+      "plannedPhase": 4
+    },
+    {
+      "id": "circuit.ngspice-waveform-view",
+      "surface": "Circuit Lab: native result waveform instruments",
+      "state": "built-in",
+      "evidence": ["src/app.js#renderNgspiceResult", "src/core/ngspice-view.js", "src/core/ngspice-view.d.ts", "tests/ngspice-view.test.mjs", "tests/phase0.test.mjs"],
+      "limitations": "Parsed numeric tables support magnitude/phase trace selection, bounded zoom/pan, two cursor delta measurements and CSV export. Structured engine failures appear in the Problems region and recognized device references link back to the schematic. Real ngspice rendering remains unverified on this host, and the view is not claimed as a full oscilloscope.",
+      "plannedPhase": 4
+    },
+    {
+      "id": "toolchains.catalog-ui",
+      "surface": "Mission control: Toolchains",
+      "state": "built-in",
+      "evidence": ["src/app.js#renderToolchains", "src/core/engine-registry.js", "capabilities/ledger.json"],
+      "limitations": "Browser preview displays reviewed metadata only; native detection, self-tests and installation guidance require the Phase 2 desktop bridge.",
+      "plannedPhase": 2
+    },
+    {
+      "id": "engine.kicad",
+      "surface": "Mission control engine table",
+      "state": "unavailable",
+      "evidence": ["src/core/engine-registry.js"],
+      "limitations": "No discovery evidence or adapter.",
+      "plannedPhase": 7
+    },
+    {
+      "id": "engine.kicad-adapter",
+      "surface": "KiCad CLI adapter contract",
+      "state": "built-in",
+      "evidence": ["packages/engine-sdk/src/kicad.mjs", "tests/contracts.test.mjs"],
+      "limitations": "Argument mapping, bounded report parsing, cancellation, and honest configured/unconfigured self-test only; no executable detection evidence or native fabrication export.",
+      "plannedPhase": 7
+    },
+    {
+      "id": "device.permission-policy",
+      "surface": "Scoped physical-device permission boundary",
+      "state": "built-in",
+      "evidence": ["packages/device-bridge/src/index.mjs", "tests/contracts.test.mjs"],
+      "limitations": "Permission policy, browser denial, target-specific native programmer authorization and bounded native serial transport are implemented. No USB, debug, capture, SDR or generic programmer transport is implemented; real serial hardware behavior remains unverified on this host.",
+      "plannedPhase": 2
+    },
+    {
+      "id": "device.serial-session-contract",
+      "surface": "Bounded serial terminal session infrastructure",
+      "state": "built-in",
+      "evidence": ["packages/device-bridge/src/index.mjs#createSerialSession", "packages/device-bridge/src/index.d.ts", "tests/contracts.test.mjs"],
+      "limitations": "Embedded Lab requires an explicit per-project, per-target serial grant before opening a manually entered port. Native reads, writes, polling, buffers, session counts and timeouts are bounded; revocation/project close terminates sessions. No port enumeration occurs. Real hardware I/O and Linux behavior remain unverified.",
+      "plannedPhase": 5
+    },
+    {
+      "id": "engine.arduino-cli",
+      "surface": "Mission control engine table and Embedded Lab inventory/compile actions",
+      "state": "unavailable",
+      "evidence": ["src/core/engine-registry.js", "src/app.js#runNativeArduinoCompile", "src/core/desktop-process-adapter-runner.js", "packages/engine-sdk/src/arduino-cli.mjs", "scripts/native-tool-smoke.mjs", "tests/contracts.test.mjs", "tests/desktop-process-adapter-runner.test.mjs", "tests/phase0.test.mjs"],
+      "limitations": "The desktop path records exact version output, inventories installed packages, compiles with project-confined evidence and requires a distinct programmer grant for upload. A separate native serial grant controls the bounded terminal. It never runs attached-device discovery or package installation. Arduino CLI version smoke evidence passes on this host, while inventory, compile, upload and serial I/O remain unverified; browser hardware access is denied.",
+      "plannedPhase": 5
+    },
+    {
+      "id": "firmware.structure-diagnostics",
+      "surface": "Embedded Lab: source structure diagnostics",
+      "state": "built-in",
+      "evidence": ["packages/firmware/src/index.mjs", "src/app.js#renderEmbedded", "src/app.js#validateCode", "tests/firmware.test.mjs"],
+      "limitations": "Checks setup/loop presence and brace balance only; it is not a compiler and does not prove firmware safety or board compatibility.",
+      "plannedPhase": 5
+    },
+    {
+      "id": "engine.platformio-adapter",
+      "surface": "PlatformIO Core compile adapter contract",
+      "state": "built-in",
+      "evidence": ["src/core/engine-registry.js", "packages/engine-sdk/src/platformio.mjs", "packages/engine-sdk/src/platformio.d.ts", "toolchains/manifests/platformio.json", "tests/contracts.test.mjs"],
+      "limitations": "Compile/version argument preparation, source diagnostics, cancellation and honest configured/unconfigured self-test only; upload, device access, native compilation and package installation remain unavailable.",
+      "plannedPhase": 5
+    },
+    {
+      "id": "engine.renode-adapter",
+      "surface": "Renode MCU emulation adapter contract",
+      "state": "built-in",
+      "evidence": ["src/core/engine-registry.js", "packages/engine-sdk/src/renode.mjs", "packages/engine-sdk/src/renode.d.ts", "toolchains/manifests/renode.json", "tests/contracts.test.mjs"],
+      "limitations": "Simulation-only script preparation, explicit machine identity, diagnostics, cancellation and honest configured/unconfigured self-test; no native emulation, firmware loading, device programming or hardware access is claimed.",
+      "plannedPhase": 5
+    },
+    {
+      "id": "engine.yosys-nextpnr",
+      "surface": "Mission control engine table",
+      "state": "unavailable",
+      "evidence": ["src/core/engine-registry.js"],
+      "limitations": "No discovery evidence or adapters.",
+      "plannedPhase": 6
+    },
+    {
+      "id": "engine.yosys-adapter",
+      "surface": "Yosys synthesis adapter contract",
+      "state": "built-in",
+      "evidence": ["packages/engine-sdk/src/yosys.mjs", "packages/engine-sdk/src/yosys.d.ts", "scripts/hdl-tool-smoke.mjs", "tests/contracts.test.mjs"],
+      "limitations": "Project-scoped synthesis can emit bounded utilization plus a registered Yosys JSON netlist through the detected desktop engine. The hardware-free HDL smoke fixture produces a real JSON netlist; desktop-shell evidence and hardware-ready claims remain open.",
+      "plannedPhase": 6
+    },
+    {
+      "id": "engine.nextpnr-ice40-adapter",
+      "surface": "nextpnr ice40 place-and-route adapter contract",
+      "state": "built-in",
+      "evidence": ["toolchains/manifests/nextpnr-ice40.json", "targets/ice40-hx8k-ct256.json", "packages/engine-sdk/src/nextpnr.mjs", "packages/engine-sdk/src/nextpnr.d.ts", "src/app.js#runNativeNextpnrPlaceRoute", "scripts/hdl-tool-smoke.mjs", "tests/contracts.test.mjs", "tests/hdl.test.mjs"],
+      "limitations": "Only explicit iCE40 HX8K/CT256 plus user-authored PCF constraints is accepted by the application workflow. A separate hardware-free fixture completes a constraint-free nextpnr dry-run with automatic IO placement; board-constrained placement, bitstream, timing closure and programming are not claimed.",
+      "plannedPhase": 6
+    },
+    {
+      "id": "hdl.vcd-workspace",
+      "surface": "FPGA & Digital: VCD waveform import",
+      "state": "built-in",
+      "evidence": ["src/app.js#renderDigital", "src/app.js#bindDigitalEvents", "packages/hdl/src/index.mjs", "tests/phase0.test.mjs"],
+      "limitations": "Bounded scalar/vector VCD import, generated GHDL waveform ingestion, Verilator lint, Yosys utilization/netlist and explicit nextpnr place/route are wired as separate conditional desktop jobs. Hardware-free smoke evidence covers GHDL, Verilator and Yosys; advanced waveform instruments, board-specific place/route, bitstream, timing closure and programming remain unverified.",
+      "plannedPhase": 6
+    },
+    {
+      "id": "engine.gnu-radio",
+      "surface": "Mission control engine table",
+      "state": "unavailable",
+      "evidence": ["src/core/engine-registry.js"],
+      "limitations": "No discovery evidence or adapter.",
+      "plannedPhase": 9
+    },
+    {
+      "id": "engine.tshark",
+      "surface": "Mission control engine table",
+      "state": "unavailable",
+      "evidence": ["src/core/engine-registry.js", "packages/engine-sdk/src/tshark.mjs", "packages/engine-sdk/src/tshark.d.ts", "toolchains/manifests/tshark.json", "tests/contracts.test.mjs"],
+      "limitations": "Saved-PCAP/PCAPNG adapter contract only: bounded display-filter and JSON decoding, cancellation and honest self-test; no live interface capture, native execution or protocol-tree UI is claimed in browser preview.",
+      "plannedPhase": 11
+    },
+    {
+      "id": "engine.simavr-octave",
+      "surface": "Mission control engine table",
+      "state": "unsupported",
+      "evidence": ["src/core/engine-registry.js", "docs/PHASE-BY-PHASE-MASTER-PROMPTS.md"],
+      "limitations": "Research candidates only; no phase currently commits to an adapter.",
+      "plannedPhase": null
+    }
+  ]
+}

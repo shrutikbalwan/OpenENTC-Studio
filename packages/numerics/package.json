@@ -1,0 +1,6 @@
+{
+  "name": "@openentc/numerics",
+  "private": true,
+  "type": "module",
+  "exports": { ".": { "types": "./src/index.d.ts", "import": "./src/index.mjs" }, "./worker-protocol": { "types": "./src/worker-protocol.d.ts", "import": "./src/worker-protocol.mjs" }, "./worker-client": { "types": "./src/worker-protocol.d.ts", "import": "./src/worker-client.mjs" } }
+}

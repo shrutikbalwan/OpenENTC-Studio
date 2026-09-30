@@ -1,0 +1,48 @@
+{
+  "$schema": "./verification.schema.json",
+  "ledgerVersion": 1,
+  "auditedAt": "2026-09-29",
+  "statuses": ["software-verified", "emulator-verified", "hardware-unverified", "hardware-verified"],
+  "capabilities": [
+    {
+      "id": "engine.ngspice",
+      "software": "software-verified",
+      "emulator": null,
+      "hardware": "hardware-unverified",
+      "evidence": ["docs/release-evidence/ngspice-build-2026-09-29.md", "docs/release-evidence/native-ngspice-boundary-2026-09-29.md"],
+      "scope": "Console build, adapter version, operating-point, DC, AC, transient and native process-boundary fixtures passed; physical circuit behavior and interactive shell execution remain untested."
+    },
+    {
+      "id": "hdl.software-flow",
+      "software": "software-verified",
+      "emulator": null,
+      "hardware": "hardware-unverified",
+      "evidence": ["docs/release-evidence/hdl-tool-smoke-2026-09-29.md"],
+      "scope": "GHDL simulation, Verilator lint, Yosys synthesis and nextpnr constraint-free dry-run passed; board PCF acceptance, bitstream programming and physical timing remain untested."
+    },
+    {
+      "id": "engine.arduino-cli",
+      "software": "software-verified",
+      "emulator": null,
+      "hardware": "hardware-unverified",
+      "evidence": ["docs/release-evidence/native-tool-smoke-2026-09-29.md"],
+      "scope": "Executable/version smoke passed; board inventory, compile/upload and serial behavior were not physically validated."
+    },
+    {
+      "id": "desktop.windows-development-build",
+      "software": "software-verified",
+      "emulator": null,
+      "hardware": null,
+      "evidence": ["docs/release-evidence/windows-development-build-2026-09-29.md", "docs/release-evidence/release-bundle-verification-2026-09-29.md"],
+      "scope": "Windows executable, unsigned installer, isolated install/reinstall/launch/uninstall and artifact hashes passed; clean-machine and signed-release qualification remain open."
+    },
+    {
+      "id": "browser.accessibility-and-load-smoke",
+      "software": "software-verified",
+      "emulator": null,
+      "hardware": null,
+      "evidence": ["docs/release-evidence/browser-accessibility-smoke-2026-09-29.md", "docs/release-evidence/browser-performance-smoke-2026-09-29.md"],
+      "scope": "Keyboard/accessibility and headless browser-load smokes passed; WCAG conformance and broad performance qualification remain open."
+    }
+  ]
+}

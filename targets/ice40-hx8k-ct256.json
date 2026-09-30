@@ -1,0 +1,15 @@
+{
+  "format": "openentc-fpga-target",
+  "version": 1,
+  "id": "ice40-hx8k-ct256",
+  "family": "ice40",
+  "device": "hx8k",
+  "package": "ct256",
+  "constraintsFormat": "pcf",
+  "synthesis": "yosys-json",
+  "placeRoute": "nextpnr-ice40",
+  "outputFormat": "asc",
+  "bitstream": null,
+  "programmer": null,
+  "limitations": "Generic HX8K/CT256 implementation target. The user must supply complete board-specific PCF constraints. Bitstream generation and programming are intentionally not configured."
+}

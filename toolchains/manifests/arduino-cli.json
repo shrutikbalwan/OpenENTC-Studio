@@ -1,0 +1,16 @@
+{
+  "$schema": "../../schemas/engine-manifest.schema.json",
+  "id": "arduino-cli",
+  "name": "Arduino CLI",
+  "license": "GPL-3.0-only",
+  "sourceUrl": "https://github.com/arduino/arduino-cli",
+  "integration": "process",
+  "installMode": "system",
+  "versionRange": ">=1.0",
+  "operations": ["version", "board-list", "compile", "upload", "monitor"],
+  "targets": ["arduino-compatible-boards"],
+  "platforms": ["windows", "linux", "macos"],
+  "executableCandidates": ["C:/Program Files/Arduino CLI/arduino-cli.exe", "/usr/bin/arduino-cli", "/usr/local/bin/arduino-cli"],
+  "selfTest": "version-and-fake-board-contract",
+  "notice": "Board cores, libraries and drivers remain user-managed; no silent installation."
+}

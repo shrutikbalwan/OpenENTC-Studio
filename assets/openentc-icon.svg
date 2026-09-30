@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="OpenENTC Studio circuit mark">
+  <defs>
+    <linearGradient id="background" x1="72" y1="40" x2="440" y2="472" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#17233d"/>
+      <stop offset="1" stop-color="#07101f"/>
+    </linearGradient>
+    <linearGradient id="trace" x1="104" y1="112" x2="416" y2="400" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5eead4"/>
+      <stop offset="1" stop-color="#38bdf8"/>
+    </linearGradient>
+  </defs>
+  <rect x="20" y="20" width="472" height="472" rx="112" fill="url(#background)"/>
+  <path d="M132 176h72l36 40h68l36-40h36M132 336h72l36-40h68l36 40h36M176 132v60M336 132v60M176 320v60M336 320v60" fill="none" stroke="url(#trace)" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="204" y="204" width="104" height="104" rx="24" fill="#0f1b30" stroke="#f8fafc" stroke-width="20"/>
+  <circle cx="120" cy="176" r="22" fill="#f8fafc"/>
+  <circle cx="392" cy="176" r="22" fill="#f8fafc"/>
+  <circle cx="120" cy="336" r="22" fill="#f8fafc"/>
+  <circle cx="392" cy="336" r="22" fill="#f8fafc"/>
+  <circle cx="176" cy="120" r="22" fill="#f8fafc"/>
+  <circle cx="336" cy="120" r="22" fill="#f8fafc"/>
+  <circle cx="176" cy="392" r="22" fill="#f8fafc"/>
+  <circle cx="336" cy="392" r="22" fill="#f8fafc"/>
+</svg>

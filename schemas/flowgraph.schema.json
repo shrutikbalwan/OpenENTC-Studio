@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openentc.org/schemas/flowgraph.schema.json",
+  "title": "OpenENTC flowgraph document",
+  "type": "object",
+  "required": ["format", "version", "name", "blocks", "connections"],
+  "properties": {
+    "format": { "const": "openentc-flowgraph" },
+    "version": { "const": 1 },
+    "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "blocks": { "type": "array", "maxItems": 512, "items": { "$ref": "#/$defs/block" } },
+    "connections": { "type": "array", "maxItems": 2048, "items": { "$ref": "#/$defs/connection" } }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "id": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[^\\u0000-\\u001F\\u007F]+$" },
+    "port": { "type": "object", "required": ["id", "direction", "type"], "properties": { "id": { "$ref": "#/$defs/id" }, "direction": { "enum": ["input", "output"] }, "type": { "enum": ["real", "complex", "bits", "bytes", "message"] }, "rate": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000000000000 }, "unit": { "type": "string", "maxLength": 200 } }, "additionalProperties": true },
+    "block": { "type": "object", "required": ["id", "kind", "ports"], "properties": { "id": { "$ref": "#/$defs/id" }, "kind": { "$ref": "#/$defs/id" }, "ports": { "type": "array", "maxItems": 128, "items": { "$ref": "#/$defs/port" } } }, "additionalProperties": true },
+    "connection": { "type": "object", "required": ["from", "to"], "properties": { "from": { "$ref": "#/$defs/id" }, "to": { "$ref": "#/$defs/id" } }, "additionalProperties": true }
+  }
+}

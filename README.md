@@ -1,0 +1,87 @@
+# OpenENTC Studio
+
+OpenENTC Studio is a free, open-source foundation for an all-in-one Electronics and Telecommunication Engineering workspace. It combines a working browser-based laboratory with a modular connector layer for specialist open-source tools.
+
+## Included in this release
+
+- Interactive ENTC dashboard with Circuit and Embedded alpha workspaces plus seven specialist workflow previews
+- Schematic canvas with components, selection, editing, wire aliases, ERC diagnostics and project persistence
+- Deterministic SPICE export plus permission-gated desktop ngspice operating-point, DC, AC and transient workflows with version evidence, magnitude/phase traces, cursor deltas, CSV export and source-linked engine failures (native execution remains unavailable in the browser preview)
+- Built-in modified nodal analysis DC solver for resistors and independent voltage sources
+- Limited DC-result meter and generated signal preview
+- Built-in Signals workspace with bounded sine generation, causal FIR filtering and FFT
+- Authored experiment configurations persist in the versioned project manifest and restore into Signals, Control, QPSK, RF, Network and Digital Waveform labs; generated results remain runtime data
+- Built-in Communications Link Lab with QPSK, seeded AWGN and BER
+- Embedded text editor with an Arduino starter, shallow source-structure checks, read-only installed board/core/library inventory, explicit board and manual port selection, desktop compilation/upload, and a separately permissioned bounded serial terminal with baud, encoding, line-ending, timestamp, pause and export controls
+- Digital Lab with persisted SystemVerilog/VHDL examples; separately cancellable Verilator lint, GHDL simulation/VCD ingestion, Yosys synthesis/netlist and explicit nextpnr HX8K/CT256 place-route workflows when detected; plus bounded scalar/vector VCD import
+- Unavailable previews remain for PCB, FPGA, full RF/IoT/network workflows and specialist engine execution; DSP and communications now include the bounded built-in slices listed above
+- Evidence-backed engine catalogue with compiled read-only desktop detection; external engines remain unavailable until explicitly configured and detected
+- Offline project import/export using a bounded manifest-only `.entcproj` package, with legacy `.entc.json` import compatibility and migration backups
+- Portable project metadata for units, provenance and content-addressed generated-artifact references
+- Responsive, keyboard-accessible interface with light and dark themes
+- Read-only Toolchains workspace with reviewed engine metadata and honest unavailable/unsupported states
+- Tested Arduino CLI and native serial boundaries with bounded inventory/output, explicit board/port validation, project-confined build evidence, separate programmer/serial target grants and no connected-device scan. Arduino CLI is locally installed and its version smoke test passes; board inventory, compile, upload and serial I/O still require an authorized target.
+- No runtime package dependencies
+
+## Run
+
+1. Install Node.js 20 or newer.
+2. In this folder, run `npm ci`.
+3. Run `npm run dev`.
+4. Open `http://127.0.0.1:4173`.
+
+Create the reproducible browser-preview bundle with `npm run build`; it writes `dist/` with a versioned metadata file, SPDX SBOM, license/notices, SHA-256 manifest, and conventional `SHA256SUMS.txt`. Run `npm run release:prepare` to build the preview and regenerate the native Cargo SBOM/notice candidate together; `npm run license:audit` checks that every generated native package has a declared licence and that notices exist, while human legal/security review remains required. Run `npm run phase:status` to audit the authoritative phase matrix and evidence links. Run the complete baseline gate with `npm run verify`. Individual commands are `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run worker:check`, `npm test`, `npm run browser:smoke` (opt-in headless Chrome load/DOM smoke), `npm run native:sbom` (desktop Cargo SPDX inventory and notice candidate), and `npm run release:verify` (cross-artifact hash verification).
+
+Build the Windows desktop executable with `npm run desktop:check`. Build the unsigned NSIS development installer with `npm run desktop:installer`; on Linux, `npm --prefix apps/desktop run build:linux-bundles` produces `deb` and `AppImage` packages when the Tauri Linux prerequisites are installed. Signing and clean-machine release qualification are intentionally separate release gates.
+
+Linux package structure and local WSL lifecycle probes are available as `bash scripts/linux-deb-lifecycle-smoke.sh <package.deb>` and `bash scripts/linux-xvfb-smoke.sh <desktop-binary>`; they require a test Linux host with package mutation privileges and a virtual display, and do not replace clean-machine qualification.
+
+Native tool versions can be checked without automatic discovery or installation using `npm run native:smoke`. Set absolute executable paths through `OPENENTC_NGSPICE`, `OPENENTC_ARDUINO_CLI`, `OPENENTC_VERILATOR`, `OPENENTC_GHDL`, `OPENENTC_YOSYS` and `OPENENTC_NEXTPNR_ICE40` before running it.
+
+With `OPENENTC_NGSPICE` configured, run `npm run ngspice:integration` to exercise real version, operating-point, DC, AC and transient adapter workflows. This is software evidence only; physical circuits and desktop-shell UI execution remain separate gates.
+
+Run the hardware-free HDL acceptance fixture with `npm run hdl:smoke`. It performs real GHDL analyze/elaborate/simulation, Verilator lint, Yosys JSON synthesis and a constraint-free nextpnr iCE40 dry-run when their executable paths are configured. The application’s board workflow still requires a board-specific PCF.
+
+The repository pins TypeScript as a development dependency. The `typecheck` command validates the existing structural contracts and runs the strict compiler in-process against `tsconfig.json`, so verification fails on compiler diagnostics or when dependencies have not been installed.
+
+## Important scope
+
+The built-in circuit solver is functional only for positive resistors and independent DC voltage sources. Specialist applications are unavailable previews: there is no detection or execution in this browser alpha, and no external executable is represented as installed. Future desktop packaging can discover installed engines and invoke reviewed versions according to their own licences.
+
+Browser projects use crash-aware localStorage writes with bounded corrupt backups and interrupted-write recovery. The Windows Tauri shell is compiled and exercises native Unicode-path persistence, a reviewed folder picker, project-scoped permissions, bounded jobs/artifacts/events, and owned process-tree timeout/cancellation. Linux and clean-machine installer verification remain pending.
+
+## Architecture
+
+- `src/app.js`: application shell and workspace rendering
+- `src/core/store.js`: state, autosave and project lifecycle
+- `src/core/project.js`: browser-safe project validation and import/export facade
+- `packages/project-model`: versioned project schema, migrations, directory persistence, artifact references and history contracts
+- `packages/artifact-store`: bounded atomic artifact writes and SHA-256 integrity records
+- `packages/schematic`: deterministic connectivity, intermediate netlists and electrical-rule checks
+- `packages/numerics`, `packages/communications`, `packages/control`, `packages/rf`, `packages/hdl`, `packages/topology`, `packages/packets`: bounded built-in numerical and interoperability kernels
+- `src/core/engine-registry.js`: external-tool capability registry
+- `src/engines/circuit-engine.js`: built-in DC circuit solver
+- `src/data/modules.js`: ENTC module catalogue
+
+Detailed planning documents:
+
+- `docs/TOOLKIT-RESEARCH-AND-STRUCTURE.md`: researched tool selection, information architecture, repository layout, safety model and delivery plan
+- `docs/MASTER-BUILD-PROMPT.md`: reusable implementation prompt for a coding agent
+- `docs/PHASE-BY-PHASE-MASTER-PROMPTS.md`: standalone prompts for phases 0–13, with acceptance criteria and handoffs
+- `docs/audit/alpha-baseline.md`: evidence-backed screen, control, model, test, performance and accessibility baseline
+- `capabilities/ledger.json`: machine-readable capability state and evidence ledger
+- `docs/definition-of-done.md` and `docs/release-checklist.md`: delivery and release gates
+- `docs/HARDWARE-FREE-RELEASE-POLICY.md`: virtual-first development, capability wording and hardware certification rules
+- `.github/workflows/verify.yml`: clean Windows/Linux software verification workflow
+
+## Roadmap
+
+1. Complete desktop-shell qualification for the software-verified ngspice and Arduino CLI workflows, then add physical-board evidence where contributed.
+2. Verify the Tauri shell and development installer on clean Windows and Linux machines.
+3. Connect each verified engine adapter to native discovery and process execution only after its target-specific permission review.
+4. Add MCU emulation and GNU Radio flowgraph exchange; extend native HDL qualification across supported engines.
+5. Establish signed releases, component-library governance and reproducible builds.
+
+## Licence
+
+The OpenENTC Studio shell is GPL-3.0-or-later. Connected tools keep their own licences and attribution requirements.

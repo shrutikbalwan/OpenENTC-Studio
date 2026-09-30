@@ -1,0 +1,1 @@
+{"main-capability":{"identifier":"main-capability","description":"Core window capability only; native services require separate reviewed scopes.","local":true,"windows":["main"],"permissions":["core:default"]}}

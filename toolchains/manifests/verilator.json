@@ -1,0 +1,16 @@
+{
+  "$schema": "../../schemas/engine-manifest.schema.json",
+  "id": "verilator",
+  "name": "Verilator",
+  "license": "LGPL-3.0-or-later",
+  "sourceUrl": "https://www.veripool.org/verilator/",
+  "integration": "process",
+  "installMode": "system",
+  "versionRange": ">=5",
+  "operations": ["lint", "simulate"],
+  "targets": ["verilog", "systemverilog"],
+  "platforms": ["windows", "linux", "macos"],
+  "executableCandidates": ["C:/Program Files/Verilator/bin/verilator.exe", "/usr/bin/verilator", "/usr/local/bin/verilator"],
+  "selfTest": "version-and-counter-fixture",
+  "notice": "Invoke as a separate process; unsupported SystemVerilog features must remain explicit."
+}

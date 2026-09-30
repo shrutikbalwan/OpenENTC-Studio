@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openentc.org/schemas/engine-manifest.schema.json",
+  "title": "OpenENTC engine manifest",
+  "type": "object",
+  "required": ["id", "name", "license", "sourceUrl", "integration", "operations", "platforms"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1, "maxLength": 100, "pattern": "^[a-z0-9][a-z0-9.-]+$" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 4096 },
+    "license": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "sourceUrl": { "type": "string", "maxLength": 4096, "format": "uri" },
+    "integration": { "enum": ["process", "shared-library", "interoperable"] },
+    "installMode": { "enum": ["bundled", "system", "user-configured", "downloaded", "none"] },
+    "versionRange": { "type": "string" },
+    "operations": { "type": "array", "minItems": 1, "maxItems": 128, "items": { "type": "string", "minLength": 1, "maxLength": 200 } },
+    "executableCandidates": { "type": "array", "maxItems": 128, "items": { "type": "string", "maxLength": 4096, "pattern": "^(?:[A-Za-z]:[\\\\/]|[\\\\/])" } },
+    "targets": { "type": "array", "items": { "type": "string" } },
+    "platforms": { "type": "array", "minItems": 1, "maxItems": 128, "items": { "enum": ["windows", "linux", "macos"] } },
+    "selfTest": { "type": "string" },
+    "notice": { "type": "string" }
+  },
+  "additionalProperties": true
+}

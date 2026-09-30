@@ -1,0 +1,16 @@
+{
+  "$schema": "../../schemas/engine-manifest.schema.json",
+  "id": "renode",
+  "name": "Renode",
+  "license": "MIT",
+  "sourceUrl": "https://github.com/renode/renode",
+  "integration": "process",
+  "installMode": "system",
+  "versionRange": ">=1.14",
+  "operations": ["simulate"],
+  "targets": ["declared-machine-model"],
+  "platforms": ["windows", "linux", "macos"],
+  "executableCandidates": ["C:/Program Files/Renode/Renode.exe", "/usr/bin/renode", "/usr/local/bin/renode"],
+  "selfTest": "version-and-emulation-diagnostic-fixture",
+  "notice": "Simulation scripts are untrusted data; no automatic script execution, device programming or hardware access is provided."
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@openentc/schematic",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": { "types": "./src/types.d.ts", "import": "./src/index.mjs" },
+    "./spice": { "types": "./src/spice.d.ts", "import": "./src/spice.mjs" },
+    "./geometry": { "types": "./src/geometry.d.ts", "import": "./src/geometry.mjs" },
+    "./selection": { "types": "./src/selection.d.ts", "import": "./src/selection.mjs" },
+    "./units": { "types": "./src/units.d.ts", "import": "./src/units.mjs" },
+    "./components": { "types": "./src/components.d.ts", "import": "./src/components.mjs" },
+    "./erc": { "types": "./src/erc.d.ts", "import": "./src/erc.mjs" }
+  }
+}

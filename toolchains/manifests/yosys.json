@@ -1,0 +1,16 @@
+{
+  "$schema": "../../schemas/engine-manifest.schema.json",
+  "id": "yosys",
+  "name": "Yosys",
+  "license": "ISC",
+  "sourceUrl": "https://yosyshq.net/yosys/",
+  "integration": "process",
+  "installMode": "system",
+  "versionRange": ">=0.40",
+  "operations": ["synthesis", "report"],
+  "targets": ["verilog", "systemverilog"],
+  "platforms": ["windows", "linux", "macos"],
+  "executableCandidates": ["C:/Program Files/Yosys/bin/yosys.exe", "/usr/bin/yosys", "/usr/local/bin/yosys"],
+  "selfTest": "version-and-counter-synthesis",
+  "notice": "Synthesis is independent of simulation, place/route and timing claims."
+}

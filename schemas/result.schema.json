@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openentc.org/schemas/result.schema.json",
+  "title": "OpenENTC result",
+  "type": "object",
+  "required": ["kind", "provenance"],
+  "properties": {
+    "kind": { "enum": ["scalar", "table", "waveform", "spectrum", "digital-trace", "constellation", "network", "packet-trace", "field-reference", "artifact", "report"] },
+    "provenance": { "type": "object", "required": ["engine", "inputs"], "properties": { "engine": { "type": "string", "minLength": 1 }, "inputs": { "type": "array", "maxItems": 100000, "items": { "type": "string", "minLength": 1 } } }, "additionalProperties": true },
+    "units": { "type": ["string", "null"], "minLength": 1, "maxLength": 64 },
+    "sampleRate": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+    "data": {},
+    "artifacts": { "type": "array", "maxItems": 100000, "items": { "type": "object", "required": ["path", "sha256", "size", "mediaType"], "properties": { "path": { "type": "string", "minLength": 1, "maxLength": 4096, "pattern": "^(?!/)(?![A-Za-z]:/)(?!.*(?:^|/)\\.{1,2}(?:/|$))[^\\u0000-\\u001F\\u007F]+$" }, "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "size": { "type": "integer", "minimum": 0, "maximum": 268435456 }, "mediaType": { "type": "string", "minLength": 1, "maxLength": 200 } }, "additionalProperties": true } }
+  },
+  "additionalProperties": true
+}

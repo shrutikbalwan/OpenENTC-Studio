@@ -1,0 +1,16 @@
+{
+  "$schema": "../../schemas/engine-manifest.schema.json",
+  "id": "ghdl",
+  "name": "GHDL",
+  "license": "GPL-2.0-or-later",
+  "sourceUrl": "https://ghdl.github.io/ghdl/",
+  "integration": "process",
+  "installMode": "system",
+  "versionRange": ">=4",
+  "operations": ["analyze", "elaborate", "simulate"],
+  "targets": ["vhdl"],
+  "platforms": ["windows", "linux", "macos"],
+  "executableCandidates": ["C:/Program Files/GHDL/bin/ghdl.exe", "/usr/bin/ghdl", "/usr/local/bin/ghdl"],
+  "selfTest": "version-and-counter-fixture",
+  "notice": "Invoke as a separate process; VHDL language/version support is adapter-specific."
+}

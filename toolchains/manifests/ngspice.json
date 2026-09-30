@@ -1,0 +1,16 @@
+{
+  "$schema": "../../schemas/engine-manifest.schema.json",
+  "id": "ngspice",
+  "name": "ngspice",
+  "license": "BSD-3-Clause",
+  "sourceUrl": "https://sourceforge.net/projects/ngspice/",
+  "integration": "process",
+  "installMode": "system",
+  "versionRange": ">=40",
+  "operations": ["operating-point", "dc-sweep", "ac-analysis", "transient"],
+  "targets": ["analog", "mixed-signal"],
+  "platforms": ["windows", "linux", "macos"],
+  "executableCandidates": ["C:/Program Files/ngspice/bin/ngspice.exe", "C:/Program Files/ngspice/bin/ngspice_con.exe", "/usr/bin/ngspice", "/usr/local/bin/ngspice"],
+  "selfTest": "version-and-deterministic-voltage-divider",
+  "notice": "Invoke as a separate user-configured process; do not bundle without exact-version licence review."
+}

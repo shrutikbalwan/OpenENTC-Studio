@@ -1,0 +1,16 @@
+{
+  "$schema": "../../schemas/engine-manifest.schema.json",
+  "id": "nextpnr-ice40",
+  "name": "nextpnr (ice40)",
+  "license": "ISC",
+  "sourceUrl": "https://github.com/YosysHQ/nextpnr",
+  "integration": "process",
+  "installMode": "system",
+  "versionRange": ">=0.7",
+  "operations": ["place-route"],
+  "targets": ["ice40"],
+  "platforms": ["windows", "linux", "macos"],
+  "executableCandidates": ["C:/Program Files/nextpnr/bin/nextpnr-ice40.exe", "/usr/bin/nextpnr-ice40", "/usr/local/bin/nextpnr-ice40"],
+  "selfTest": "version-and-unsupported-target-guard",
+  "notice": "Only the declared ice40 target family is supported; place/route success is not timing or hardware proof."
+}

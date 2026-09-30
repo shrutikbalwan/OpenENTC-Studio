@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openentc.org/schemas/lesson.schema.json",
+  "title": "OpenENTC lesson",
+  "type": "object",
+  "required": ["id", "title", "prerequisites", "projectTemplate", "instructions", "checkpoints"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "prerequisites": { "type": "array", "items": { "type": "string" } },
+    "projectTemplate": { "type": "string", "minLength": 1 },
+    "instructions": { "type": "array", "items": { "type": "string" } },
+    "hints": { "type": "array", "items": { "type": "string" } },
+    "checkpoints": { "type": "array", "items": { "type": "object", "required": ["id", "assertion"], "properties": { "id": { "type": "string" }, "assertion": { "type": "string" }, "tolerance": { "type": ["number", "null"] } }, "additionalProperties": true } }
+  },
+  "additionalProperties": true
+}

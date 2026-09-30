@@ -1,0 +1,16 @@
+{
+  "$schema": "../../schemas/engine-manifest.schema.json",
+  "id": "gnuradio",
+  "name": "GNU Radio",
+  "license": "GPL-3.0-or-later",
+  "sourceUrl": "https://www.gnuradio.org/",
+  "integration": "process",
+  "installMode": "system",
+  "versionRange": ">=3.10",
+  "operations": ["offline-flowgraph"],
+  "targets": ["signal-processing", "communications"],
+  "platforms": ["windows", "linux", "macos"],
+  "executableCandidates": ["C:/Program Files/GNURadio/bin/python.exe", "/usr/bin/python3", "/usr/local/bin/python3"],
+  "selfTest": "version-and-qpsk-offline-fixture",
+  "notice": "Only explicitly translated offline blocks may execute; SDR hardware requires a separate permission scope."
+}

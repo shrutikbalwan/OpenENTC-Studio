@@ -1,0 +1,21 @@
+{
+  "name": "@openentc/engine-sdk",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": { "types": "./src/types.d.ts", "import": "./src/index.mjs" },
+    "./discovery": { "types": "./src/discovery.d.ts", "import": "./src/discovery.mjs" },
+    "./manifest": { "types": "./src/manifest.d.ts", "import": "./src/manifest.mjs" },
+    "./ngspice": { "types": "./src/ngspice.d.ts", "import": "./src/ngspice.mjs" },
+    "./arduino-cli": { "types": "./src/arduino-cli.d.ts", "import": "./src/arduino-cli.mjs" },
+    "./kicad": { "types": "./src/kicad.d.ts", "import": "./src/kicad.mjs" },
+    "./verilator": { "types": "./src/verilator.d.ts", "import": "./src/verilator.mjs" }
+    ,"./ghdl": { "types": "./src/ghdl.d.ts", "import": "./src/ghdl.mjs" }
+    ,"./yosys": { "types": "./src/yosys.d.ts", "import": "./src/yosys.mjs" }
+    ,"./nextpnr": { "types": "./src/nextpnr.d.ts", "import": "./src/nextpnr.mjs" },
+    "./qucsator-rf": { "types": "./src/qucsator-rf.d.ts", "import": "./src/qucsator-rf.mjs" },
+    "./tshark": { "types": "./src/tshark.d.ts", "import": "./src/tshark.mjs" }
+    ,"./platformio": { "types": "./src/platformio.d.ts", "import": "./src/platformio.mjs" },
+    "./renode": { "types": "./src/renode.d.ts", "import": "./src/renode.mjs" }
+  }
+}

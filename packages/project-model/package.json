@@ -1,0 +1,19 @@
+{
+  "name": "@openentc/project-model",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/types.d.ts",
+      "import": "./src/index.mjs"
+    },
+    "./browser": {
+      "types": "./src/types.d.ts",
+      "import": "./src/browser.mjs"
+    },
+    "./archive": {
+      "types": "./src/archive.d.mts",
+      "import": "./src/archive.mjs"
+    }
+  }
+}

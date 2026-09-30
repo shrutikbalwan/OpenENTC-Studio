@@ -1,0 +1,10 @@
+OpenENTC Studio is licensed under the GNU General Public License,
+version 3 or (at your option) any later version.
+
+SPDX-License-Identifier: GPL-3.0-or-later
+
+The complete licence text is available at:
+https://www.gnu.org/licenses/gpl-3.0.txt
+
+Third-party tools connected to OpenENTC Studio remain under their respective
+licences and are not included in this source package.

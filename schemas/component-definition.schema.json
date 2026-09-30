@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openentc.org/schemas/component-definition.schema.json",
+  "title": "OpenENTC component definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "definitions"],
+  "properties": {
+    "version": { "type": "integer", "const": 1 },
+    "definitions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1000,
+      "items": {
+        "$ref": "#/$defs/definition"
+      }
+    }
+  },
+  "$defs": {
+    "definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "label", "symbol", "defaultValue", "unit", "pins", "simulation"],
+      "properties": {
+        "type": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "symbol": { "type": "string", "minLength": 1, "maxLength": 16 },
+        "defaultValue": { "type": "number", "exclusiveMinimum": -1e300, "exclusiveMaximum": 1e300 },
+        "unit": { "type": "string", "minLength": 1, "maxLength": 16 },
+        "pins": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": { "type": "string", "pattern": "^[a-zA-Z0-9_-]{1,32}$" },
+          "uniqueItems": true
+        },
+        "simulation": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 120 }
+        }
+      }
+    }
+  }
+}

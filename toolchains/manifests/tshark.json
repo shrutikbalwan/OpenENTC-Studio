@@ -1,0 +1,16 @@
+{
+  "$schema": "../../schemas/engine-manifest.schema.json",
+  "id": "tshark",
+  "name": "TShark",
+  "license": "GPL-2.0-or-later",
+  "sourceUrl": "https://www.wireshark.org/",
+  "integration": "process",
+  "installMode": "system",
+  "versionRange": ">=3.0",
+  "operations": ["decode-saved"],
+  "targets": ["saved-pcap", "saved-pcapng"],
+  "platforms": ["windows", "linux", "macos"],
+  "executableCandidates": ["C:/Program Files/Wireshark/tshark.exe", "/usr/bin/tshark", "/usr/local/bin/tshark"],
+  "selfTest": "saved-capture-json-fixture",
+  "notice": "Live capture and interface access are separate permissioned capabilities; this adapter only decodes explicitly selected saved captures."
+}

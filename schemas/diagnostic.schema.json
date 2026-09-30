@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openentc.org/schemas/diagnostic.schema.json",
+  "title": "OpenENTC diagnostic",
+  "type": "object",
+  "required": ["severity", "code", "message"],
+  "properties": {
+    "severity": { "enum": ["info", "warning", "error"] },
+    "code": { "type": "string", "pattern": "^[A-Z][A-Z0-9_.-]+$" },
+    "message": { "type": "string", "minLength": 1 },
+    "source": { "type": ["string", "null"] },
+    "line": { "type": ["integer", "null"], "minimum": 1 },
+    "column": { "type": ["integer", "null"], "minimum": 1 },
+    "fix": { "type": ["string", "null"] }
+  },
+  "additionalProperties": true
+}

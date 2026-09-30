@@ -1,0 +1,6 @@
+{
+  "name": "@openentc/flowgraph",
+  "private": true,
+  "type": "module",
+  "exports": { ".": { "types": "./src/index.d.ts", "import": "./src/index.mjs" } }
+}

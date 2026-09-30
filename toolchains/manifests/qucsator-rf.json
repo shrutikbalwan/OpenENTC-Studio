@@ -1,0 +1,15 @@
+{
+  "id": "qucsator-rf",
+  "name": "QucsatorRF",
+  "license": "GPL-2.0-only",
+  "sourceUrl": "https://github.com/ra3xdh/qucsator_rf",
+  "integration": "process",
+  "installMode": "system",
+  "platforms": ["windows", "linux"],
+  "operations": ["simulate"],
+  "versionRange": ">=1.0.0",
+  "targets": ["rf-network"],
+  "executableCandidates": ["C:/Program Files/Qucs-S/bin/qucsator_rf.exe", "/usr/bin/qucsator_rf", "/usr/local/bin/qucsator_rf"],
+  "selfTest": "version-or-bounded-rf-fixture",
+  "notice": "Preserve GPL-2.0 notices and upstream source information when distributing the adapter or bundled binaries."
+}

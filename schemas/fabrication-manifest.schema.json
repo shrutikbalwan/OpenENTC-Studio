@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openentc.org/schemas/fabrication-manifest.schema.json",
+  "title": "OpenENTC fabrication artifact manifest",
+  "type": "object",
+  "required": ["format", "version", "boardPath", "kicadVersion", "artifacts", "checks", "complete"],
+  "properties": {
+    "format": { "const": "openentc-fabrication-manifest" },
+    "version": { "const": 1 },
+    "boardPath": { "type": "string", "minLength": 1, "maxLength": 4096 },
+    "kicadVersion": { "type": "string", "minLength": 1, "maxLength": 4096 },
+    "generatedAt": { "type": ["string", "null"] },
+    "complete": { "type": "boolean" },
+    "artifacts": { "type": "array", "maxItems": 4096, "items": { "$ref": "#/$defs/artifact" } },
+    "checks": { "type": "object", "required": ["schematic", "pcb", "requiredOutputs", "hashes"], "properties": { "schematic": { "type": "boolean" }, "pcb": { "type": "boolean" }, "requiredOutputs": { "type": "boolean" }, "hashes": { "type": "boolean" } }, "additionalProperties": false }
+  },
+  "additionalProperties": true,
+  "$defs": { "artifact": { "type": "object", "required": ["kind", "path", "size", "sha256"], "properties": { "kind": { "enum": ["bom", "gerber", "drill", "position"] }, "path": { "type": "string", "minLength": 1, "maxLength": 4096, "pattern": "^(?!/)(?![A-Za-z]:[\\\\/])(?!.*(?:^|[\\\\/])\\.{1,2}(?:[\\\\/]|$))[^\\u0000-\\u001F\\u007F]+$" }, "size": { "type": "integer", "minimum": 0, "maximum": 268435456 }, "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }, "additionalProperties": true } }
+}

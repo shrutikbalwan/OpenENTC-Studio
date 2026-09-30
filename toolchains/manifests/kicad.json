@@ -1,0 +1,16 @@
+{
+  "$schema": "../../schemas/engine-manifest.schema.json",
+  "id": "kicad",
+  "name": "KiCad CLI",
+  "license": "GPL-3.0-or-later",
+  "sourceUrl": "https://www.kicad.org/",
+  "integration": "process",
+  "installMode": "system",
+  "versionRange": ">=7",
+  "operations": ["schematic-check", "pcb-check", "bom", "gerber", "drill", "position"],
+  "targets": ["schematic", "pcb", "fabrication"],
+  "platforms": ["windows", "linux", "macos"],
+  "executableCandidates": ["C:/Program Files/KiCad/9.0/bin/kicad-cli.exe", "/usr/bin/kicad-cli", "/usr/local/bin/kicad-cli"],
+  "selfTest": "version-and-report-fixture",
+  "notice": "Launch as a separate user-configured process; preserve KiCad library provenance and exact-version notices."
+}

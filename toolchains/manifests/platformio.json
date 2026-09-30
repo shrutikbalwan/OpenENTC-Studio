@@ -1,0 +1,16 @@
+{
+  "$schema": "../../schemas/engine-manifest.schema.json",
+  "id": "platformio",
+  "name": "PlatformIO Core",
+  "license": "Apache-2.0",
+  "sourceUrl": "https://github.com/platformio/platformio-core",
+  "integration": "process",
+  "installMode": "system",
+  "versionRange": ">=6.0",
+  "operations": ["version", "compile"],
+  "targets": ["embedded-project"],
+  "platforms": ["windows", "linux", "macos"],
+  "executableCandidates": ["C:/Users/Public/.platformio/penv/Scripts/platformio.exe", "/usr/bin/pio", "/usr/local/bin/pio"],
+  "selfTest": "version-and-compile-diagnostic-fixture",
+  "notice": "Platform packages and libraries remain user-managed; no silent installation or upload is performed."
+}

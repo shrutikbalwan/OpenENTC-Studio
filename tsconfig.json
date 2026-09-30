@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noEmit": true,
+    "allowJs": true,
+    "checkJs": false,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "apps/**/*.ts",
+    "apps/**/*.tsx",
+    "packages/**/*.ts",
+    "packages/**/*.tsx",
+    "packages/project-model/src/archive.mjs",
+    "src/**/*.d.ts",
+    "src/core/project.js",
+    "src/core/project-storage.js",
+    "src/core/project-file.js",
+    "src/core/store.js",
+    "workers/**/*.ts",
+    "schemas/**/*.json"
+  ],
+  "exclude": ["node_modules", "runs", "build", "dist", "**/target"]
+}

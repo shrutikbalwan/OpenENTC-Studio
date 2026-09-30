@@ -1,0 +1,5 @@
+import type { Diagnostic } from '../../diagnostics/src/types.d.ts';
+export declare const ERC_CODES: { readonly MISSING_GROUND: 'ERC_MISSING_GROUND'; readonly FLOATING_NODE: 'ERC_FLOATING_NODE'; readonly DUPLICATE_REFERENCE: 'ERC_DUPLICATE_REFERENCE'; readonly INVALID_VALUE: 'ERC_INVALID_VALUE'; readonly CONFLICTING_SOURCE: 'ERC_CONFLICTING_SOURCE'; readonly UNCONNECTED_PIN: 'ERC_UNCONNECTED_PIN' };
+export declare function checkElectricalRules(components: import('./types.d.ts').SchematicComponent[], wires?: import('./types.d.ts').SchematicWire[], netLabels?: import('./types.d.ts').SchematicNetLabel[]): Diagnostic[];
+export interface ElectricalRuleTarget { readonly componentId: string; readonly pin: 'n1' | 'n2' | null; }
+export declare function locateElectricalRuleDiagnostic(components: import('./types.d.ts').SchematicComponent[], wires: import('./types.d.ts').SchematicWire[], netLabels: import('./types.d.ts').SchematicNetLabel[], diagnostic: Pick<Diagnostic, 'source'>): readonly ElectricalRuleTarget[];
