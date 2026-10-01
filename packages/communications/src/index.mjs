@@ -43,3 +43,9 @@ export function bitErrorRate(expected, actual) {
   const errors = expected.reduce((count, bit, index) => count + (bit !== actual[index] ? 1 : 0), 0);
   return Object.freeze({ kind: 'ber', errors, bits: expected.length, rate: errors / expected.length });
 }
+
+export { ANALOG_SCHEMES, simulateAnalogModulation } from './analog.mjs';
+export { DIGITAL_SCHEMES, berCurve, constellation, eyeDiagram, raisedCosine, simulateDigitalLink, theoreticalBer } from './digital.mjs';
+export { LINE_CODES, lineCode, measureSqnr, quantize, samplingDemo } from './pcm.mjs';
+export { CRC_POLYNOMIALS, convolutionalEncode, crcCheck, crcDivide, hammingDecode, hammingEncode, viterbiDecode } from './coding.mjs';
+export { amplitudeSpectrum, analyticSignal, besselJ, createRandom, erfc, fftInPlace, qFunction } from './math.mjs';
