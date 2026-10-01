@@ -125,3 +125,13 @@ test('convolutional code (7,5) with Viterbi corrects separated errors', () => {
   assert.equal(decoded.pathMetric, 2);
   assert.throws(() => viterbiDecode('101'), /pairs/);
 });
+
+test('Communication lab exposes all five tabs and keeps the QPSK lesson path', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const app = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  for (const tab of ['link', 'analog', 'digital', 'pcm', 'coding']) assert.match(app, new RegExp(`\\['${tab}', '`));
+  assert.match(app, /data-comm-tab=/);
+  assert.match(app, /data-action="comm-ber-curve"/);
+  assert.match(app, /data-comm-flip=/);
+  assert.match(app, /run-communication/);
+});

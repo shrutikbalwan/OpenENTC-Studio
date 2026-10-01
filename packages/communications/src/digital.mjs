@@ -106,7 +106,8 @@ export function eyeDiagram({ alpha = 0.35, pulse = 'raised-cosine', ebN0dB = 20,
   const traces = [];
   let minimumOne = Infinity, maximumZero = -Infinity;
   for (let k = span; k < count - span - 1; k += 1) {
-    traces.push(Array.from({ length: 2 * oversample + 1 }, (_, n) => waveform[(k - 1) * oversample + oversample / 2 + n] ?? 0));
+    // Two symbol periods centred on the sampling instant k·T.
+    traces.push(Array.from({ length: 2 * oversample + 1 }, (_, n) => waveform[(k - 1) * oversample + n] ?? 0));
     const sample = waveform[k * oversample];
     if (data[k] > 0) minimumOne = Math.min(minimumOne, sample); else maximumZero = Math.max(maximumZero, sample);
   }

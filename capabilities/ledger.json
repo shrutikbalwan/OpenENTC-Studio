@@ -150,6 +150,22 @@
       "plannedPhase": 4
     },
     {
+      "id": "communication.modulation-lab",
+      "surface": "Communication: analog and digital modulation tabs",
+      "state": "built-in",
+      "evidence": ["packages/communications/src/analog.mjs", "packages/communications/src/digital.mjs", "packages/communications/src/math.mjs", "tests/communications-lab.test.mjs"],
+      "limitations": "Single-tone analog modulation with ideal analytic-signal receivers (no receiver noise or filters); digital links use ideal symbol-rate AWGN with perfect synchronization; theoretical BER for 8-PSK and 16-QAM is the nearest-neighbour approximation; eye diagrams are polar baseband without a matched filter.",
+      "plannedPhase": 4
+    },
+    {
+      "id": "communication.pcm-coding-lab",
+      "surface": "Communication: sampling, PCM, line codes and error-control coding tabs",
+      "state": "built-in",
+      "evidence": ["packages/communications/src/pcm.mjs", "packages/communications/src/coding.mjs", "tests/communications-lab.test.mjs"],
+      "limitations": "Sine-wave PCM with mid-rise uniform or μ-law (μ = 255) quantization; line codes up to 64 bits; Hamming codes up to 57 data bits; CRC is MSB-first long division with zero initial value and no reflection; convolutional coding is the rate-1/2 K = 3 (7, 5) code with hard-decision Viterbi only.",
+      "plannedPhase": 4
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",
