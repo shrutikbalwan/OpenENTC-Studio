@@ -308,10 +308,10 @@ function renderCircuit(state) {
 
 const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1);
 const DEVICE_HELP = Object.freeze({
-  npn: 'Value is the current gain β. Ebers-Moll model, Is = 10 fA.',
-  pnp: 'Value is the current gain β. Ebers-Moll model, Is = 10 fA.',
-  nmos: 'Value is the threshold voltage. Level-1 square law, body tied to source.',
-  pmos: 'Value is the threshold magnitude |Vth|. Level-1 square law, body tied to source.',
+  npn: 'Value is the current gain β. Ebers-Moll model, Is = 10 fA, Cje = 8 pF, Cjc = 4 pF, τF = 0.3 ns.',
+  pnp: 'Value is the current gain β. Ebers-Moll model, Is = 10 fA, Cje = 8 pF, Cjc = 4 pF, τF = 0.3 ns.',
+  nmos: 'Value is the threshold voltage. Level-1 square law, body tied to source, Cgs = 10 pF, Cgd = 2 pF.',
+  pmos: 'Value is the threshold magnitude |Vth|. Level-1 square law, body tied to source, Cgs = 10 pF, Cgd = 2 pF.',
   opamp: 'Value is the supply rail ±Vsat. Open-loop gain 200k, 1 MHz gain-bandwidth.',
 });
 

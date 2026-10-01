@@ -25,9 +25,9 @@ export const exampleCircuits = Object.freeze([
     components: [part('V1', 'voltage', 10, 'V', 'in', '0', 120, 170), part('D1', 'diode', 0.7, 'Vf', 'in', 'out', 300, 90), part('C1', 'capacitor', 0.0001, 'F', 'out', '0', 460, 170), part('R1', 'resistor', 1000, 'Ω', 'out', '0', 620, 170), ground(360)],
   },
   {
-    id: 'ce-amplifier', name: 'BJT common-emitter amplifier', summary: 'AC sweep · gain ≈ gm·RC with bypassed emitter', trace: 'V(c)',
-    analysis: { analysis: 'ac', startHz: 1, stopHz: 1_000_000, pointsPerDecade: 20, source: 'VS' },
-    components: [part('VCC', 'voltage', 12, 'V', 'vcc', '0', 120, 90), part('VS', 'voltage', 0.01, 'V', 's', '0', 120, 230), part('CIN', 'capacitor', 0.00001, 'F', 's', 'b', 250, 230), part('R1', 'resistor', 47000, 'Ω', 'vcc', 'b', 300, 120), part('R2', 'resistor', 10000, 'Ω', 'b', '0', 300, 320), device('Q1', 'npn', 100, 'β', ['c', 'b', 'e'], 460, 220), part('RC', 'resistor', 2200, 'Ω', 'vcc', 'c', 600, 120), part('RE', 'resistor', 470, 'Ω', 'e', '0', 600, 320), part('CE', 'capacitor', 0.0001, 'F', 'e', '0', 740, 320), ground(460, 340)],
+    id: 'ce-amplifier', name: 'BJT common-emitter amplifier', summary: 'AC sweep · 40 dB midband, Miller roll-off at 360 kHz', trace: 'V(c)',
+    analysis: { analysis: 'ac', startHz: 1, stopHz: 100_000_000, pointsPerDecade: 20, source: 'VS' },
+    components: [part('VCC', 'voltage', 12, 'V', 'vcc', '0', 120, 90), part('VS', 'voltage', 0.01, 'V', 's', '0', 120, 230), part('RS', 'resistor', 1000, 'Ω', 's', 's2', 200, 330), part('CIN', 'capacitor', 0.00001, 'F', 's2', 'b', 250, 230), part('R1', 'resistor', 47000, 'Ω', 'vcc', 'b', 300, 120), part('R2', 'resistor', 10000, 'Ω', 'b', '0', 300, 320), device('Q1', 'npn', 100, 'β', ['c', 'b', 'e'], 460, 220), part('RC', 'resistor', 2200, 'Ω', 'vcc', 'c', 600, 120), part('RE', 'resistor', 470, 'Ω', 'e', '0', 600, 320), part('CE', 'capacitor', 0.0001, 'F', 'e', '0', 740, 320), ground(460, 340)],
   },
   {
     id: 'inverting-opamp', name: 'Inverting op-amp (gain −10)', summary: 'AC sweep · bandwidth = GBW / 11', trace: 'V(out)',

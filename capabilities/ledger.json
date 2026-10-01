@@ -130,7 +130,7 @@
       "surface": "Circuit Lab: NPN/PNP, N/P-MOSFET and op-amp parts",
       "state": "built-in",
       "evidence": ["src/engines/circuit-engine.js#bjtDevice", "packages/schematic/src/device-models.mjs", "packages/schematic/src/spice.mjs", "tests/devices.test.mjs", "tests/ngspice.integration.test.mjs"],
-      "limitations": "Ebers-Moll BJT (Is = 10 fA, BR = 1) without junction capacitance, Early effect or terminal resistances; SPICE level-1 MOSFET with lambda = 0.01, body tied to source and no capacitances; op-amp with 200k open-loop gain, one pole for 1 MHz GBW, symmetric smooth clipping at ±value, zero output resistance and no slew-rate limit. High-frequency transistor roll-off is therefore not modelled.",
+      "limitations": "Ebers-Moll BJT (Is = 10 fA, BR = 1) with constant CJE = 8 pF, CJC = 4 pF and TF = 0.3 ns but no voltage-dependent depletion capacitance, Early effect, reverse transit time (storage delay) or terminal resistances; SPICE level-1 MOSFET with lambda = 0.01, body tied to source and constant Cgs = 10 pF, Cgd = 2 pF instead of Meyer charges; capacitances are fixed per device type. Op-amp with 200k open-loop gain, one pole for 1 MHz GBW, symmetric smooth clipping at ±value, zero output resistance and no slew-rate limit.",
       "plannedPhase": 4
     },
     {
