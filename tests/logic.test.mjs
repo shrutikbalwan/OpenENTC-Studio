@@ -170,3 +170,26 @@ test('number converter covers bases, complements, Gray, BCD and excess-3', () =>
   assert.throws(() => parseNumber('102', 'binary'), /not a valid binary/);
   assert.throws(() => convertNumber(256, 8), /needs more than 8 bits/);
 });
+
+import { parseMintermNotation, renderGateDiagram, renderKarnaugh, renderTimingDiagram } from '../src/core/logic-view.js';
+import { readFile } from 'node:fs/promises';
+
+test('logic lab view parses minterm notation and renders K-map, gates and timing', async () => {
+  assert.deepEqual(parseMintermNotation('Σm(1,3,7,11,15) + d(0,2,5)'), { variables: ['A', 'B', 'C', 'D'], minterms: [1, 3, 7, 11, 15], dontCares: [0, 2, 5] });
+  assert.equal(parseMintermNotation('m(A+B)'), null, 'variables inside m( ) are an expression, not notation');
+  assert.throws(() => parseMintermNotation('m(1,2) d(2)'), /both a minterm and a don't-care/);
+  assert.throws(() => parseMintermNotation('m(1,9)', 3), /needs at least 4 variables/);
+  const analysis = analyzeFunction(['A', 'B', 'C', 'D'], [0, 2, 8, 10]);
+  const map = renderKarnaugh(analysis);
+  assert.equal((map.match(/class="kmap-cell v1"/g) || []).length, 4);
+  assert.equal((map.match(/<i style=/g) || []).length, 4, 'every grouped cell shows its group colour');
+  assert.match(renderGateDiagram(['11', '0-'].map((pattern) => pattern), ['A', 'B']), /AND-OR gate diagram/);
+  const trace = simulateNetlist(template('sync-counter'), { stopTime: 100 });
+  const svg = renderTimingDiagram(trace, ['CLK', 'Q0', 'Q1', 'Q2']);
+  assert.equal((svg.match(/class="timing-wave"/g) || []).length, 4);
+  assert.match(svg, />CLK</);
+  const app = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  assert.match(app, /if \(active\.id === 'logic'\) return renderLogic\(state\)/);
+  assert.match(app, /data-logic-tab=/);
+  assert.match(app, /data-action="logic-analyze"/);
+});

@@ -134,6 +134,22 @@
       "plannedPhase": 4
     },
     {
+      "id": "logic.boolean-minimizer",
+      "surface": "Digital Logic Lab: Boolean & K-map",
+      "state": "built-in",
+      "evidence": ["packages/logic/src/boolean.mjs", "src/core/logic-view.js", "tests/logic.test.mjs"],
+      "limitations": "Up to 8 variables; K-maps are drawn for 2 to 4 variables. The minimum cover is exact up to 40 candidate prime implicants and greedy (flagged) beyond that. Universal NAND/NOR forms are two-level realizations, not multi-level optimized.",
+      "plannedPhase": 4
+    },
+    {
+      "id": "logic.gate-simulator",
+      "surface": "Digital Logic Lab: Logic simulator and number codes",
+      "state": "built-in",
+      "evidence": ["packages/logic/src/simulator.mjs", "packages/logic/src/codes.mjs", "tests/logic.test.mjs"],
+      "limitations": "Text netlists of up to 500 gates and D/T/JK flip-flops with a fixed 1 ns delay, rising-edge clocks and active-high asynchronous reset; no graphical schematic entry, buses, tri-states or setup/hold checks. Truth-table extraction supports up to 8 inputs of combinational circuits. Codes cover unsigned values up to 32 bits.",
+      "plannedPhase": 4
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",

@@ -11,6 +11,7 @@ OpenENTC Studio is a free, open-source foundation for an all-in-one Electronics 
 - Interactive waveform and Bode plots with rise time, overshoot, RMS and −3 dB bandwidth readouts, CSV export, and nine ready-made example circuits including BJT and op-amp amplifiers
 - Limited DC-result meter and generated signal preview
 - Built-in Signals workspace with bounded sine generation, causal FIR filtering and FFT
+- Digital Logic Lab: Boolean expressions or minterm notation to truth tables, K-maps with groups, exact Quine-McCluskey minimization with don't-cares, SOP/POS and NAND/NOR-only forms with gate diagrams; an event-driven gate and flip-flop simulator (text netlists, clocks, 1 ns delays, timing diagrams, truth-table extraction) with adder, decoder, latch, counter and shift-register templates; and a number/code converter (bases, complements, Gray, BCD, excess-3)
 - Authored experiment configurations persist in the versioned project manifest and restore into Signals, Control, QPSK, RF, Network and Digital Waveform labs; generated results remain runtime data
 - Built-in Communications Link Lab with QPSK, seeded AWGN and BER
 - Embedded text editor with an Arduino starter, shallow source-structure checks, read-only installed board/core/library inventory, explicit board and manual port selection, desktop compilation/upload, and a separately permissioned bounded serial terminal with baud, encoding, line-ending, timestamp, pause and export controls
@@ -62,6 +63,7 @@ Browser projects use crash-aware localStorage writes with bounded corrupt backup
 - `packages/numerics`, `packages/communications`, `packages/control`, `packages/rf`, `packages/hdl`, `packages/topology`, `packages/packets`: bounded built-in numerical and interoperability kernels
 - `src/core/engine-registry.js`: external-tool capability registry
 - `src/engines/circuit-engine.js`: built-in DC, transient and AC circuit simulator
+- `packages/logic`: Boolean minimization, gate-level logic simulation and number codes for the Digital Logic Lab
 - `src/core/circuit-plot.js`: waveform/Bode plotting, measurements and CSV export
 - `src/data/example-circuits.js`: example circuits for the built-in simulator
 - `src/data/modules.js`: ENTC module catalogue
