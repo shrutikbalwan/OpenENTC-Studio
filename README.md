@@ -10,7 +10,8 @@ OpenENTC Studio is a free, open-source foundation for an all-in-one Electronics 
 - Built-in circuit simulator (modified nodal analysis, Newton-Raphson, trapezoidal integration) for resistors, capacitors, inductors, diodes, LEDs, switches, NPN/PNP transistors (Ebers-Moll), N/P-channel MOSFETs (level 1) and op-amps (finite gain, 1 MHz GBW, rail clipping) with independent sources: DC operating point, transient (step, sine and square-pulse stimulus) and small-signal AC sweeps, cross-checked against ngspice
 - Interactive waveform and Bode plots with rise time, overshoot, RMS and −3 dB bandwidth readouts, CSV export, and nine ready-made example circuits including BJT and op-amp amplifiers
 - Limited DC-result meter and generated signal preview
-- Built-in Signals workspace with bounded sine generation, causal FIR filtering and FFT
+- Built-in Signals workspace with bounded sine generation, causal FIR filtering and FFT; a digital filter designer (Butterworth and Chebyshev I IIR, windowed-sinc FIR with rectangular/Hann/Hamming/Blackman/Kaiser windows) with magnitude, phase, group delay, impulse response, z-plane pole-zero plot, coefficients matching scipy.signal and a two-tone filtering demo; and a step-by-step convolution explorer
+- Built-in Control Lab: transfer functions typed as polynomials in s, poles/zeros and stability, exact step and impulse responses with rise/overshoot/settling/steady-state error, Bode plots with gain and phase margins, Nyquist and pole-zero maps, root locus with asymptotes and jω crossings, Routh-Hurwitz tables (including zero-row cases), and a PID loop with Ziegler-Nichols tuning
 - Digital Logic Lab: Boolean expressions or minterm notation to truth tables, K-maps with groups, exact Quine-McCluskey minimization with don't-cares, SOP/POS and NAND/NOR-only forms with gate diagrams; an event-driven gate and flip-flop simulator (text netlists, clocks, 1 ns delays, timing diagrams, truth-table extraction) with adder, decoder, latch, counter and shift-register templates; and a number/code converter (bases, complements, Gray, BCD, excess-3)
 - Authored experiment configurations persist in the versioned project manifest and restore into Signals, Control, QPSK, RF, Network and Digital Waveform labs; generated results remain runtime data
 - Built-in Communication Lab: QPSK link; AM, DSB-SC, FM and PM with spectra, Bessel sideband tables and demodulation; BPSK/QPSK/8-PSK/16-QAM constellations with measured vs theoretical BER, BER-vs-Eb/N0 curves and raised-cosine eye diagrams; sampling, aliasing, uniform/μ-law PCM with SQNR and seven line codes; Hamming, CRC and convolutional/Viterbi error-control coding
@@ -63,6 +64,7 @@ Browser projects use crash-aware localStorage writes with bounded corrupt backup
 - `packages/numerics`, `packages/communications`, `packages/control`, `packages/rf`, `packages/hdl`, `packages/topology`, `packages/packets`: bounded built-in numerical and interoperability kernels
 - `src/core/engine-registry.js`: external-tool capability registry
 - `src/engines/circuit-engine.js`: built-in DC, transient and AC circuit simulator
+- `packages/numerics/src/filters.mjs`, `packages/control/src/analysis.mjs`: filter design and control-systems analysis
 - `packages/logic`: Boolean minimization, gate-level logic simulation and number codes for the Digital Logic Lab
 - `src/core/circuit-plot.js`: waveform/Bode plotting, measurements and CSV export
 - `src/data/example-circuits.js`: example circuits for the built-in simulator

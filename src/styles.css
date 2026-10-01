@@ -254,3 +254,41 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .crc-steps { font: 500 11px/1.6 DM Mono; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; max-height: 260px; }
 [data-theme="light"] .eye-traces path, [data-theme="light"] .pcm-analog { stroke: #0f766e; }
 @media (max-width: 980px) { .comm-digital-layout { grid-template-columns: 1fr; } .comm-plots { grid-template-columns: 1fr; } }
+
+/* Signals/DSP and control labs */
+.dsp-page .dsp-card label, .control-page .dsp-card label { display: flex; flex-direction: column; gap: 5px; font-size: 11px; color: var(--muted); position: relative; }
+.dsp-page .dsp-card input, .dsp-page .dsp-card select, .control-page .dsp-card input, .control-page .dsp-card select { border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); padding: 8px 10px; font: 500 12px DM Mono; min-width: 120px; }
+.dsp-page .dsp-card label > span, .control-page .dsp-card label > span { font: 500 9px DM Mono; color: var(--muted); }
+.control-page .dsp-card label.check-label { flex-direction: row; align-items: center; gap: 8px; margin-top: 30px; white-space: nowrap; color: var(--text); }
+.control-page .dsp-card label.check-label input { min-width: 0; }
+.plot-trace.dashed { stroke-dasharray: 5 4; stroke-width: 1; opacity: .8; }
+.plot-stem { fill: none; stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+.plot-stem-head { fill: none; stroke-width: 6; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.filter-lower { display: grid; grid-template-columns: minmax(260px, 360px) 1fr; gap: 22px; margin: 18px 0 10px; align-items: start; }
+.pz-plot { display: block; width: 100%; max-width: 360px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; margin-top: 8px; }
+.pz-plot .axis { stroke: var(--line); stroke-width: 1; fill: none; }
+.unit-circle { fill: none; stroke: #94a3b8; stroke-dasharray: 4 3; }
+.pz-curve { fill: none; stroke-width: 1.6; }
+.pz-curve.dashed { stroke-dasharray: 5 4; opacity: .7; }
+.pz-pole { stroke: #fb7185; stroke-width: 2; fill: none; }
+.pz-zero { fill: none; stroke: #5eead4; stroke-width: 2; }
+.pz-mark { fill: #f59e0b; }
+.pz-critical { fill: #f43f5e; }
+.pz-count, .pz-axis-label { fill: var(--muted); font: 500 9px DM Mono; }
+.tf-row { display: flex; flex-wrap: wrap; gap: 28px; margin: 6px 0 14px; }
+.tf-display { display: flex; align-items: center; gap: 10px; font: 600 13px DM Mono; color: var(--text); }
+.tf-fraction { display: inline-flex; flex-direction: column; align-items: center; }
+.tf-fraction span { padding: 2px 8px; }
+.tf-fraction span:first-child { border-bottom: 1.5px solid var(--text); }
+.routh-table th { text-align: left; }
+.routh-table td.routh-first { color: #f59e0b; font-weight: 700; }
+.routh-block { border-bottom: 0; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.conv-steps { margin: 8px 0 12px; }
+.conv-detail { display: grid; grid-template-columns: minmax(240px, 360px) 1fr; gap: 18px; align-items: start; }
+.button.small { padding: 4px 10px; font-size: 11px; }
+[data-theme="light"] .pz-zero { stroke: #0f766e; }
+@media (max-width: 980px) { .filter-lower, .conv-detail { grid-template-columns: 1fr; } }
+.dsp-page .dsp-controls, .control-page .dsp-controls, .communication-page .dsp-controls { align-items: flex-start; }
+.routh-table { width: auto; min-width: 320px; }
+.routh-table td, .routh-table th { padding: 4px 18px; text-align: right; }
+.comm-side > .button { align-self: flex-start; }

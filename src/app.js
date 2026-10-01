@@ -16,10 +16,10 @@ import { buildWireSegments, defaultWireRoute, orthogonalPath, wireRouteHandle, w
 import { componentsInRect } from '../packages/schematic/src/selection.mjs';
 import { fitCanvasView, screenToCanvas, snapCanvasPoint, zoomCanvasView } from './core/canvas.js';
 import { parseEngineeringValue, formatEngineeringValue } from '../packages/schematic/src/units.mjs';
-import { applyWindow, fft, filterFir, generateSine } from '../packages/numerics/src/index.mjs';
+import { applyWindow, cabs, cdiv, cexp, complex, convolutionSteps, designFir, designIir, FILTER_TYPES, FIR_WINDOWS, fft, filterFir, frequencyResponseDigital, generateSine, impulseResponse, lfilter, poleZero, polyadd, polyRoots, polyval } from '../packages/numerics/src/index.mjs';
 import { addAwgn, bitErrorRate, qpskDemodulate, qpskModulate, ANALOG_SCHEMES, berCurve, CRC_POLYNOMIALS, convolutionalEncode, crcCheck, crcDivide, DIGITAL_SCHEMES, eyeDiagram, hammingDecode, hammingEncode, LINE_CODES, lineCode, samplingDemo, simulateAnalogModulation, simulateDigitalLink, viterbiDecode } from '../packages/communications/src/index.mjs';
 import { parseTouchstone } from '../packages/rf/src/index.mjs';
-import { firstOrderStability, firstOrderStep } from '../packages/control/src/index.mjs';
+import { analyzeSystem, classifyStability, firstOrderStability, firstOrderStep, formatPolynomial, makeTransferFunction, pidController, pidLoop, rootLocus, routhArray, timeResponse, zieglerNichols } from '../packages/control/src/index.mjs';
 import { parsePcap, parsePcapNg } from '../packages/packets/src/index.mjs';
 import { topologyMetrics } from '../packages/topology/src/index.mjs';
 import { parseVcd } from '../packages/hdl/src/index.mjs';
@@ -431,7 +431,13 @@ function renderPlotFrame({ title, series, xMin, xMax, logX = false, xTicks, yRan
   const yPosition = (value) => (1 - (value - yRange.min) / (yRange.max - yRange.min || 1));
   const grid = yRange.ticks.map((tick) => `<line x1="0" x2="${width}" y1="${(yPosition(tick) * height).toFixed(2)}" y2="${(yPosition(tick) * height).toFixed(2)}"/>`).join('')
     + xTicks.map((tick) => `<line y1="0" y2="${height}" x1="${(tick.position * width).toFixed(2)}" x2="${(tick.position * width).toFixed(2)}"/>`).join('');
-  const paths = [...series].reverse().map((entry) => `<path class="plot-trace${entry.primary ? ' primary' : ''}" stroke="${entry.color}" d="${linePath(entry.xs, entry.ys, { width, height, xMin, xMax, yMin: yRange.min, yMax: yRange.max, logX })}"/>`).join('');
+  const stemPath = (entry) => {
+    const zero = Math.min(1, Math.max(0, yPosition(0))) * height;
+    return entry.xs.map((x, index) => { const px = ((x - xMin) / (xMax - xMin || 1) * width).toFixed(2); return Number.isFinite(entry.ys[index]) ? `M${px} ${zero.toFixed(2)}V${(yPosition(entry.ys[index]) * height).toFixed(2)}` : ''; }).join('');
+  };
+  const paths = [...series].reverse().map((entry) => entry.stem
+    ? `<path class="plot-stem" stroke="${entry.color}" d="${stemPath(entry)}"/><path class="plot-stem-head" stroke="${entry.color}" d="${entry.xs.map((x, index) => Number.isFinite(entry.ys[index]) ? `M${((x - xMin) / (xMax - xMin || 1) * width).toFixed(2)} ${(yPosition(entry.ys[index]) * height).toFixed(2)}h0` : '').join('')}"/>`
+    : `<path class="plot-trace${entry.primary ? ' primary' : ''}${entry.dashed ? ' dashed' : ''}" stroke="${entry.color}" d="${linePath(entry.xs, entry.ys, { width, height, xMin, xMax, yMin: yRange.min, yMax: yRange.max, logX })}"/>`).join('');
   const xLabel = (tick) => `<span style="left:${(tick.position * 100).toFixed(2)}%;transform:translateX(${tick.position <= 0.001 ? '0' : tick.position >= 0.999 ? '-100%' : '-50%'})">${esc(tick.text)}</span>`;
   return `<div class="circuit-plot"><span class="plot-title">${esc(title)}</span><div class="plot-body"><div class="plot-y">${yRange.ticks.map((tick) => `<span style="top:${(yPosition(tick) * 100).toFixed(2)}%">${esc(formatY(tick))}</span>`).join('')}</div><div class="plot-area"><svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="${esc(title)}"><g class="plot-grid">${grid}</g>${paths}</svg><div class="plot-x">${xTicks.map(xLabel).join('')}</div></div></div></div>`;
 }
@@ -779,7 +785,131 @@ function renderEngineeringModule(module) {
   </div>`;
 }
 
-function renderDsp(state) {
+const DSP_DEFAULTS = Object.freeze({
+  tab: 'fft', method: 'butterworth', filterType: 'lowpass', order: 4, taps: 31, window: 'hamming', beta: 6, rippleDb: 1,
+  cutoff: 1000, cutoffHigh: 2000, sampleRate: 8000, toneLow: 300, toneHigh: 2500, convX: '1 2 3 1', convH: '1 1 0.5', convN: 2,
+});
+const DSP_TABS = [['fft', 'Signal & FFT'], ['filter', 'Filter designer'], ['convolution', 'Convolution']];
+const FILTER_METHODS = [['butterworth', 'Butterworth IIR'], ['chebyshev1', 'Chebyshev type I IIR'], ['fir', 'FIR (windowed sinc)']];
+const FILTER_TYPE_LABELS = { lowpass: 'Low-pass', highpass: 'High-pass', bandpass: 'Band-pass', bandstop: 'Band-stop' };
+
+function dspConfiguration(state) {
+  const saved = state.project.experiments.find((experiment) => experiment?.id === 'dsp-lab')?.inputs || {};
+  return { ...DSP_DEFAULTS, ...saved };
+}
+
+function persistDsp(patch) {
+  recordExperiment({ id: 'dsp-lab', kind: 'dsp', operation: 'dsp-lab', inputs: { ...dspConfiguration(getState()), ...patch } });
+}
+
+const labField = (attribute, name, label, value, unit = '', attributes = 'type="number" step="any"') => `<label>${label}<input ${attributes} ${attribute}="${name}" value="${esc(value)}">${unit ? `<span>${unit}</span>` : ''}</label>`;
+const labSelect = (attribute, name, label, value, options) => `<label>${label}<select ${attribute}="${name}">${options.map(([key, text]) => `<option value="${esc(key)}" ${String(key) === String(value) ? 'selected' : ''}>${esc(text)}</option>`).join('')}</select></label>`;
+const dspField = (...args) => labField('data-dsp-lab-field', ...args);
+const dspSelect = (...args) => labSelect('data-dsp-lab-field', ...args);
+const labTabs = (tabs, active, attribute) => `<div class="logic-tabs" role="tablist">${tabs.map(([id, label]) => `<button role="tab" aria-selected="${active === id}" class="${active === id ? 'active' : ''}" ${attribute}="${id}">${label}</button>`).join('')}</div>`;
+const complexText = (value) => (Math.abs(value.im) < 1e-12 ? fmt(value.re, 4) : `${fmt(value.re, 4)} ${value.im < 0 ? '−' : '+'} j${fmt(Math.abs(value.im), 4)}`);
+const indexTicks = (first, last) => { const span = Math.max(1, last - first); const step = Math.max(1, Math.ceil(span / 8)); const ticks = []; for (let n = first; n <= last; n += step) ticks.push({ position: (n - first) / span, text: String(n) }); return ticks; };
+
+/** s- or z-plane plot: optional unit circle, curves, poles (×), zeros (○) and highlighted points. */
+function renderComplexPlane({ label, extent, unitCircle = false, curves = [], poles = [], zeros = [], marks = [], criticalPoint = false }) {
+  const size = 300, centre = size / 2, scale = 130 / extent;
+  const x = (re) => Math.max(-5e3, Math.min(5e3, centre + re * scale)).toFixed(2);
+  const y = (im) => Math.max(-5e3, Math.min(5e3, centre - im * scale)).toFixed(2);
+  const group = (points) => points.reduce((list, point) => { const same = list.find((entry) => Math.hypot(entry.re - point.re, entry.im - point.im) < extent * 1e-3); if (same) same.count += 1; else list.push({ ...point, count: 1 }); return list; }, []);
+  const multiplicity = (point) => (point.count > 1 ? `<text class="pz-count" x="${(Number(x(point.re)) + 7).toFixed(1)}" y="${(Number(y(point.im)) - 7).toFixed(1)}">${point.count}</text>` : '');
+  const tick = Number((extent / 2).toPrecision(1));
+  const axisLabels = `<text class="pz-axis-label" x="${x(tick)}" y="${centre + 12}">${fmt(tick, 3)}</text><text class="pz-axis-label" x="${centre + 4}" y="${y(tick)}">j${fmt(tick, 3)}</text>`;
+  const curvePaths = curves.map((curve) => `<path class="pz-curve${curve.dashed ? ' dashed' : ''}" stroke="${curve.color}" d="${curve.points.map((point, index) => `${index ? 'L' : 'M'}${x(point.re)} ${y(point.im)}`).join('')}"/>`).join('');
+  return `<svg class="pz-plot" viewBox="0 0 ${size} ${size}" role="img" aria-label="${esc(label)}"><path class="axis" d="M${centre} 4V${size - 4}M4 ${centre}H${size - 4}"/>${unitCircle ? `<circle class="unit-circle" cx="${centre}" cy="${centre}" r="${scale}"/>` : ''}${axisLabels}${curvePaths}
+    ${criticalPoint ? `<circle class="pz-critical" cx="${x(-1)}" cy="${y(0)}" r="4"/><text class="pz-axis-label" x="${Number(x(-1)) - 14}" y="${centre - 8}">−1</text>` : ''}
+    ${group(zeros).map((zero) => `<circle class="pz-zero" cx="${x(zero.re)}" cy="${y(zero.im)}" r="5"/>${multiplicity(zero)}`).join('')}
+    ${group(poles).map((pole) => `<path class="pz-pole" d="M${Number(x(pole.re)) - 5} ${Number(y(pole.im)) - 5}l10 10m0 -10l-10 10"/>${multiplicity(pole)}`).join('')}
+    ${marks.map((mark) => `<rect class="pz-mark" x="${Number(x(mark.re)) - 3.5}" y="${Number(y(mark.im)) - 3.5}" width="7" height="7"/>`).join('')}</svg>`;
+}
+
+const planeExtent = (points, minimum = 1) => { const values = points.flatMap((point) => [Math.abs(point.re), Math.abs(point.im)]).filter(Number.isFinite); return Math.max(minimum, ...values) * 1.25; };
+
+function designFromConfig(config) {
+  const band = config.filterType === 'bandpass' || config.filterType === 'bandstop';
+  const cutoff = band ? [Number(config.cutoff), Number(config.cutoffHigh)] : Number(config.cutoff);
+  const common = { type: config.filterType, cutoff, sampleRate: Number(config.sampleRate) };
+  return config.method === 'fir'
+    ? designFir({ ...common, taps: Number(config.taps), window: config.window, beta: Number(config.beta) })
+    : designIir({ ...common, family: config.method, order: Number(config.order), rippleDb: Number(config.rippleDb) });
+}
+
+function renderFilterTab(config) {
+  const band = config.filterType === 'bandpass' || config.filterType === 'bandstop';
+  const fir = config.method === 'fir';
+  const controls = `<div class="dsp-controls">${dspSelect('method', 'Design method', config.method, FILTER_METHODS)}${dspSelect('filterType', 'Response', config.filterType, FILTER_TYPES.map((type) => [type, FILTER_TYPE_LABELS[type]]))}${dspField('sampleRate', 'Sample rate', config.sampleRate, 'Hz')}${dspField('cutoff', band ? 'Lower edge' : 'Cutoff', config.cutoff, 'Hz')}${band ? dspField('cutoffHigh', 'Upper edge', config.cutoffHigh, 'Hz') : ''}
+    ${fir ? `${dspField('taps', 'Taps', config.taps, '', 'type="number" min="3" max="513" step="1"')}${dspSelect('window', 'Window', config.window, FIR_WINDOWS.map((name) => [name, name[0].toUpperCase() + name.slice(1)]))}${config.window === 'kaiser' ? dspField('beta', 'Kaiser β', config.beta, '', 'type="number" min="0" max="20" step="0.5"') : ''}` : `${dspField('order', 'Order', config.order, '', 'type="number" min="1" max="12" step="1"')}${config.method === 'chebyshev1' ? dspField('rippleDb', 'Passband ripple', config.rippleDb, 'dB', 'type="number" min="0.01" max="10" step="0.1"') : ''}`}</div>`;
+  let design;
+  try { design = designFromConfig(config); } catch (error) { return `<section class="dsp-card">${controls}<div class="diagnostic error"><b>Filter design</b><span>${esc(error.message)}</span></div></section>`; }
+  const fs = design.sampleRate, nyquist = fs / 2;
+  const response = frequencyResponseDigital(design.b, design.a, fs, 801);
+  const floor = Math.max(-140, Math.min(...response.decibels));
+  const xTicks = linearTicks(0, nyquist, 'Hz');
+  const magnitude = renderPlotFrame({ title: 'Magnitude response (dB)', series: [{ xs: response.frequency, ys: response.decibels.map((value) => Math.max(value, floor)), color: PLOT_COLORS[0], primary: true }], xMin: 0, xMax: nyquist, xTicks, yRange: niceRange(floor, Math.max(1, ...response.decibels)), formatY: (value) => `${fmt(value, 0)} dB` });
+  const phaseDegrees = response.phase.map((value) => value * 180 / Math.PI);
+  const phase = renderPlotFrame({ title: 'Phase response (°, unwrapped)', series: [{ xs: response.frequency, ys: phaseDegrees, color: PLOT_COLORS[1], primary: true }], xMin: 0, xMax: nyquist, xTicks, yRange: niceRange(Math.min(...phaseDegrees), Math.max(...phaseDegrees)), formatY: (value) => `${fmt(value, 0)}°` });
+  const delays = response.groupDelay.filter((value, index) => response.decibels[index] > -40 && Number.isFinite(value));
+  const groupDelay = renderPlotFrame({ title: 'Group delay (samples)', series: [{ xs: response.frequency, ys: response.groupDelay.map((value, index) => (response.decibels[index] > -40 ? value : NaN)), color: PLOT_COLORS[2], primary: true }], xMin: 0, xMax: nyquist, xTicks, yRange: niceRange(Math.min(0, ...delays), Math.max(1, ...delays)), formatY: (value) => fmt(value, 1) });
+  const impulse = impulseResponse(design.b, design.a, fir ? design.taps : 64);
+  const indices = impulse.map((_, n) => n);
+  const impulsePlot = renderPlotFrame({ title: 'Impulse response h[n]', series: [{ xs: indices, ys: impulse, color: PLOT_COLORS[4], stem: true }], xMin: 0, xMax: impulse.length - 1, xTicks: indexTicks(0, impulse.length - 1), yRange: niceRange(Math.min(0, ...impulse), Math.max(0, ...impulse)), formatY: (value) => fmt(value, 3) });
+  let pz = null;
+  if (!fir || design.taps <= 129) pz = poleZero(design);
+  const pzPlot = pz ? renderComplexPlane({ label: 'Pole-zero plot in the z-plane', extent: planeExtent([...pz.poles, ...pz.zeros, { re: 1, im: 1 }]), unitCircle: true, poles: pz.poles, zeros: pz.zeros }) : '<p class="module-footnote">Pole-zero plot is shown for FIR filters up to 129 taps.</p>';
+  // Demonstration: two tones through the filter.
+  const tones = [Number(config.toneLow), Number(config.toneHigh)];
+  const demoLength = 400;
+  const input = Array.from({ length: demoLength }, (_, n) => tones.reduce((sum, tone) => sum + Math.sin(2 * Math.PI * tone * n / fs), 0));
+  const output = lfilter(design.b, design.a, input);
+  const times = input.map((_, n) => n / fs);
+  const demoValues = [...input, ...output];
+  const demo = renderPlotFrame({ title: 'Two-tone input (blue) and filtered output (teal)', series: [{ xs: times, ys: output, color: PLOT_COLORS[0], primary: true }, { xs: times, ys: input, color: PLOT_COLORS[1] }], xMin: 0, xMax: times.at(-1), xTicks: linearTicks(0, times.at(-1), 's'), yRange: niceRange(Math.min(...demoValues), Math.max(...demoValues)), formatY: (value) => fmt(value, 1) });
+  const gainAt = (frequency) => { const zInverse = cexp(complex(0, -2 * Math.PI * frequency / fs)); return 20 * Math.log10(Math.max(1e-12, cabs(cdiv(polyval([...design.b].reverse(), zInverse), polyval([...design.a].reverse(), zInverse))))); };
+  const edgeGains = design.cutoff.map((frequency) => `${eng(frequency, 'Hz')}: ${decibels(gainAt(frequency))}`).join(' · ');
+  const coefficientText = `b = [${design.b.map((value) => Number(value.toPrecision(10))).join(', ')}]\na = [${design.a.map((value) => Number(value.toPrecision(10))).join(', ')}]`;
+  return `<section class="dsp-card">${controls}
+    <div class="analysis-readouts comm-readouts">${readout('Filter', `${FILTER_TYPE_LABELS[design.type]} ${fir ? `FIR, ${design.taps} taps, ${design.window}` : `${design.family === 'butterworth' ? 'Butterworth' : 'Chebyshev I'}, order ${design.order}`}`)}${readout('Stability', fir || design.stable ? 'stable (all poles inside |z| = 1)' : 'UNSTABLE')}${readout('Gain at band edge', edgeGains)}${readout(fir ? 'Delay (linear phase)' : 'Phase', fir ? `${fmt(design.delay, 1)} samples = ${eng(design.delay / fs, 's')}` : 'non-linear (IIR)')}${readout('Coefficients', `${design.b.length} b, ${design.a.length} a`)}</div>
+    <div class="analysis-plots comm-plots">${magnitude}${phase}${groupDelay}${impulsePlot}</div>
+    <div class="filter-lower"><div><span class="panel-label">POLE-ZERO PLOT (z-plane)</span>${pzPlot}</div>
+    <div class="comm-side"><span class="panel-label">FILTERING DEMO</span><div class="dsp-controls">${dspField('toneLow', 'Tone 1', config.toneLow, 'Hz')}${dspField('toneHigh', 'Tone 2', config.toneHigh, 'Hz')}</div>
+    <div class="analysis-readouts comm-readouts">${tones.map((tone) => readout(`Gain at ${eng(tone, 'Hz')}`, decibels(gainAt(tone)))).join('')}</div>${demo}
+    <span class="panel-label">COEFFICIENTS (scipy.signal / MATLAB order)</span><pre class="crc-steps">${esc(coefficientText)}</pre></div></div>
+    <p class="module-footnote">IIR filters use analog prototypes with the prewarped bilinear transform, the same method as scipy.signal.butter / cheby1. FIR filters use the windowed-sinc method of scipy.signal.firwin.</p></section>`;
+}
+
+function parseSequence(text, label) {
+  const values = String(text).trim().split(/[\s,;]+/).filter(Boolean).map(Number);
+  if (!values.length || values.some((value) => !Number.isFinite(value))) throw new SyntaxError(`${label} must be a list of numbers separated by spaces or commas.`);
+  return values;
+}
+
+function renderConvolutionTab(config) {
+  const controls = `<div class="dsp-controls">${dspField('convX', 'Input x[n]', config.convX, '', 'type="text" spellcheck="false"')}${dspField('convH', 'Impulse response h[n]', config.convH, '', 'type="text" spellcheck="false"')}</div>`;
+  let x, h, steps;
+  try { x = parseSequence(config.convX, 'x[n]'); h = parseSequence(config.convH, 'h[n]'); steps = convolutionSteps(x, h); }
+  catch (error) { return `<section class="dsp-card">${controls}<div class="diagnostic error"><b>Convolution</b><span>${esc(error.message)}</span></div></section>`; }
+  const y = steps.map((step) => step.value);
+  const selected = Math.min(steps.length - 1, Math.max(0, Math.trunc(Number(config.convN) || 0)));
+  const last = steps.length - 1;
+  const all = [...x, ...h, ...y];
+  const yRange = niceRange(Math.min(0, ...all), Math.max(0, ...all));
+  const stem = (title, values, color) => renderPlotFrame({ title, series: [{ xs: values.map((_, n) => n), ys: values, color, stem: true }], xMin: 0, xMax: last, xTicks: indexTicks(0, last), yRange, formatY: (value) => fmt(value, 2) });
+  const shifted = Array.from({ length: steps.length }, (_, k) => { const index = selected - k; return index >= 0 && index < h.length ? h[index] : NaN; });
+  const step = steps[selected];
+  const rows = step.terms.map((term) => `<tr><td>${term.k}</td><td>${fmt(term.x, 4)}</td><td>${fmt(term.h, 4)}</td><td>${fmt(term.product, 4)}</td></tr>`).join('');
+  const formula = `y[${selected}] = ${step.terms.map((term) => `x[${term.k}]·h[${selected - term.k}]`).join(' + ')} = ${step.terms.map((term) => `${fmt(term.x, 3)}×${fmt(term.h, 3)}`).join(' + ')} = ${fmt(step.value, 4)}`;
+  return `<section class="dsp-card">${controls}
+    <div class="analysis-plots comm-plots">${stem('Input x[n]', x, PLOT_COLORS[1])}${stem('Impulse response h[n]', h, PLOT_COLORS[4])}${stem(`Flipped and shifted h[${selected} − k]`, shifted, PLOT_COLORS[2])}${stem('Output y[n] = x[n] * h[n]', y, PLOT_COLORS[0])}</div>
+    <span class="panel-label">STEP THROUGH THE SUM — choose n</span><div class="bit-row conv-steps">${steps.map((entry) => `<button class="bit${entry.n === selected ? ' flipped' : ''}" data-dsp-conv-n="${entry.n}">${entry.n}</button>`).join('')}</div>
+    <div class="conv-detail"><table class="truth-table comm-table"><thead><tr><th>k</th><th>x[k]</th><th>h[n−k]</th><th>product</th></tr></thead><tbody>${rows}</tbody></table><div><pre class="crc-steps">${esc(formula)}</pre><div class="analysis-readouts comm-readouts">${readout('Output length', `${x.length} + ${h.length} − 1 = ${y.length}`)}${readout('y[n]', y.map((value) => fmt(value, 3)).join(', '))}</div></div></div>
+    <p class="module-footnote">Linear convolution y[n] = Σ x[k]·h[n−k]. The same sum describes any LTI system: the output is the input weighted by the shifted impulse response.</p></section>`;
+}
+
+function renderFftTab(state) {
   const result = state.simulation?.kind === 'dsp' ? state.simulation : null;
   const config = state.project.experiments.find((experiment) => experiment?.id === 'signals-fft')?.inputs || {};
   const signal = result?.signal;
@@ -790,11 +920,17 @@ function renderDsp(state) {
   const magnitudes = result ? Array.from(result.spectrum.real, (real, index) => Math.hypot(real, result.spectrum.imaginary[index])) : [];
   const magnitudeMax = Math.max(1e-12, ...magnitudes);
   const spectrumPath = magnitudes.length > 1 ? magnitudes.map((value, index) => `${index ? 'L' : 'M'} ${(index / (magnitudes.length - 1) * 560).toFixed(1)} ${(150 - (value / magnitudeMax) * 130).toFixed(1)}`).join(' ') : '';
-  return `<div class="page scroll-page dsp-page">${pageHeader(modules.find((item) => item.id === 'dsp'), 'BUILT-IN NUMERICAL LAB', '<span class="pill live"><i></i> LOCAL COMPUTATION</span>')}
-    <section class="dsp-card"><div class="dsp-controls"><label>Frequency<input type="number" min="0.1" step="0.1" data-dsp-field="frequency" value="${esc(config.frequency ?? 1000)}"><span>Hz</span></label><label>Sample rate<input type="number" min="10" step="10" data-dsp-field="sampleRate" value="${esc(config.sampleRate ?? 48000)}"><span>Hz</span></label><label>Samples<input type="number" min="8" max="4096" step="8" data-dsp-field="length" value="${esc(config.length ?? 256)}"></label><label>FIR taps<input type="number" min="1" max="64" step="1" data-dsp-field="taps" value="${esc(config.taps ?? 1)}"></label><label>Window<select data-dsp-field="window"><option value="rectangular" ${config.window === 'rectangular' ? 'selected' : ''}>Rectangular</option><option value="hann" ${!config.window || config.window === 'hann' ? 'selected' : ''}>Hann</option><option value="hamming" ${config.window === 'hamming' ? 'selected' : ''}>Hamming</option></select></label><button class="button run" data-action="run-dsp">Generate + FFT</button><button class="button ghost" data-action="export-dsp">Export samples</button><button class="button ghost" data-action="export-spectrum">Export spectrum</button></div>
+  return `<section class="dsp-card"><div class="dsp-controls"><label>Frequency<input type="number" min="0.1" step="0.1" data-dsp-field="frequency" value="${esc(config.frequency ?? 1000)}"><span>Hz</span></label><label>Sample rate<input type="number" min="10" step="10" data-dsp-field="sampleRate" value="${esc(config.sampleRate ?? 48000)}"><span>Hz</span></label><label>Samples<input type="number" min="8" max="4096" step="8" data-dsp-field="length" value="${esc(config.length ?? 256)}"></label><label>FIR taps<input type="number" min="1" max="64" step="1" data-dsp-field="taps" value="${esc(config.taps ?? 1)}"></label><label>Window<select data-dsp-field="window"><option value="rectangular" ${config.window === 'rectangular' ? 'selected' : ''}>Rectangular</option><option value="hann" ${!config.window || config.window === 'hann' ? 'selected' : ''}>Hann</option><option value="hamming" ${config.window === 'hamming' ? 'selected' : ''}>Hamming</option></select></label><button class="button run" data-action="run-dsp">Generate + FFT</button><button class="button ghost" data-action="export-dsp">Export samples</button><button class="button ghost" data-action="export-spectrum">Export spectrum</button></div>
     <div class="dsp-plot"><span class="panel-label">TIME SERIES</span><svg viewBox="0 0 560 170" preserveAspectRatio="none"><path class="trace" d="${path}"/></svg></div><div class="dsp-plot"><span class="panel-label">FFT MAGNITUDE</span><svg viewBox="0 0 560 170" preserveAspectRatio="none"><path class="trace spectrum-trace" d="${spectrumPath}"/></svg></div>
     <div class="stat-grid"><div><span>Samples</span><strong>${signal?.data.length || '—'}</strong><small>bounded local array</small></div><div><span>Sample rate</span><strong>${signal ? fmt(signal.sampleRate) : '—'}</strong><small>Hz</small></div><div><span>FFT peak</span><strong>${peak === null ? '—' : fmt(peak, 3)}</strong><small>magnitude</small></div></div>
-    <p class="module-footnote">This built-in experiment uses deterministic local math. It does not execute imported Python or claim SciPy/NumPy availability.</p></section></div>`;
+    <p class="module-footnote">This built-in experiment uses deterministic local math. It does not execute imported Python or claim SciPy/NumPy availability.</p></section>`;
+}
+
+function renderDsp(state) {
+  const config = dspConfiguration(state);
+  const body = config.tab === 'filter' ? renderFilterTab(config) : config.tab === 'convolution' ? renderConvolutionTab(config) : renderFftTab(state);
+  return `<div class="page scroll-page dsp-page">${pageHeader(modules.find((item) => item.id === 'dsp'), 'BUILT-IN NUMERICAL LAB', '<span class="pill live"><i></i> LOCAL COMPUTATION</span>')}
+    ${labTabs(DSP_TABS, config.tab, 'data-dsp-tab')}${body}</div>`;
 }
 
 function renderQpskLink(state) {
@@ -990,17 +1126,160 @@ function renderRf(state) {
     <div class="rf-result-grid"><div class="smith-chart"><span class="panel-label">S11 SMITH VIEW</span><svg viewBox="0 0 300 300"><path d="M150 10V290M10 150H290"/>${smithPoints}</svg></div><div><div class="stat-grid"><div><span>Ports</span><strong>${result?.ports ?? '—'}</strong><small>S-parameters</small></div><div><span>Reference</span><strong>${result ? fmt(result.referenceImpedance, 3) : '—'}</strong><small>Ω</small></div><div><span>Points</span><strong>${result?.points.length ?? '—'}</strong><small>${result?.frequencyUnit || 'frequency'}</small></div><div><span>S11 magnitude</span><strong>${first ? fmt(Math.hypot(first.real, first.imaginary), 3) : '—'}</strong><small>linear</small></div><div><span>S11 phase</span><strong>${first ? fmt(Math.atan2(first.imaginary, first.real) * 180 / Math.PI, 2) : '—'}</strong><small>degrees</small></div></div></div></div><p class="module-footnote">Parsed locally with bounded RI/MA/DB conversion. The chart uses only imported S11 points; no QucsatorRF, openEMS or network hardware is invoked.</p></section></div>`;
 }
 
-function renderControl(state) {
+const CONTROL_DEFAULTS = Object.freeze({
+  tab: 'first-order', numerator: '10', denominator: 's(s+1)(s+5)', feedback: true, duration: '',
+  locusNumerator: '1', locusDenominator: 's(s+2)(s+4)', locusGain: 20, routh: 's^4 + 2s^3 + 3s^2 + 4s + 5',
+  plantNumerator: '1', plantDenominator: '(s+1)^3', kp: 2, ki: 1, kd: 0.5, tf: 0.01,
+});
+const CONTROL_TABS = [['first-order', 'First-order step'], ['analysis', 'Transfer function'], ['locus', 'Root locus & Routh'], ['pid', 'PID tuning']];
+const CONTROL_TEXT_FIELDS = ['numerator', 'denominator', 'duration', 'locusNumerator', 'locusDenominator', 'routh', 'plantNumerator', 'plantDenominator'];
+
+function controlConfiguration(state) {
+  const saved = state.project.experiments.find((experiment) => experiment?.id === 'control-lab')?.inputs || {};
+  return { ...CONTROL_DEFAULTS, ...saved };
+}
+
+function persistControl(patch) {
+  recordExperiment({ id: 'control-lab', kind: 'control', operation: 'control-lab', inputs: { ...controlConfiguration(getState()), ...patch } });
+}
+
+const controlField = (...args) => labField('data-control-lab-field', ...args);
+const textAttributes = 'type="text" spellcheck="false" maxlength="200"';
+const fraction = (name, numerator, denominator) => `<div class="tf-display"><span>${esc(name)} =</span><div class="tf-fraction"><span>${esc(formatPolynomial(numerator))}</span><span>${esc(formatPolynomial(denominator))}</span></div></div>`;
+const rootList = (roots) => (roots.length ? roots.map(complexText).join(', ') : 'none');
+const timeOrDash = (value) => (value === null || !Number.isFinite(value) ? '—' : eng(value, 's'));
+const marginText = (value, unit, crossover) => (Number.isFinite(value) ? `${fmt(value, 2)} ${unit}${crossover ? ` at ${fmt(crossover, 4)} rad/s` : ''}` : '∞ (no crossover)');
+const STABILITY_TEXT = { stable: 'Stable — all poles in the left half-plane', marginal: 'Marginally stable — poles on the jω axis', unstable: 'Unstable — pole(s) in the right half-plane' };
+
+function timePlot(title, response, color, extra = []) {
+  const series = [{ xs: response.time, ys: response.output, color, primary: true }, ...extra];
+  const values = series.flatMap((entry) => entry.ys).filter(Number.isFinite);
+  const stop = response.time.at(-1) || 1;
+  return renderPlotFrame({ title, series, xMin: 0, xMax: stop, xTicks: linearTicks(0, stop, 's'), yRange: niceRange(Math.min(0, ...values), Math.max(0, ...values)), formatY: (value) => fmt(value, 2) });
+}
+
+function bodePlots(result) {
+  const first = result.omega[0], last = result.omega.at(-1);
+  const xTicks = decadeTicks(first, last).map((omega) => ({ position: (Math.log10(omega) - Math.log10(first)) / (Math.log10(last) - Math.log10(first) || 1), text: `${eng(omega, '')}` }));
+  const magnitude = result.magnitudeDb.map((value) => Math.max(-200, Math.min(200, value)));
+  return renderPlotFrame({ title: 'Bode magnitude (dB) vs ω (rad/s)', series: [{ xs: result.omega, ys: magnitude, color: PLOT_COLORS[0], primary: true }, { xs: [first, last], ys: [0, 0], color: '#94a3b8', dashed: true }], xMin: first, xMax: last, logX: true, xTicks, yRange: niceRange(Math.min(...magnitude), Math.max(...magnitude, 0)), formatY: (value) => `${fmt(value, 0)} dB` })
+    + renderPlotFrame({ title: 'Bode phase (°) vs ω (rad/s)', series: [{ xs: result.omega, ys: result.phase, color: PLOT_COLORS[1], primary: true }, { xs: [first, last], ys: [-180, -180], color: '#94a3b8', dashed: true }], xMin: first, xMax: last, logX: true, xTicks, yRange: niceRange(Math.min(...result.phase, -180), Math.max(...result.phase)), formatY: (value) => `${fmt(value, 0)}°` });
+}
+
+function nyquistPlane(data) {
+  const points = data.real.map((re, index) => ({ re, im: data.imaginary[index] })).filter((point) => Number.isFinite(point.re) && Number.isFinite(point.im));
+  // Frame the region around −1 that decides stability; far-away branches run off the edge.
+  const near = points.filter((point) => Math.hypot(point.re, point.im) <= 10);
+  const extent = Math.max(1.5, ...near.map((point) => Math.max(Math.abs(point.re), Math.abs(point.im)))) * 1.15;
+  return renderComplexPlane({ label: 'Nyquist plot', extent, criticalPoint: true, curves: [{ points, color: PLOT_COLORS[0] }, { points: points.map((point) => ({ re: point.re, im: -point.im })), color: PLOT_COLORS[1], dashed: true }] });
+}
+
+function renderControlAnalysisTab(config) {
+  const controls = `<div class="dsp-controls">${controlField('numerator', 'Numerator N(s)', config.numerator, '', textAttributes)}${controlField('denominator', 'Denominator D(s)', config.denominator, '', textAttributes)}${controlField('duration', 'Time span (blank = auto)', config.duration, 's', textAttributes)}<label class="check-label"><input type="checkbox" data-control-lab-field="feedback" ${config.feedback ? 'checked' : ''}> Unity negative feedback</label></div>
+    <p class="module-footnote">Type polynomials as "s^2 + 2s + 1", "(s+1)(s+3)", "s(s+2)^2" or coefficient lists like "1 2 1".</p>`;
+  let analysis;
+  try { analysis = analyzeSystem(config.numerator, config.denominator, { feedback: Boolean(config.feedback), duration: config.duration === '' ? undefined : Number(config.duration) }); }
+  catch (error) { return `<section class="dsp-card">${controls}<div class="diagnostic error"><b>Transfer function</b><span>${esc(error.message)}</span></div></section>`; }
+  const { open, system, info, bode: frequency } = analysis;
+  const label = config.feedback ? 'T(s)' : 'G(s)';
+  const plots = [];
+  if (analysis.step) {
+    const final = analysis.stability.status === 'stable' ? analysis.dcGain : null;
+    plots.push(timePlot(`${label} unit-step response${analysis.step.diverged ? ' (diverging)' : ''}`, analysis.step, PLOT_COLORS[0], final === null ? [] : [{ xs: [0, analysis.step.time.at(-1)], ys: [final, final], color: '#94a3b8', dashed: true }]));
+    plots.push(timePlot(`${label} impulse response`, analysis.impulse, PLOT_COLORS[4]));
+  }
+  plots.push(bodePlots(frequency));
+  const pzPoints = [...system.poles, ...system.zeros];
+  return `<section class="dsp-card">${controls}
+    <div class="tf-row">${fraction('G(s)', open.numerator, open.denominator)}${config.feedback ? fraction('T(s) = G / (1 + G)', system.numerator, system.denominator) : ''}</div>
+    ${analysis.step ? '' : '<div class="diagnostic warning"><b>Improper system</b><span>The numerator degree exceeds the denominator degree, so only frequency-domain results are shown.</span></div>'}
+    <div class="analysis-readouts comm-readouts">${readout('Stability', STABILITY_TEXT[analysis.stability.status])}${readout(`Poles of ${label}`, rootList(system.poles))}${readout(`Zeros of ${label}`, rootList(system.zeros))}${readout('DC gain', Number.isFinite(analysis.dcGain) ? fmt(analysis.dcGain, 4) : '∞ (integrator)')}
+    ${info && analysis.stability.status === 'stable' ? `${readout('Rise time (10–90 %)', timeOrDash(info.riseTime))}${readout('Overshoot', `${fmt(info.overshoot, 2)} %`)}${readout('Peak time', timeOrDash(info.peakTime))}${readout('Settling time (2 %)', timeOrDash(info.settlingTime))}${readout('Steady-state error (step)', fmt(info.steadyStateError, 4))}` : ''}
+    ${readout('Gain margin of G', marginText(frequency.margins.gainMarginDb, 'dB', frequency.margins.phaseCrossover))}${readout('Phase margin of G', marginText(frequency.margins.phaseMarginDeg, '°', frequency.margins.gainCrossover))}</div>
+    <div class="analysis-plots comm-plots">${plots.join('')}</div>
+    <div class="filter-lower"><div><span class="panel-label">POLE-ZERO MAP OF ${label} (s-plane)</span>${renderComplexPlane({ label: 'Pole-zero map', extent: planeExtent(pzPoints), poles: system.poles, zeros: system.zeros })}</div>
+    <div><span class="panel-label">NYQUIST PLOT OF G(jω) — solid ω &gt; 0, dashed ω &lt; 0, ● = −1</span>${nyquistPlane(analysis.nyquist)}</div></div>
+    <p class="module-footnote">Time responses use exact matrix-exponential discretisation of the state-space model (matching scipy.signal.step). Margins are measured on the open loop G(s).</p></section>`;
+}
+
+function renderLocusTab(config) {
+  const controls = `<div class="dsp-controls">${controlField('locusNumerator', 'Open-loop N(s)', config.locusNumerator, '', textAttributes)}${controlField('locusDenominator', 'Open-loop D(s)', config.locusDenominator, '', textAttributes)}${controlField('locusGain', 'Gain K', config.locusGain, '', 'type="number" min="0" step="any"')}</div>`;
+  let body = '';
+  try {
+    const open = makeTransferFunction(config.locusNumerator, config.locusDenominator);
+    const locus = rootLocus(open);
+    const gain = Math.max(0, Number(config.locusGain) || 0);
+    const characteristic = polyadd(open.denominator, open.numerator.map((value) => value * gain));
+    const closedPoles = polyRoots(characteristic);
+    const stability = classifyStability(closedPoles);
+    const reference = [...locus.poles, ...locus.zeros, ...locus.crossings.map((crossing) => ({ re: 0, im: crossing.omega })), ...closedPoles];
+    if (locus.centroid !== null) reference.push({ re: locus.centroid, im: 0 });
+    const extent = planeExtent(reference);
+    const curves = locus.branches.map((branch, index) => ({ points: branch, color: PLOT_COLORS[index % PLOT_COLORS.length] }));
+    body = `${fraction('G(s)', open.numerator, open.denominator)}
+      <div class="filter-lower"><div><span class="panel-label">ROOT LOCUS OF 1 + K·G(s) = 0 (■ = poles at K)</span>${renderComplexPlane({ label: 'Root locus', extent, curves, poles: locus.poles, zeros: locus.zeros, marks: closedPoles })}</div>
+      <div class="comm-side"><div class="analysis-readouts comm-readouts">${readout('Open-loop poles', rootList(locus.poles))}${readout('Open-loop zeros', rootList(locus.zeros))}${readout('Asymptote centroid', locus.centroid === null ? '—' : fmt(locus.centroid, 4))}${readout('Asymptote angles', locus.asymptoteAngles.length ? locus.asymptoteAngles.map((angle) => `${fmt(angle, 1)}°`).join(', ') : 'none')}
+      ${readout('jω-axis crossings', locus.crossings.length ? locus.crossings.map((crossing) => `K = ${fmt(crossing.gain, 4)} at ω = ${fmt(crossing.omega, 4)} rad/s`).join('; ') : 'none')}${readout(`Closed-loop poles at K = ${fmt(gain, 4)}`, rootList(closedPoles))}${readout('Closed loop at this K', STABILITY_TEXT[stability.status])}</div>
+      <button class="button ghost" data-control-routh="${esc(characteristic.map((value) => Number(value.toPrecision(10))).join(' '))}">Send 1 + K·G(s) to Routh table</button></div></div>`;
+  } catch (error) { body = `<div class="diagnostic error"><b>Root locus</b><span>${esc(error.message)}</span></div>`; }
+  let routhBlock;
+  try {
+    const routh = routhArray(config.routh);
+    const width = Math.max(...routh.rows.map((row) => row.values.length));
+    routhBlock = `<div class="analysis-readouts comm-readouts">${readout('Polynomial', formatPolynomial(routh.coefficients))}${readout('Sign changes in first column', routh.signChanges)}${readout('Verdict', routh.verdict)}</div>
+      <table class="truth-table routh-table"><tbody>${routh.rows.map((row) => `<tr><th>s<sup>${row.power}</sup></th>${Array.from({ length: width }, (_, index) => `<td class="${index === 0 ? 'routh-first' : ''}">${row.values[index] === undefined ? '' : fmt(row.values[index], 4)}</td>`).join('')}</tr>`).join('')}</tbody></table>
+      ${routh.notes.map((note) => `<p class="module-footnote">${esc(note)}</p>`).join('')}`;
+  } catch (error) { routhBlock = `<div class="diagnostic error"><b>Routh-Hurwitz</b><span>${esc(error.message)}</span></div>`; }
+  return `<section class="dsp-card">${controls}${body}
+    <div class="coding-block routh-block"><span class="panel-label">ROUTH-HURWITZ STABILITY TABLE</span><div class="dsp-controls">${controlField('routh', 'Characteristic polynomial', config.routh, '', textAttributes)}</div>${routhBlock}</div></section>`;
+}
+
+function renderPidTab(config) {
+  const gains = { kp: Number(config.kp), ki: Number(config.ki), kd: Number(config.kd), tf: Number(config.tf) };
+  const controls = `<div class="dsp-controls">${controlField('plantNumerator', 'Plant N(s)', config.plantNumerator, '', textAttributes)}${controlField('plantDenominator', 'Plant D(s)', config.plantDenominator, '', textAttributes)}${controlField('kp', 'Kp', config.kp)}${controlField('ki', 'Ki', config.ki)}${controlField('kd', 'Kd', config.kd)}${controlField('tf', 'Derivative filter Tf', config.tf, 's')}</div>`;
+  let plant, loop, tuning;
+  try { plant = makeTransferFunction(config.plantNumerator, config.plantDenominator); loop = pidLoop(plant, gains); tuning = zieglerNichols(plant); }
+  catch (error) { return `<section class="dsp-card">${controls}<div class="diagnostic error"><b>PID loop</b><span>${esc(error.message)}</span></div></section>`; }
+  const stop = loop.response.time.at(-1);
+  const plantStability = classifyStability(plant.poles).status;
+  const extra = [];
+  if (plantStability === 'stable' && plant.proper) {
+    const openStep = timeResponse(plant, { duration: stop, points: loop.response.time.length });
+    extra.push({ xs: openStep.time, ys: openStep.output, color: PLOT_COLORS[1] });
+  }
+  extra.push({ xs: [0, stop], ys: [1, 1], color: '#94a3b8', dashed: true });
+  const plot = timePlot(`Closed-loop step: PID (teal)${extra.length > 1 ? ', plant alone (blue)' : ''}, set-point (grey)`, loop.response, PLOT_COLORS[0], extra);
+  const info = loop.info;
+  const stable = loop.stability.status === 'stable';
+  const znTable = tuning.rules.length
+    ? `<table class="truth-table comm-table"><thead><tr><th>Rule</th><th>Kp</th><th>Ti</th><th>Td</th><th>Ki</th><th>Kd</th><th></th></tr></thead><tbody>${tuning.rules.map((rule) => `<tr><td>${rule.name}</td><td>${fmt(rule.kp, 4)}</td><td>${rule.ti ? fmt(rule.ti, 4) : '∞'}</td><td>${fmt(rule.td, 4)}</td><td>${fmt(rule.ki, 4)}</td><td>${fmt(rule.kd, 4)}</td><td><button class="button ghost small" data-control-zn="${rule.name}">Apply</button></td></tr>`).join('')}</tbody></table>`
+    : `<p class="module-footnote">${esc(tuning.note)}</p>`;
+  return `<section class="dsp-card">${controls}
+    <div class="tf-row">${fraction('G(s)', plant.numerator, plant.denominator)}${fraction('C(s)', pidController(gains).numerator, pidController(gains).denominator)}</div>
+    <div class="analysis-readouts comm-readouts">${readout('Closed loop', STABILITY_TEXT[loop.stability.status])}${stable ? `${readout('Rise time (10–90 %)', timeOrDash(info.riseTime))}${readout('Overshoot', `${fmt(info.overshoot, 2)} %`)}${readout('Settling time (2 %)', timeOrDash(info.settlingTime))}${readout('Steady-state error', fmt(info.steadyStateError, 4))}` : ''}${readout('Gain margin of C·G', marginText(loop.margins.gainMarginDb, 'dB', loop.margins.phaseCrossover))}${readout('Phase margin of C·G', marginText(loop.margins.phaseMarginDeg, '°', loop.margins.gainCrossover))}</div>
+    <div class="analysis-plots">${plot}</div>
+    <span class="panel-label">ZIEGLER-NICHOLS (ULTIMATE-GAIN METHOD)</span>
+    <div class="analysis-readouts comm-readouts">${readout('Ultimate gain Ku', tuning.ultimateGain === null ? '—' : fmt(tuning.ultimateGain, 4))}${readout('Ultimate period Tu', tuning.ultimatePeriod === null ? '—' : eng(tuning.ultimatePeriod, 's'))}</div>${znTable}
+    <p class="module-footnote">C(s) = Kp + Ki/s + Kd·s/(Tf·s + 1). Ziegler-Nichols gains are a starting point and usually give about 25–60 % overshoot; reduce Kp or Kd to tame it.</p></section>`;
+}
+
+function renderFirstOrderTab(state) {
   const result = state.simulation?.kind === 'control' ? state.simulation : null;
   const config = state.project.experiments.find((experiment) => experiment?.id === 'control-step')?.inputs || {};
   const values = result?.response?.data ? Array.from(result.response.data) : [];
   const max = Math.max(1, ...(values.length ? values : [1]));
   const path = values.length > 1 ? values.map((value, index) => `${index ? 'L' : 'M'} ${(index / (values.length - 1) * 560).toFixed(1)} ${(150 - (value / max) * 130).toFixed(1)}`).join(' ') : '';
-  return `<div class="page scroll-page control-page">${pageHeader(modules.find((item) => item.id === 'iot'), 'BUILT-IN CONTROL LAB', '<span class="pill live"><i></i> LOCAL MODEL</span>')}
-    <section class="dsp-card"><div class="dsp-controls"><label>Gain<input type="number" step="0.1" data-control-field="gain" value="${esc(config.gain ?? 1)}"></label><label>Time constant<input type="number" min="0.001" step="0.001" data-control-field="tau" value="${esc(config.tau ?? 0.1)}"><span>s</span></label><label>Sample rate<input type="number" min="1" step="1" data-control-field="sampleRate" value="${esc(config.sampleRate ?? 100)}"><span>Hz</span></label><label>Samples<input type="number" min="8" max="4096" step="8" data-control-field="length" value="${esc(config.length ?? 256)}"></label><button class="button run" data-action="run-control">Run step response</button><button class="button ghost" data-action="export-control">Export response</button></div>
+  return `<section class="dsp-card"><div class="dsp-controls"><label>Gain<input type="number" step="0.1" data-control-field="gain" value="${esc(config.gain ?? 1)}"></label><label>Time constant<input type="number" min="0.001" step="0.001" data-control-field="tau" value="${esc(config.tau ?? 0.1)}"><span>s</span></label><label>Sample rate<input type="number" min="1" step="1" data-control-field="sampleRate" value="${esc(config.sampleRate ?? 100)}"><span>Hz</span></label><label>Samples<input type="number" min="8" max="4096" step="8" data-control-field="length" value="${esc(config.length ?? 256)}"></label><button class="button run" data-action="run-control">Run step response</button><button class="button ghost" data-action="export-control">Export response</button></div>
     <div class="dsp-plot"><span class="panel-label">STEP RESPONSE</span><svg viewBox="0 0 560 170" preserveAspectRatio="none"><path class="trace" d="${path}"/></svg></div>
     <div class="stat-grid"><div><span>Stability</span><strong>${result ? (result.stability.stable ? 'Stable' : 'Unstable') : '—'}</strong><small>first-order pole</small></div><div><span>Final value</span><strong>${result ? fmt(values.at(-1), 3) : '—'}</strong><small>output units</small></div><div><span>Samples</span><strong>${values.length || '—'}</strong><small>bounded local array</small></div></div>
-    <p class="module-footnote">This built-in experiment uses a deterministic first-order model. It does not claim python-control, Scilab or hardware-in-the-loop availability.</p></section></div>`;
+    <p class="module-footnote">This built-in experiment uses a deterministic first-order model. It does not claim python-control, Scilab or hardware-in-the-loop availability.</p></section>`;
+}
+
+function renderControl(state) {
+  const config = controlConfiguration(state);
+  const body = config.tab === 'analysis' ? renderControlAnalysisTab(config) : config.tab === 'locus' ? renderLocusTab(config) : config.tab === 'pid' ? renderPidTab(config) : renderFirstOrderTab(state);
+  return `<div class="page scroll-page control-page">${pageHeader(modules.find((item) => item.id === 'iot'), 'BUILT-IN CONTROL LAB', '<span class="pill live"><i></i> LOCAL MODEL</span>')}
+    ${labTabs(CONTROL_TABS, config.tab, 'data-control-tab')}${body}</div>`;
 }
 
 function renderNetwork(state) {
@@ -1169,7 +1448,7 @@ function bindEvents() {
   document.querySelector('[data-action="help"]')?.addEventListener('click', showHelp);
   document.querySelector('[data-action="command"]')?.addEventListener('click', showCommandPalette);
   document.querySelector('[data-action="engine-info"]')?.addEventListener('click', showEngineInfo);
-  const experimentModules = { 'signals-fft': 'dsp', 'control-step': 'iot', 'qpsk-ber': 'communication', 'rf-touchstone': 'rf', 'topology-metrics': 'network', 'vcd-import': 'fpga' };
+  const experimentModules = { 'signals-fft': 'dsp', 'dsp-lab': 'dsp', 'control-step': 'iot', 'control-lab': 'iot', 'comm-lab': 'communication', 'qpsk-ber': 'communication', 'rf-touchstone': 'rf', 'topology-metrics': 'network', 'vcd-import': 'fpga' };
   document.querySelectorAll('.experiment-list .engine-row').forEach((row) => {
     const id = row.querySelector('b')?.textContent?.trim();
     const module = experimentModules[id];
@@ -1355,7 +1634,43 @@ function saveBrowserProject() {
   catch (error) { notify(error?.message || 'Project could not be saved', 'error'); }
 }
 
+function bindDspLabEvents() {
+  document.querySelectorAll('[data-dsp-tab]').forEach((button) => button.addEventListener('click', () => persistDsp({ tab: button.dataset.dspTab })));
+  document.querySelectorAll('[data-dsp-lab-field]').forEach((field) => field.addEventListener('change', () => {
+    const name = field.dataset.dspLabField;
+    const text = ['method', 'filterType', 'window', 'convX', 'convH'].includes(name);
+    const value = text ? field.value.trim() : Number(field.value);
+    if (!text && !Number.isFinite(value)) { notify('Enter a number', 'error'); return; }
+    persistDsp({ [name]: value });
+  }));
+  document.querySelectorAll('[data-dsp-conv-n]').forEach((button) => button.addEventListener('click', () => persistDsp({ convN: Number(button.dataset.dspConvN) })));
+}
+
+function bindControlLabEvents() {
+  document.querySelectorAll('[data-control-tab]').forEach((button) => button.addEventListener('click', () => persistControl({ tab: button.dataset.controlTab })));
+  document.querySelectorAll('[data-control-lab-field]').forEach((field) => field.addEventListener('change', () => {
+    const name = field.dataset.controlLabField;
+    if (field.type === 'checkbox') { persistControl({ [name]: field.checked }); return; }
+    const text = CONTROL_TEXT_FIELDS.includes(name);
+    const value = text ? field.value.trim() : Number(field.value);
+    if (!text && !Number.isFinite(value)) { notify('Enter a number', 'error'); return; }
+    persistControl({ [name]: value });
+  }));
+  document.querySelector('[data-control-routh]')?.addEventListener('click', (event) => persistControl({ routh: event.currentTarget.dataset.controlRouth }));
+  document.querySelectorAll('[data-control-zn]').forEach((button) => button.addEventListener('click', () => {
+    const config = controlConfiguration(getState());
+    try {
+      const rule = zieglerNichols(makeTransferFunction(config.plantNumerator, config.plantDenominator)).rules.find((entry) => entry.name === button.dataset.controlZn);
+      if (!rule) return;
+      const round = (value) => Number(value.toPrecision(4));
+      persistControl({ kp: round(rule.kp), ki: round(rule.ki), kd: round(rule.kd) });
+      notify(`Ziegler-Nichols ${rule.name} gains applied`, 'success');
+    } catch (error) { notify(error.message, 'error'); }
+  }));
+}
+
 function bindControlEvents() {
+  bindControlLabEvents();
   document.querySelector('[data-action="run-control"]')?.addEventListener('click', () => {
     const read = (name, fallback) => { const value = Number(document.querySelector(`[data-control-field="${name}"]`)?.value); return Number.isFinite(value) ? value : fallback; };
     try {
@@ -1664,6 +1979,7 @@ async function cancelHdlJob(silent = false) {
 }
 
 function bindDspEvents() {
+  bindDspLabEvents();
   document.querySelector('[data-action="run-dsp"]')?.addEventListener('click', () => {
     const read = (name, fallback) => { const value = Number(document.querySelector(`[data-dsp-field="${name}"]`)?.value); return Number.isFinite(value) ? value : fallback; };
     try {

@@ -166,6 +166,22 @@
       "plannedPhase": 4
     },
     {
+      "id": "dsp.filter-designer",
+      "surface": "Signals & DSP: filter designer and convolution tabs",
+      "state": "built-in",
+      "evidence": ["packages/numerics/src/filters.mjs", "packages/numerics/src/polynomial.mjs", "tests/filters.test.mjs"],
+      "limitations": "Butterworth and Chebyshev type I IIR up to order 12 via the prewarped bilinear transform (no elliptic, Bessel or Chebyshev II); FIR by the windowed-sinc method up to 513 taps (no Parks-McClellan); coefficients are double precision without fixed-point quantization; convolution explorer limited to 64-sample sequences.",
+      "plannedPhase": 4
+    },
+    {
+      "id": "control.transfer-function-lab",
+      "surface": "Control: transfer function, root locus/Routh and PID tabs",
+      "state": "built-in",
+      "evidence": ["packages/control/src/analysis.mjs", "tests/control-analysis.test.mjs"],
+      "limitations": "Continuous-time SISO rational transfer functions up to degree 20 without transport delay; time responses need a proper system; root locus samples gains on a logarithmic grid; Ziegler-Nichols uses the ultimate-gain method only; the PID derivative uses a first-order filter.",
+      "plannedPhase": 4
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",
