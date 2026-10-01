@@ -704,10 +704,10 @@ test('Packet workspace exposes deterministic topology metrics without live netwo
 
 test('Circuit Lab ignores non-DC shared results instead of dereferencing incompatible shapes', async () => {
   const source = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
-  assert.match(source, /const circuitCompatible = Boolean\(state\.simulation\?\.nodes && state\.simulation\?\.currents\)/);
-  assert.match(source, /\['ngspice', 'ngspice-error'\]\.includes\(state\.simulation\?\.kind\)/);
+  assert.match(source, /const isDcResult = \(simulation\) => Boolean\(simulation\?\.nodes && simulation\?\.currents && !simulation\.kind\)/);
+  assert.match(source, /const circuitCompatible = isDcResult\(state\.simulation\) \|\| \['ngspice', 'ngspice-error', 'circuit-transient', 'circuit-ac'\]\.includes\(state\.simulation\?\.kind\)/);
   assert.match(source, /const circuitState = circuitCompatible \? state/);
-  assert.match(source, /const result = state\.simulation\?\.nodes && state\.simulation\?\.currents/);
+  assert.match(source, /const result = isDcResult\(state\.simulation\) \? state\.simulation : null/);
 });
 
 test('project persistence failures are surfaced instead of claiming a local save', async () => {

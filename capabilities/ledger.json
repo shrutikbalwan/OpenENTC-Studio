@@ -121,8 +121,24 @@
       "id": "circuit.builtin-dc",
       "surface": "Circuit Lab: Run DC analysis",
       "state": "built-in",
-      "evidence": ["src/engines/circuit-engine.js", "tests/circuit.test.mjs"],
-      "limitations": "Supports positive resistors, independent DC voltage/current sources and canonical wire/net-label aliases; capacitors, inductors, diodes, LEDs and switches remain ignored with warnings.",
+      "evidence": ["src/engines/circuit-engine.js#simulateDC", "tests/circuit.test.mjs", "tests/ngspice.integration.test.mjs"],
+      "limitations": "Nonlinear operating point for resistors, capacitors (open), inductors (short), exponential diode/LED models sized from the rated forward voltage, ideal switches and independent sources, with canonical wire/net-label aliases. No transistors, op-amps, controlled sources, diode breakdown or temperature model; dense solver limited to 400 unknowns.",
+      "plannedPhase": 4
+    },
+    {
+      "id": "circuit.builtin-transient",
+      "surface": "Circuit Lab: Run transient",
+      "state": "built-in",
+      "evidence": ["src/engines/circuit-engine.js#simulateTransient", "src/core/circuit-plot.js", "tests/circuit.test.mjs", "tests/circuit-plot.test.mjs", "tests/ngspice.integration.test.mjs"],
+      "limitations": "Fixed-step trapezoidal integration (backward Euler on the first step) limited to 20,000 points; one independent source follows a step, sine, square-pulse or constant stimulus while the others stay at DC. Switches keep their authored state; no adaptive time step, breakpoints or diode junction capacitance.",
+      "plannedPhase": 4
+    },
+    {
+      "id": "circuit.builtin-ac",
+      "surface": "Circuit Lab: Run AC sweep",
+      "state": "built-in",
+      "evidence": ["src/engines/circuit-engine.js#simulateAC", "src/core/circuit-plot.js", "tests/circuit.test.mjs", "tests/circuit-plot.test.mjs", "tests/ngspice.integration.test.mjs"],
+      "limitations": "Small-signal sweep linearized at the DC operating point with a 1 V or 1 A input on one source; logarithmic sweep limited to 1,000 points. No noise, distortion or pole-zero analysis.",
       "plannedPhase": 4
     },
     {

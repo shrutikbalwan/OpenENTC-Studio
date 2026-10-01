@@ -7,7 +7,8 @@ OpenENTC Studio is a free, open-source foundation for an all-in-one Electronics 
 - Interactive ENTC dashboard with Circuit and Embedded alpha workspaces plus seven specialist workflow previews
 - Schematic canvas with components, selection, editing, wire aliases, ERC diagnostics and project persistence
 - Deterministic SPICE export plus permission-gated desktop ngspice operating-point, DC, AC and transient workflows with version evidence, magnitude/phase traces, cursor deltas, CSV export and source-linked engine failures (native execution remains unavailable in the browser preview)
-- Built-in modified nodal analysis DC solver for resistors and independent voltage sources
+- Built-in circuit simulator (modified nodal analysis, Newton-Raphson, trapezoidal integration) for resistors, capacitors, inductors, diodes, LEDs, switches and independent sources: DC operating point, transient (step, sine and square-pulse stimulus) and small-signal AC sweeps, cross-checked against ngspice
+- Interactive waveform and Bode plots with rise time, overshoot, RMS and −3 dB bandwidth readouts, CSV export, and five ready-made example circuits
 - Limited DC-result meter and generated signal preview
 - Built-in Signals workspace with bounded sine generation, causal FIR filtering and FFT
 - Authored experiment configurations persist in the versioned project manifest and restore into Signals, Control, QPSK, RF, Network and Digital Waveform labs; generated results remain runtime data
@@ -46,7 +47,7 @@ The repository pins TypeScript as a development dependency. The `typecheck` comm
 
 ## Important scope
 
-The built-in circuit solver is functional only for positive resistors and independent DC voltage sources. Specialist applications are unavailable previews: there is no detection or execution in this browser alpha, and no external executable is represented as installed. Future desktop packaging can discover installed engines and invoke reviewed versions according to their own licences.
+The built-in circuit simulator covers linear R/L/C networks, exponential diode and LED models, ideal switches and independent sources. It has no transistors, op-amps or controlled sources yet, uses a fixed transient time step, and is limited to 400 unknowns; use the ngspice workflow for larger or more detailed circuits. Specialist applications are unavailable previews: there is no detection or execution in this browser alpha, and no external executable is represented as installed. Future desktop packaging can discover installed engines and invoke reviewed versions according to their own licences.
 
 Browser projects use crash-aware localStorage writes with bounded corrupt backups and interrupted-write recovery. The Windows Tauri shell is compiled and exercises native Unicode-path persistence, a reviewed folder picker, project-scoped permissions, bounded jobs/artifacts/events, and owned process-tree timeout/cancellation. Linux and clean-machine installer verification remain pending.
 
@@ -60,7 +61,9 @@ Browser projects use crash-aware localStorage writes with bounded corrupt backup
 - `packages/schematic`: deterministic connectivity, intermediate netlists and electrical-rule checks
 - `packages/numerics`, `packages/communications`, `packages/control`, `packages/rf`, `packages/hdl`, `packages/topology`, `packages/packets`: bounded built-in numerical and interoperability kernels
 - `src/core/engine-registry.js`: external-tool capability registry
-- `src/engines/circuit-engine.js`: built-in DC circuit solver
+- `src/engines/circuit-engine.js`: built-in DC, transient and AC circuit simulator
+- `src/core/circuit-plot.js`: waveform/Bode plotting, measurements and CSV export
+- `src/data/example-circuits.js`: example circuits for the built-in simulator
 - `src/data/modules.js`: ENTC module catalogue
 
 Detailed planning documents:
