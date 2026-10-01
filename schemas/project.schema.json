@@ -75,6 +75,8 @@
         "unit": { "type": "string", "maxLength": 20 },
         "n1": { "type": "string", "maxLength": 100 },
         "n2": { "type": "string", "maxLength": 100 },
+        "n3": { "type": "string", "maxLength": 100 },
+        "kp": { "type": "number" },
         "x": { "type": "number" },
         "y": { "type": "number" },
         "rotation": { "type": "number" }

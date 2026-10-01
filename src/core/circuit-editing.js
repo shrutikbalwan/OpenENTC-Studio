@@ -1,12 +1,13 @@
 import { componentReferencePrefixes as prefixes } from '../../packages/schematic/src/annotation.mjs';
+import { nodeFields } from '../../packages/schematic/src/components.mjs';
 const clone = (value) => structuredClone(value);
 
 function remapNodes(sources, existingComponents) {
-  const used = new Set(existingComponents.flatMap((component) => [component.n1, component.n2]).filter((node) => typeof node === 'string'));
+  const used = new Set(existingComponents.flatMap((component) => nodeFields(component).map((field) => component[field])).filter((node) => typeof node === 'string'));
   const mapping = new Map();
   let index = 1;
   for (const source of sources) {
-    for (const node of [source.n1, source.n2]) {
+    for (const node of nodeFields(source).map((field) => source[field])) {
       if (typeof node !== 'string' || !node.trim() || node.trim() === '0' || node.trim() === 'GND' || mapping.has(node)) continue;
       let next = `paste_n${index}`;
       while (used.has(next)) next = `paste_n${++index}`;
@@ -20,8 +21,7 @@ function remapNodes(sources, existingComponents) {
 
 function copyWithFreshNodes(source, nodeMap) {
   const copy = clone(source);
-  if (nodeMap.has(copy.n1)) copy.n1 = nodeMap.get(copy.n1);
-  if (nodeMap.has(copy.n2)) copy.n2 = nodeMap.get(copy.n2);
+  for (const field of nodeFields(copy)) if (nodeMap.has(copy[field])) copy[field] = nodeMap.get(copy[field]);
   return copy;
 }
 

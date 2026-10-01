@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { runProcess } from '../packages/process-runner/src/index.mjs';
 import { createNgspiceAdapter } from '../packages/engine-sdk/src/ngspice.mjs';
 import { simulateAC, simulateDC, simulateTransient } from '../src/engines/circuit-engine.js';
+import { buildSpiceNetlist } from '../packages/schematic/src/spice.mjs';
 
 // Opt-in only: verification never searches for, installs, or executes an
 // external engine unless the caller supplies its exact executable path.
@@ -109,6 +110,39 @@ test('opt-in built-in solver agrees with ngspice for DC, transient and AC analys
     value = await measure('ac', `V1 in 0 DC 3 AC 1\nR1 in a 1000\nD1 a 0 DD\nC1 a 0 10u\n.model DD D(Is=${saturation(0.7, 1)} N=1)\n.ac dec 1 10 100k\n.control\nrun\nmeas ac m100 FIND vdb(a) AT=100\nmeas ac p100 FIND vp(a) AT=100\n.endc`);
     assert.ok(Math.abs(20 * Math.log10(ac.nodes.a.magnitude[1]) - value('m100')) < 1e-2, 'AC magnitude');
     assert.ok(Math.abs(ac.nodes.a.phase[1] - value('p100') * 180 / Math.PI) < 1e-2, 'AC phase');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('opt-in exported transistor and op-amp netlists agree with the built-in solver in ngspice', { skip: !enabled }, async () => {
+  const root = await mkdtemp(join(tmpdir(), 'openentc-device-crosscheck-'));
+  const part = (id, type, value, n1, n2, n3, extra = {}) => ({ id, type, label: id, value, unit: '', n1, n2, ...(n3 ? { n3 } : {}), ...extra });
+  const measure = async (name, components, control, acSource) => {
+    let netlist = buildSpiceNetlist(components).replace(/\.end\n$/, '');
+    if (acSource) netlist = netlist.replace(new RegExp(`^(${acSource} \\S+ \\S+) (\\S+)$`, 'm'), '$1 DC $2 AC 1');
+    const file = join(root, `${name}.cir`);
+    await writeFile(file, `${netlist}.control\n${control}\n.endc\n.end\n`);
+    const result = await runProcess({ executable, args: ['-b', file], cwd: root, timeoutMs: 30_000, maxOutputBytes: 1024 * 1024 });
+    assert.equal(result.ok, true, result.error || result.stderr);
+    return (label) => Number(result.stdout.match(new RegExp(`^${label}\\s*=\\s*([-0-9.eE+]+)`, 'mi'))[1]);
+  };
+  try {
+    const amplifier = [part('VCC', 'voltage', 12, 'vcc', '0'), part('VS', 'voltage', 0, 's', '0'), part('CIN', 'capacitor', 10e-6, 's', 'b'), part('R1', 'resistor', 47e3, 'vcc', 'b'), part('R2', 'resistor', 10e3, 'b', '0'), part('RC', 'resistor', 2.2e3, 'vcc', 'c'), part('RE', 'resistor', 470, 'e', '0'), part('CE', 'capacitor', 100e-6, 'e', '0'), part('Q1', 'npn', 120, 'c', 'b', 'e')];
+    let value = await measure('ce', amplifier, 'op\nprint v(b) v(c) v(e)');
+    const bias = simulateDC(amplifier);
+    for (const node of ['b', 'c', 'e']) assert.ok(Math.abs(bias.nodes[node] - value(`v\\(${node}\\)`)) < 1e-4, `BJT bias v(${node})`);
+    value = await measure('ce-ac', amplifier, 'ac dec 1 10 100k\nmeas ac g1k FIND vdb(c) AT=1000', 'VS');
+    const gain = simulateAC(amplifier, [], [], { startFrequency: 10, stopFrequency: 1e5, pointsPerDecade: 1, inputSourceId: 'VS' });
+    assert.ok(Math.abs(20 * Math.log10(gain.nodes.c.magnitude[2]) - value('g1k')) < 1e-2, 'BJT amplifier gain');
+    const inverter = [part('VDD', 'voltage', 5, 'vdd', '0'), part('VI', 'voltage', 2.4, 'in', '0'), part('MP', 'pmos', 1, 'out', 'in', 'vdd', { kp: 0.04 }), part('MN', 'nmos', 1, 'out', 'in', '0'), part('RL', 'resistor', 1e5, 'out', '0')];
+    value = await measure('cmos', inverter, 'op\nprint v(out)');
+    assert.ok(Math.abs(simulateDC(inverter).nodes.out - value('v\\(out\\)')) < 1e-4, 'CMOS inverter output');
+    const opamp = [part('V1', 'voltage', 0.5, 'in', '0'), part('R1', 'resistor', 1e3, 'in', 'm'), part('R2', 'resistor', 10e3, 'm', 'out'), part('U1', 'opamp', 15, '0', 'm', 'out')];
+    value = await measure('opamp', opamp, 'op\nprint v(out)\nac dec 1 1k 1meg\nmeas ac a2 FIND vdb(out) AT=100k', 'V1');
+    assert.ok(Math.abs(simulateDC(opamp).nodes.out - value('v\\(out\\)')) < 1e-4, 'op-amp DC output');
+    const response = simulateAC(opamp, [], [], { startFrequency: 1e3, stopFrequency: 1e6, pointsPerDecade: 1 });
+    assert.ok(Math.abs(20 * Math.log10(response.nodes.out.magnitude[2]) - value('a2')) < 1e-2, 'op-amp closed-loop bandwidth');
   } finally {
     await rm(root, { recursive: true, force: true });
   }

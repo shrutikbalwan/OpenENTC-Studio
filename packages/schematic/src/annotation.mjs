@@ -1,4 +1,4 @@
-const PREFIXES = Object.freeze({ voltage: 'V', current: 'I', resistor: 'R', capacitor: 'C', inductor: 'L', diode: 'D', led: 'LED', switch: 'S', ground: 'G' });
+const PREFIXES = Object.freeze({ voltage: 'V', current: 'I', resistor: 'R', capacitor: 'C', inductor: 'L', diode: 'D', led: 'LED', switch: 'S', ground: 'G', npn: 'Q', pnp: 'Q', nmos: 'M', pmos: 'M', opamp: 'U' });
 
 export function annotateReferences(components = []) {
   if (!Array.isArray(components)) throw new TypeError('Components must be an array.');

@@ -171,6 +171,8 @@ export function validateProject(input, { maxBytes = MAX_PROJECT_BYTES } = {}) {
   for (const [index, part] of value.circuit.components.entries()) {
     assertObject(part);
     for (const field of ['id', 'type', 'label', 'unit', 'n1', 'n2']) if (typeof part[field] !== 'string' || part[field].length > 200) throw new ProjectError(PROJECT_ERROR_CODES.INVALID_SHAPE, `Component ${index} has an invalid ${field}.`);
+    if (part.n3 !== undefined && (typeof part.n3 !== 'string' || part.n3.length > 100)) throw new ProjectError(PROJECT_ERROR_CODES.INVALID_SHAPE, `Component ${index} has an invalid n3.`);
+    if (part.kp !== undefined) assertFinite(part.kp, `Component ${part.id} kp`);
     assertFinite(part.value, `Component ${part.id} value`);
     assertFinite(part.x, `Component ${part.id} x`);
     assertFinite(part.y, `Component ${part.id} y`);

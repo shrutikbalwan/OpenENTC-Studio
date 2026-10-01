@@ -81,7 +81,7 @@ function validateJob(job) {
 
 function outputVectors(job) {
   if (job.outputs?.length) return job.outputs;
-  return [...new Set(job.components.flatMap((component) => [component.n1, component.n2]).filter((node) => typeof node === 'string' && node !== '0' && node.toUpperCase() !== 'GND'))].sort().slice(0, MAX_OUTPUT_VECTORS);
+  return [...new Set(job.components.flatMap((component) => [component.n1, component.n2, component.n3]).filter((node) => typeof node === 'string' && node !== '0' && node.toUpperCase() !== 'GND'))].sort().slice(0, MAX_OUTPUT_VECTORS);
 }
 
 function spiceNumber(value) {

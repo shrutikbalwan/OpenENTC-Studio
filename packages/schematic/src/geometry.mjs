@@ -1,4 +1,5 @@
 import { normalizeNode } from './index.mjs';
+import { nodeFields } from './components.mjs';
 
 export function defaultWireRoute(from, to) {
   if (!from || !to || !Number.isFinite(from.x) || !Number.isFinite(from.y) || !Number.isFinite(to.x) || !Number.isFinite(to.y)) throw new TypeError('Wire points must contain finite coordinates.');
@@ -86,7 +87,7 @@ export function buildWireSegments(components = [], wires = []) {
   const points = new Map();
   for (const component of components) {
     if (!component || typeof component !== 'object') continue;
-    for (const field of ['n1', 'n2']) {
+    for (const field of nodeFields(component)) {
       const node = normalizeNode(component[field]);
       if (node === '0' || !Number.isFinite(component.x) || !Number.isFinite(component.y)) continue;
       if (!points.has(node)) points.set(node, { x: component.x + 45, y: component.y + 25 });
