@@ -161,6 +161,10 @@ fn contains_embedded_absolute_path(argument: &str) -> bool {
 }
 
 fn validate_project_argument(argument: &str, root: &Path, cwd: &Path) -> Result<(), String> {
+    // Confine the value of `-flag=value` options (e.g. `--vcd=<path>`) as a path in its own right.
+    if let Some((flag, value)) = argument.split_once('=') {
+        if flag.starts_with('-') && !value.is_empty() { return validate_project_argument(value, root, cwd); }
+    }
     if contains_embedded_absolute_path(argument) { return Err("embedded absolute paths are not allowed in process arguments".into()); }
     let path = Path::new(argument);
     if path.components().any(|component| matches!(component, Component::ParentDir)) { return Err("process argument path traversal is not allowed".into()); }
@@ -217,7 +221,7 @@ fn terminate_owned(child: &mut std::process::Child, process_group: Option<&Owned
         TerminationPlan::PosixProcessGroup { pid: process_group, .. } => {
             #[cfg(unix)]
             {
-                let _ = Command::new("/bin/kill").args(["-TERM", &format!("-{process_group}")]).status();
+                let _ = Command::new("/bin/kill").args(["-TERM", "--", &format!("-{process_group}")]).status();
             }
             #[cfg(not(unix))]
             {
@@ -553,6 +557,8 @@ mod tests {
         assert!(validate_request_in_project(&request(vec![outside.to_string_lossy().into_owned()]), &root).is_err());
         assert!(validate_request_in_project(&request(vec!["../outside.txt".into()]), &root).is_err());
         assert!(validate_request_in_project(&request(vec![format!("--script={}", outside.to_string_lossy())]), &root).is_err());
+        assert!(validate_request_in_project(&request(vec!["--script=../outside.txt".into()]), &root).is_err());
+        assert!(validate_request_in_project(&request(vec![format!("--vcd={}", root.join("runs").join("wave.vcd").to_string_lossy()), "--std=08".into()]), &root).is_ok());
         std::fs::remove_dir_all(&fixture).unwrap();
     }
 

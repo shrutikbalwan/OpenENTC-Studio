@@ -3,7 +3,9 @@ import { engines } from './core/engine-registry.js';
 import { createProject } from './core/project.js';
 import { createPackagedProjectExport, importProjectFile } from './core/project-file.js';
 import { getState, setState, updateProject, recordExperiment, subscribe, notify, replaceProject, synchronizeOpenProject, undoProject, redoProject, canUndoProject, canRedoProject, recordLearningAttempt, saveProject } from './core/store.js';
-import { simulateDC, sampleWaveform } from './engines/circuit-engine.js';
+import { simulateDC, simulateTransient, simulateAC, sampleWaveform } from './engines/circuit-engine.js';
+import { exampleCircuits } from './data/example-circuits.js';
+import { circuitTraces, decimate, niceRange, decadeTicks, linePath, stepMetrics, waveformMetrics, bodeMetrics, circuitResultCsv } from './core/circuit-plot.js';
 import { checkElectricalRules, locateElectricalRuleDiagnostic } from '../packages/schematic/src/erc.mjs';
 import { normalizeNode } from '../packages/schematic/src/index.mjs';
 import { connectNodes, disconnectNodes, pruneWires, setWireRoute } from './core/wires.js';
@@ -12,7 +14,7 @@ import { buildSpiceNetlist } from '../packages/schematic/src/spice.mjs';
 import { buildWireSegments, defaultWireRoute, orthogonalPath, wireRouteHandle, wireRouteHandles, wireRouteInsertionPoint } from '../packages/schematic/src/geometry.mjs';
 import { componentsInRect } from '../packages/schematic/src/selection.mjs';
 import { fitCanvasView, screenToCanvas, snapCanvasPoint, zoomCanvasView } from './core/canvas.js';
-import { parseEngineeringValue } from '../packages/schematic/src/units.mjs';
+import { parseEngineeringValue, formatEngineeringValue } from '../packages/schematic/src/units.mjs';
 import { applyWindow, fft, filterFir, generateSine } from '../packages/numerics/src/index.mjs';
 import { addAwgn, bitErrorRate, qpskDemodulate, qpskModulate } from '../packages/communications/src/index.mjs';
 import { parseTouchstone } from '../packages/rf/src/index.mjs';
@@ -134,7 +136,7 @@ function renderWorkspace(state, active) {
   if (state.activeModule === 'toolchains') return renderToolchains(state);
   if (active.id === 'home') return renderHome(state);
   if (active.id === 'circuit') {
-    const circuitCompatible = Boolean(state.simulation?.nodes && state.simulation?.currents) || ['ngspice', 'ngspice-error'].includes(state.simulation?.kind);
+    const circuitCompatible = isDcResult(state.simulation) || ['ngspice', 'ngspice-error', 'circuit-transient', 'circuit-ac'].includes(state.simulation?.kind);
     const circuitState = circuitCompatible ? state : { ...state, simulation: null };
     return renderCircuit(circuitState);
   }
@@ -263,17 +265,21 @@ function renderCircuit(state) {
   const ngspiceConfig = ngspiceConfiguration(state);
   const ngspiceReady = desktopBridge.available && state.desktopProject?.project_id && ngspice?.state === 'detected' && ngspice.path && state.processPermissionGranted && state.artifactPermissionGranted;
   const ngspiceReason = !desktopBridge.available ? 'Desktop shell required' : !state.desktopProject ? 'Open a desktop project' : ngspice?.state !== 'detected' ? 'Detect ngspice in Toolchains' : !state.processPermissionGranted || !state.artifactPermissionGranted ? 'Grant process and artifact permissions in Toolchains' : `Run native ngspice ${ngspiceConfig.operation}`;
-  return `<div class="lab-layout">
+  const builtin = builtinConfiguration(state);
+  const plotted = ['circuit-transient', 'circuit-ac'].includes(state.simulation?.kind);
+  return `<div class="lab-layout${plotted ? ' with-plot' : ''}">
     <div class="lab-toolbar">
       <div><span class="eyebrow">ANALOG + DIGITAL</span><h1>Circuit Lab</h1></div>
       <div class="toolbar-group"><button class="tool active" data-capability-state="built-in">Select <kbd>V</kbd></button><button class="tool" data-action="toggle-grid" data-capability-state="built-in">Grid ${state.project.settings.gridSize || 20}px</button><button class="tool" data-action="fit-canvas" data-capability-state="built-in">Fit</button><button class="tool history-button" data-action="undo" ${canUndoProject() ? '' : 'disabled'} title="Undo (Ctrl/Cmd+Z)">Undo</button><button class="tool history-button" data-action="redo" ${canRedoProject() ? '' : 'disabled'} title="Redo (Ctrl/Cmd+Shift+Z)">Redo</button></div>
-      <div class="toolbar-group"><button class="button ghost" data-action="clear-circuit">Clear</button><button class="button ghost" data-action="annotate-components">Annotate</button><button class="button ghost" data-action="export-spice">Export SPICE</button><button class="button run" data-action="simulate">▶ Run DC analysis</button><button class="button run" data-action="run-ngspice" ${ngspiceReady ? '' : 'disabled'} title="${esc(ngspiceReason)}">Run ngspice · ${esc(ngspiceConfig.operation)}</button></div>
+      <div class="toolbar-group"><button class="button ghost" data-action="clear-circuit">Clear</button><button class="button ghost" data-action="annotate-components">Annotate</button><button class="button ghost" data-action="export-spice">Export SPICE</button><button class="button run" data-action="simulate">▶ Run ${esc(BUILTIN_ANALYSES[builtin.analysis].button)}</button><button class="button run" data-action="run-ngspice" ${ngspiceReady ? '' : 'disabled'} title="${esc(ngspiceReason)}">Run ngspice · ${esc(ngspiceConfig.operation)}</button></div>
     </div>
     <aside class="component-panel">
       <label class="search"><span>⌕</span><input placeholder="Search components" data-field="component-search"></label>
       <span class="panel-label">BASIC COMPONENTS</span>
       <div class="component-list">${componentPalette.map((part) => `<button data-add-component="${part.type}"><span>${part.symbol}</span><div><b>${part.label}</b><small>${part.defaultValue} ${part.unit}</small></div><i>+</i></button>`).join('')}</div>
-      <div class="palette-note"><b>Built-in solver</b><p>DC analysis currently solves resistors and independent voltage/current sources using modified nodal analysis. Other parts remain visible with warnings.</p></div>
+      <span class="panel-label example-label">EXAMPLE CIRCUITS</span>
+      <div class="example-list">${exampleCircuits.map((example) => `<button data-load-example="${example.id}"><b>${esc(example.name)}</b><small>${esc(example.summary)}</small></button>`).join('')}</div>
+      <div class="palette-note"><b>Built-in simulator</b><p>DC operating point, transient and AC analyses for resistors, capacitors, inductors, diodes, LEDs, switches and independent sources. Modified nodal analysis with Newton-Raphson and trapezoidal integration.</p></div>
     </aside>
     <section class="circuit-stage ${state.project.settings.grid ? 'show-grid' : ''}" id="circuit-stage">
       <div class="canvas-badge"><span class="status-dot"></span> SCHEMATIC / MAIN</div>
@@ -342,10 +348,112 @@ function renderNgspiceConfiguration(state) {
   return `<div class="signal-controls"><span class="panel-label">NGSPICE JOB</span><label>Analysis<select data-ngspice-field="operation"><option value="operating-point" ${config.operation === 'operating-point' ? 'selected' : ''}>Operating point</option><option value="dc-sweep" ${config.operation === 'dc-sweep' ? 'selected' : ''}>DC sweep</option><option value="ac-analysis" ${config.operation === 'ac-analysis' ? 'selected' : ''}>AC analysis</option><option value="transient" ${config.operation === 'transient' ? 'selected' : ''}>Transient</option></select></label>${operationFields}<small class="field-help">Configuration is authored project data. Results remain generated run evidence.</small></div>`;
 }
 
+const BUILTIN_ANALYSES = Object.freeze({
+  dc: { label: 'DC operating point', button: 'DC analysis' },
+  transient: { label: 'Transient', button: 'transient' },
+  ac: { label: 'AC sweep', button: 'AC sweep' },
+});
+const BUILTIN_STIMULI = Object.freeze({ step: 'Step', sine: 'Sine', pulse: 'Square pulse', dc: 'Constant (DC)' });
+const PLOT_COLORS = ['#5eead4', '#60a5fa', '#f59e0b', '#fb7185', '#a78bfa', '#4ade80', '#f97316', '#22d3ee'];
+const eng = (value, unit = '') => formatEngineeringValue(Math.abs(value) < 1e-15 ? 0 : value, unit, { digits: 4 }).trim();
+const decibels = (value) => `${fmt(Math.abs(value) < 0.005 ? 0 : value, 2)} dB`;
+const isDcResult = (simulation) => Boolean(simulation?.nodes && simulation?.currents && !simulation.kind);
+
+function builtinConfiguration(state) {
+  const saved = state.project.experiments.find((experiment) => experiment?.id === 'circuit-builtin-analysis')?.inputs || {};
+  const sources = state.project.circuit.components.filter((component) => ['voltage', 'current'].includes(component.type));
+  const positive = (value, fallback) => Number.isFinite(value) && value > 0 ? value : fallback;
+  return {
+    analysis: Object.hasOwn(BUILTIN_ANALYSES, saved.analysis) ? saved.analysis : 'dc',
+    source: sources.some((component) => component.id === saved.source) ? saved.source : (sources[0]?.id || ''),
+    shape: Object.hasOwn(BUILTIN_STIMULI, saved.shape) ? saved.shape : 'step',
+    stopTime: positive(saved.stopTime, 0.005),
+    timeStep: positive(saved.timeStep, 0.000005),
+    frequency: positive(saved.frequency, 1000),
+    amplitude: Number.isFinite(saved.amplitude) ? saved.amplitude : null,
+    startHz: positive(saved.startHz, 10),
+    stopHz: positive(saved.stopHz, 1_000_000),
+    pointsPerDecade: Number.isInteger(saved.pointsPerDecade) && saved.pointsPerDecade >= 1 && saved.pointsPerDecade <= 200 ? saved.pointsPerDecade : 20,
+  };
+}
+
+function renderBuiltinConfiguration(state) {
+  const config = builtinConfiguration(state);
+  const sources = state.project.circuit.components.filter((component) => ['voltage', 'current'].includes(component.type));
+  const sourceOptions = sources.length ? sources.map((component) => `<option value="${esc(component.id)}" ${component.id === config.source ? 'selected' : ''}>${esc(component.label)} · ${esc(component.id)}</option>`).join('') : '<option value="">No source</option>';
+  const field = (name, label, value, unit, placeholder = '') => `<label>${label}<input type="text" inputmode="decimal" data-builtin-field="${name}" value="${value === null ? '' : esc(eng(value))}" placeholder="${esc(placeholder)}"><span>${unit}</span></label>`;
+  const driven = sources.find((component) => component.id === config.source);
+  let fields = '<p class="field-help">Solves node voltages and branch currents. Capacitors are open, inductors are shorts and diodes use an exponential model.</p>';
+  if (config.analysis === 'transient') {
+    const points = Math.ceil(config.stopTime / config.timeStep) + 1;
+    fields = `<div class="field-pair">${field('stopTime', 'Stop time', config.stopTime, 's')}${field('timeStep', 'Time step', config.timeStep, 's')}</div>
+      <label>Driven source<select data-builtin-field="source">${sourceOptions}</select></label>
+      <label>Waveform<select data-builtin-field="shape">${Object.entries(BUILTIN_STIMULI).map(([value, label]) => `<option value="${value}" ${value === config.shape ? 'selected' : ''}>${label}</option>`).join('')}</select></label>
+      <div class="field-pair">${['sine', 'pulse'].includes(config.shape) ? field('frequency', 'Frequency', config.frequency, 'Hz') : ''}${field('amplitude', 'Amplitude', config.amplitude, driven?.type === 'current' ? 'A' : 'V', driven ? `${eng(Number(driven.value))} (source)` : '')}</div>
+      <p class="field-help ${points > 20000 ? 'field-error' : ''}">${points.toLocaleString()} time points${points > 20000 ? ' — limit is 20,000; increase the time step' : ''}. Values accept SI suffixes such as 5m or 10u.</p>`;
+  } else if (config.analysis === 'ac') {
+    fields = `<label>Input source (1 V AC)<select data-builtin-field="source">${sourceOptions}</select></label>
+      <div class="field-pair">${field('startHz', 'Start', config.startHz, 'Hz')}${field('stopHz', 'Stop', config.stopHz, 'Hz')}</div>
+      <label>Points per decade<input type="number" min="1" max="200" step="1" data-builtin-field="pointsPerDecade" value="${config.pointsPerDecade}"></label>
+      <p class="field-help">Linearized at the DC operating point; every node voltage is the transfer function from the input.</p>`;
+  }
+  return `<div class="signal-controls"><span class="panel-label">BUILT-IN SIMULATOR</span><label>Analysis<select data-builtin-field="analysis">${Object.entries(BUILTIN_ANALYSES).map(([value, { label }]) => `<option value="${value}" ${value === config.analysis ? 'selected' : ''}>${label}</option>`).join('')}</select></label>${fields}</div>`;
+}
+
+function renderPlotFrame({ title, series, xMin, xMax, logX = false, xTicks, yRange, formatY }) {
+  const width = 600, height = 150;
+  const yPosition = (value) => (1 - (value - yRange.min) / (yRange.max - yRange.min || 1));
+  const grid = yRange.ticks.map((tick) => `<line x1="0" x2="${width}" y1="${(yPosition(tick) * height).toFixed(2)}" y2="${(yPosition(tick) * height).toFixed(2)}"/>`).join('')
+    + xTicks.map((tick) => `<line y1="0" y2="${height}" x1="${(tick.position * width).toFixed(2)}" x2="${(tick.position * width).toFixed(2)}"/>`).join('');
+  const paths = [...series].reverse().map((entry) => `<path class="plot-trace${entry.primary ? ' primary' : ''}" stroke="${entry.color}" d="${linePath(entry.xs, entry.ys, { width, height, xMin, xMax, yMin: yRange.min, yMax: yRange.max, logX })}"/>`).join('');
+  const xLabel = (tick) => `<span style="left:${(tick.position * 100).toFixed(2)}%;transform:translateX(${tick.position <= 0.001 ? '0' : tick.position >= 0.999 ? '-100%' : '-50%'})">${esc(tick.text)}</span>`;
+  return `<div class="circuit-plot"><span class="plot-title">${esc(title)}</span><div class="plot-body"><div class="plot-y">${yRange.ticks.map((tick) => `<span style="top:${(yPosition(tick) * 100).toFixed(2)}%">${esc(formatY(tick))}</span>`).join('')}</div><div class="plot-area"><svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="${esc(title)}"><g class="plot-grid">${grid}</g>${paths}</svg><div class="plot-x">${xTicks.map(xLabel).join('')}</div></div></div></div>`;
+}
+
+const readout = (label, value) => `<div class="result-value"><span>${esc(label)}</span><b>${esc(value)}</b></div>`;
+
+function renderTransientResult(result, state) {
+  const traces = circuitTraces(result);
+  const selected = traces.find((trace) => trace.key === state.circuitPlotTrace) || traces.find((trace) => trace.key === 'V(out)') || traces[0];
+  const plotted = selected.unit === 'V' ? [selected, ...traces.filter((trace) => trace.unit === 'V' && trace !== selected)].slice(0, PLOT_COLORS.length) : [selected];
+  const series = plotted.map((trace, index) => ({ ...decimate(result.time, trace.values), color: PLOT_COLORS[index], primary: index === 0 }));
+  const values = series.flatMap((entry) => entry.ys);
+  const stop = result.time.at(-1);
+  const xTicks = Array.from({ length: 6 }, (_, index) => ({ position: index / 5, text: eng(stop * index / 5, 's') }));
+  const metrics = stepMetrics(result.time, selected.values);
+  const periodic = waveformMetrics(selected.values);
+  const unit = selected.unit;
+  const plot = renderPlotFrame({ title: `${selected.label} vs time`, series, xMin: 0, xMax: stop, xTicks, yRange: niceRange(Math.min(...values), Math.max(...values)), formatY: (value) => eng(value, unit) });
+  return `<div class="analysis-view"><div class="analysis-side">
+    <div class="result-summary"><span>✓</span><div><b>Transient analysis completed</b><small>${result.time.length.toLocaleString()} points · ${esc(eng(stop, 's'))} · ${esc(BUILTIN_STIMULI[result.stimulus.shape] || result.stimulus.shape)} on ${esc(result.stimulus.sourceId)}</small></div></div>
+    <div class="waveform-controls"><label>Trace<select data-circuit-plot="trace">${traces.map((trace) => `<option value="${esc(trace.key)}" ${trace.key === selected.key ? 'selected' : ''}>${esc(trace.label)}</option>`).join('')}</select></label><button class="tool" data-action="export-circuit-csv">Export CSV</button></div>
+    <div class="plot-legend">${plotted.map((trace, index) => `<span class="legend-chip" style="--chip:${PLOT_COLORS[index]}">${esc(trace.label)}</span>`).join('')}</div>
+    <div class="analysis-readouts">${readout('Final', eng(metrics.final, unit))}${readout('Peak', eng(metrics.peak, unit))}${readout('Minimum', eng(metrics.minimum, unit))}${result.stimulus.shape === 'step' ? `${metrics.riseTime === null ? '' : readout('Rise time 10–90 %', eng(metrics.riseTime, 's'))}${metrics.overshootPercent === null ? '' : readout('Overshoot', `${fmt(metrics.overshootPercent, 2)} %`)}` : `${readout('Peak-to-peak', eng(periodic.peakToPeak, unit))}${readout('Average', eng(periodic.average, unit))}${readout('RMS', eng(periodic.rms, unit))}`}</div>
+  </div><div class="analysis-plots">${plot}</div></div>`;
+}
+
+function renderAcResult(result, state) {
+  const traces = circuitTraces(result);
+  const selected = traces.find((trace) => trace.key === state.circuitPlotTrace) || traces.find((trace) => trace.key === 'V(out)') || traces.at(-1);
+  const data = result.nodes[selected.node];
+  const metrics = bodeMetrics(result.frequency, data.magnitude, data.phase);
+  const first = result.frequency[0], last = result.frequency.at(-1);
+  const xTicks = decadeTicks(first, last).map((frequency) => ({ position: (Math.log10(frequency) - Math.log10(first)) / (Math.log10(last) - Math.log10(first) || 1), text: eng(frequency, 'Hz') }));
+  const xs = result.frequency;
+  const magnitude = renderPlotFrame({ title: `${selected.label} magnitude (dB)`, series: [{ xs, ys: metrics.decibels, color: PLOT_COLORS[0], primary: true }], xMin: first, xMax: last, logX: true, xTicks, yRange: niceRange(Math.min(...metrics.decibels), Math.max(...metrics.decibels)), formatY: (value) => `${fmt(value, 1)} dB` });
+  const phase = renderPlotFrame({ title: `${selected.label} phase (°)`, series: [{ xs, ys: metrics.phase, color: PLOT_COLORS[1], primary: true }], xMin: first, xMax: last, logX: true, xTicks, yRange: niceRange(Math.min(...metrics.phase), Math.max(...metrics.phase)), formatY: (value) => `${fmt(value, 1)}°` });
+  return `<div class="analysis-view"><div class="analysis-side">
+    <div class="result-summary"><span>✓</span><div><b>AC sweep completed</b><small>${result.frequency.length} points · ${esc(eng(first, 'Hz'))} – ${esc(eng(last, 'Hz'))} · input ${esc(result.inputSourceId)}</small></div></div>
+    <div class="waveform-controls"><label>Node<select data-circuit-plot="trace">${traces.map((trace) => `<option value="${esc(trace.key)}" ${trace.key === selected.key ? 'selected' : ''}>${esc(trace.label)}</option>`).join('')}</select></label><button class="tool" data-action="export-circuit-csv">Export CSV</button></div>
+    <div class="analysis-readouts">${readout('Peak gain', decibels(metrics.peakDb))}${readout('Peak at', eng(metrics.peakFrequency, 'Hz'))}${readout('Lower −3 dB', metrics.lowerCutoff === null ? '—' : eng(metrics.lowerCutoff, 'Hz'))}${readout('Upper −3 dB', metrics.upperCutoff === null ? '—' : eng(metrics.upperCutoff, 'Hz'))}</div>
+  </div><div class="analysis-plots">${magnitude}${phase}</div></div>`;
+}
+
 function renderInstrumentPanel(state) {
   const signal = state.project.circuit.signal;
-  const dcResult = state.simulation?.nodes && state.simulation?.currents ? state.simulation : null;
-  return `<span class="panel-label">LIMITED BUILT-IN PREVIEW</span><h3>Result previews</h3>
+  const dcResult = isDcResult(state.simulation) ? state.simulation : null;
+  return `<span class="panel-label">SIMULATION</span><h3>Analysis & instruments</h3>
+    ${renderBuiltinConfiguration(state)}
     <div class="instrument scope"><div class="instrument-title"><span>SIGNAL PREVIEW</span><i>GENERATED</i></div><svg viewBox="0 0 280 80" preserveAspectRatio="none"><defs><pattern id="scopeGrid" width="28" height="20" patternUnits="userSpaceOnUse"><path d="M28 0H0V20"/></pattern></defs><rect width="280" height="80" fill="url(#scopeGrid)"/><path class="wave" d="${waveformPath(signal)}"/></svg><div class="scope-readout"><span>${fmt(signal.amplitude)} V amplitude</span><span>${fmt(signal.frequency)} Hz</span></div></div>
     <div class="instrument meter"><div class="instrument-title"><span>MULTIMETER</span><i>DC V</i></div><strong>${dcResult ? fmt(Object.values(dcResult.nodes).at(-1), 4) : '— — —'}<small> V</small></strong><p>${dcResult ? 'Latest solved node voltage' : 'Run analysis to measure'}</p></div>
     ${renderNgspiceConfiguration(state)}
@@ -393,15 +501,16 @@ function renderNgspiceResult(result, state) {
 }
 
 function renderBottomPanel(state, erc = [], ercTargets = []) {
-  const result = state.simulation?.nodes && state.simulation?.currents ? state.simulation : null;
+  const result = isDcResult(state.simulation) ? state.simulation : null;
+  const builtinPlot = state.simulation?.kind === 'circuit-transient' ? renderTransientResult(state.simulation, state) : state.simulation?.kind === 'circuit-ac' ? renderAcResult(state.simulation, state) : '';
   const nativeResult = state.simulation?.kind === 'ngspice' ? state.simulation.result : null;
   const engineDiagnostics = state.simulation?.kind === 'ngspice-error' ? state.simulation.diagnostics : [];
   const problemCount = erc.length + engineDiagnostics.length;
-  const engine = nativeResult || engineDiagnostics.length ? `NGSPICE${state.simulation.engineVersion ? ` · ${state.simulation.engineVersion}` : ''}` : 'OPENENTC-DC';
+  const engine = nativeResult || engineDiagnostics.length ? `NGSPICE${state.simulation.engineVersion ? ` · ${state.simulation.engineVersion}` : ''}` : 'OPENENTC-MNA';
   return `<section class="bottom-panel"><div class="bottom-tabs"><button class="active" disabled>Simulation results</button><button ${problemCount ? '' : 'disabled'} title="Electrical-rule and engine diagnostics">Problems <i>${problemCount}</i></button><span></span><small>ENGINE: ${esc(engine)}</small></div><div class="results">
     ${erc.length ? `<div class="diagnostic-list">${erc.map((diagnostic, index) => renderErcDiagnostic(diagnostic, ercTargets[index])).join('')}</div>` : ''}
     ${engineDiagnostics.length ? `<div class="diagnostic-list">${engineDiagnostics.map((diagnostic) => renderErcDiagnostic(diagnostic, locateNgspiceDiagnostic(state.project, diagnostic))).join('')}</div>` : ''}
-    ${nativeResult ? renderNgspiceResult(nativeResult, state) : result ? `<div class="result-summary"><span>✓</span><div><b>Analysis completed</b><small>${Object.keys(result.nodes).length} nodes · ${Object.keys(result.currents).length} branches</small></div></div>${Object.entries(result.nodes).map(([node, value]) => `<div class="result-value"><span>V(${esc(node)})</span><b>${fmt(value, 6)} V</b></div>`).join('')}<div class="result-value"><span>Load power</span><b>${fmt(result.totalPower * 1000, 4)} mW</b></div>` : '<div class="console-empty"><span>›_</span><p>Ready. Run DC analysis to inspect node voltages and branch currents.</p></div>'}
+    ${nativeResult ? renderNgspiceResult(nativeResult, state) : builtinPlot ? builtinPlot : result ? `<div class="result-summary"><span>✓</span><div><b>Analysis completed</b><small>${Object.keys(result.nodes).length} nodes · ${Object.keys(result.currents).length} branches</small></div></div>${Object.entries(result.nodes).map(([node, value]) => `<div class="result-value"><span>V(${esc(node)})</span><b>${fmt(value, 6)} V</b></div>`).join('')}${Object.entries(result.currents).map(([id, value]) => `<div class="result-value"><span>I(${esc(id)})</span><b>${esc(eng(value, 'A'))}</b></div>`).join('')}<div class="result-value"><span>Load power</span><b>${fmt(result.totalPower * 1000, 4)} mW</b></div>${result.warnings?.length ? `<div class="result-value"><span>Warnings</span><b>${esc(result.warnings.join(' · '))}</b></div>` : ''}` : '<div class="console-empty"><span>›_</span><p>Ready. Choose DC, transient or AC in the Built-in simulator panel, then run the analysis.</p></div>'}
   </div></section>`;
 }
 
@@ -486,7 +595,7 @@ function renderDsp(state) {
   const min = values.length ? Math.min(...values) : -1; const max = values.length ? Math.max(...values) : 1; const span = max - min || 1;
   const path = values.length > 1 ? values.map((value, index) => `${index ? 'L' : 'M'} ${(index / (values.length - 1) * 560).toFixed(1)} ${(150 - ((value - min) / span) * 130).toFixed(1)}`).join(' ') : '';
   const peak = result ? Math.max(...result.spectrum.real.map((real, index) => Math.hypot(real, result.spectrum.imaginary[index]))) : null;
-  const magnitudes = result ? result.spectrum.real.map((real, index) => Math.hypot(real, result.spectrum.imaginary[index])) : [];
+  const magnitudes = result ? Array.from(result.spectrum.real, (real, index) => Math.hypot(real, result.spectrum.imaginary[index])) : [];
   const magnitudeMax = Math.max(1e-12, ...magnitudes);
   const spectrumPath = magnitudes.length > 1 ? magnitudes.map((value, index) => `${index ? 'L' : 'M'} ${(index / (magnitudes.length - 1) * 560).toFixed(1)} ${(150 - (value / magnitudeMax) * 130).toFixed(1)}`).join(' ') : '';
   return `<div class="page scroll-page dsp-page">${pageHeader(modules.find((item) => item.id === 'dsp'), 'BUILT-IN NUMERICAL LAB', '<span class="pill live"><i></i> LOCAL COMPUTATION</span>')}
@@ -1285,6 +1394,10 @@ function bindCircuitEvents() {
   document.querySelector('[data-action="ngspice-pan-right"]')?.addEventListener('click', () => transformNgspiceWindow('pan-right'));
   document.querySelector('[data-action="export-ngspice-csv"]')?.addEventListener('click', exportNgspiceCsv);
   document.querySelector('[data-action="simulate"]')?.addEventListener('click', runSimulation);
+  document.querySelectorAll('[data-builtin-field]').forEach((input) => input.addEventListener('change', () => persistBuiltinConfiguration(input.dataset.builtinField, input.value)));
+  document.querySelector('[data-circuit-plot="trace"]')?.addEventListener('change', (event) => setState({ circuitPlotTrace: event.target.value }));
+  document.querySelector('[data-action="export-circuit-csv"]')?.addEventListener('click', exportCircuitCsv);
+  document.querySelectorAll('[data-load-example]').forEach((button) => button.addEventListener('click', () => loadExampleCircuit(button.dataset.loadExample)));
   document.querySelector('[data-action="run-ngspice"]')?.addEventListener('click', runNativeNgspice);
   document.querySelector('[data-action="export-spice"]')?.addEventListener('click', exportSpiceNetlist);
   document.querySelector('[data-action="deselect"]')?.addEventListener('click', () => setState({ selectedComponentId: null, selectedComponentIds: [] }));
@@ -1880,8 +1993,64 @@ function exportNgspiceCsv() {
 }
 
 function runSimulation() {
-  try { const project = getState().project; const erc = checkElectricalRules(project.circuit.components, project.circuit.wires, project.circuit.netLabels); if (erc.some((diagnostic) => diagnostic.severity === 'error')) { notify(`Fix ${erc.length} electrical rule issue${erc.length === 1 ? '' : 's'} before analysis`, 'error'); return; } const result = simulateDC(project.circuit.components, project.circuit.wires, project.circuit.netLabels); recordExperiment({ id: 'circuit-dc', kind: 'circuit', operation: 'dc-analysis', inputs: { componentCount: project.circuit.components.length, wireCount: project.circuit.wires.length, netLabelCount: project.circuit.netLabels.length } }); setState({ simulation: result, selectedComponentId: null, selectedComponentIds: [] }); notify('DC analysis completed', 'success'); }
-  catch (error) { notify(error.message, 'error'); }
+  try {
+    const state = getState();
+    const project = state.project;
+    const { components, wires, netLabels } = project.circuit;
+    const erc = checkElectricalRules(components, wires, netLabels);
+    if (erc.some((diagnostic) => diagnostic.severity === 'error')) { notify(`Fix ${erc.length} electrical rule issue${erc.length === 1 ? '' : 's'} before analysis`, 'error'); return; }
+    const config = builtinConfiguration(state);
+    let result;
+    if (config.analysis === 'transient') {
+      result = simulateTransient(components, wires, netLabels, { stopTime: config.stopTime, timeStep: config.timeStep, stimulus: { sourceId: config.source || undefined, shape: config.shape, frequency: config.frequency, ...(config.amplitude === null ? {} : { amplitude: config.amplitude }) } });
+      recordExperiment({ id: 'circuit-builtin-analysis', kind: 'circuit', operation: 'transient-analysis', inputs: config });
+    } else if (config.analysis === 'ac') {
+      result = simulateAC(components, wires, netLabels, { startFrequency: config.startHz, stopFrequency: config.stopHz, pointsPerDecade: config.pointsPerDecade, inputSourceId: config.source || undefined });
+      recordExperiment({ id: 'circuit-builtin-analysis', kind: 'circuit', operation: 'ac-analysis', inputs: config });
+    } else {
+      result = simulateDC(components, wires, netLabels);
+      recordExperiment({ id: 'circuit-dc', kind: 'circuit', operation: 'dc-analysis', inputs: { componentCount: components.length, wireCount: wires.length, netLabelCount: netLabels.length } });
+    }
+    setState({ simulation: result, selectedComponentId: null, selectedComponentIds: [] });
+    const warnings = result.warnings?.length ? ` with ${result.warnings.length} warning${result.warnings.length === 1 ? '' : 's'}` : '';
+    notify(`${{ dc: 'DC analysis', transient: 'Transient analysis', ac: 'AC sweep' }[config.analysis]} completed${warnings}`, 'success');
+  } catch (error) { notify(error.message, 'error'); }
+}
+
+function persistBuiltinConfiguration(field, rawValue) {
+  const engineering = new Set(['stopTime', 'timeStep', 'frequency', 'amplitude', 'startHz', 'stopHz']);
+  if (!['analysis', 'source', 'shape', 'pointsPerDecade', ...engineering].includes(field)) return;
+  const current = builtinConfiguration(getState());
+  let value = rawValue;
+  if (field === 'analysis' && !Object.hasOwn(BUILTIN_ANALYSES, value)) { notify('Unsupported built-in analysis', 'error'); return; }
+  if (field === 'shape' && !Object.hasOwn(BUILTIN_STIMULI, value)) { notify('Unsupported stimulus waveform', 'error'); return; }
+  if (engineering.has(field)) {
+    if (field === 'amplitude' && !String(rawValue).trim()) value = null;
+    else {
+      try { value = parseEngineeringValue(String(rawValue)); } catch { notify('Enter a number such as 5m, 10u or 2.2k', 'error'); return; }
+      if (field !== 'amplitude' && !(value > 0)) { notify('Value must be greater than zero', 'error'); return; }
+    }
+  }
+  if (field === 'pointsPerDecade') { value = Math.trunc(Number(rawValue)); if (!(value >= 1 && value <= 200)) { notify('Points per decade must be between 1 and 200', 'error'); return; } }
+  recordExperiment({ id: 'circuit-builtin-analysis', kind: 'circuit', operation: 'builtin-analysis', inputs: { ...current, [field]: value } });
+}
+
+function loadExampleCircuit(id) {
+  const example = exampleCircuits.find((candidate) => candidate.id === id);
+  if (!example) return;
+  wireSource = null; selectedWire = null;
+  updateProject((project) => { project.circuit.components = structuredClone(example.components); project.circuit.wires = []; project.circuit.junctions = []; project.circuit.netLabels = []; });
+  recordExperiment({ id: 'circuit-builtin-analysis', kind: 'circuit', operation: 'builtin-analysis', inputs: { ...builtinConfiguration(getState()), ...example.analysis, source: 'V1' } });
+  setState({ simulation: null, selectedComponentId: null, selectedComponentIds: [], circuitPlotTrace: example.trace });
+  notify(`${example.name} loaded. Press Run to simulate.`, 'success');
+}
+
+function exportCircuitCsv() {
+  const result = getState().simulation;
+  let csv;
+  try { csv = circuitResultCsv(result); } catch (error) { notify(error.message, 'error'); return; }
+  const blob = new Blob([csv], { type: 'text/csv' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `openentc-${result.kind === 'circuit-ac' ? 'ac-sweep' : 'transient'}.csv`; link.click(); URL.revokeObjectURL(link.href);
+  notify('Simulation CSV exported', 'success');
 }
 
 async function runNativeNgspice() {
