@@ -8,6 +8,12 @@ export const BJT_SATURATION_CURRENT = 1e-14;
 export const BJT_REVERSE_BETA = 1;
 export const MOSFET_DEFAULT_KP = 0.02;
 export const MOSFET_LAMBDA = 0.01;
+// Constant junction capacitances and transit time typical of small-signal parts (2N3904 / 2N7000 class).
+export const BJT_CJE = 8e-12;
+export const BJT_CJC = 4e-12;
+export const BJT_TF = 3e-10;
+export const MOSFET_CGS = 10e-12;
+export const MOSFET_CGD = 2e-12;
 export const OPAMP_OPEN_LOOP_GAIN = 2e5;
 export const OPAMP_GAIN_BANDWIDTH = 1e6;
 export const OPAMP_CLIP_SHARPNESS = 8;

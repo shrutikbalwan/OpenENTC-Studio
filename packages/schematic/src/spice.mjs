@@ -1,5 +1,5 @@
 import { buildIntermediateNetlist, resolveNodeAliases } from './index.mjs';
-import { BJT_REVERSE_BETA, BJT_SATURATION_CURRENT, DIODE_EMISSION, MOSFET_DEFAULT_KP, MOSFET_LAMBDA, OPAMP_CLIP_SHARPNESS, OPAMP_OPEN_LOOP_GAIN, OPAMP_POLE_CAPACITANCE, diodeSaturationCurrent } from './device-models.mjs';
+import { BJT_CJC, BJT_CJE, BJT_REVERSE_BETA, BJT_SATURATION_CURRENT, BJT_TF, DIODE_EMISSION, MOSFET_CGD, MOSFET_CGS, MOSFET_DEFAULT_KP, MOSFET_LAMBDA, OPAMP_CLIP_SHARPNESS, OPAMP_OPEN_LOOP_GAIN, OPAMP_POLE_CAPACITANCE, diodeSaturationCurrent } from './device-models.mjs';
 
 const tokenPattern = /^[A-Za-z0-9_.:+-]+$/;
 const assertToken = (value, label) => {
@@ -34,11 +34,13 @@ export function buildSpiceNetlist(components = [], wires = [], { title = 'OpenEN
       models.push(`.model D_${id} D(Is=${formatValue(diodeSaturationCurrent(element.value, element.type))} N=${DIODE_EMISSION[element.type]})`);
     } else if (element.type === 'npn' || element.type === 'pnp') {
       lines.push(`${reference} ${left} ${right} ${third} Q_${id}`);
-      models.push(`.model Q_${id} ${element.type.toUpperCase()}(IS=${formatValue(BJT_SATURATION_CURRENT)} BF=${formatValue(element.value)} BR=${formatValue(BJT_REVERSE_BETA)})`);
+      // MJE = MJC = 0 keeps the junction capacitances constant, matching the built-in model.
+      models.push(`.model Q_${id} ${element.type.toUpperCase()}(IS=${formatValue(BJT_SATURATION_CURRENT)} BF=${formatValue(element.value)} BR=${formatValue(BJT_REVERSE_BETA)} CJE=${formatValue(BJT_CJE)} MJE=0 CJC=${formatValue(BJT_CJC)} MJC=0 TF=${formatValue(BJT_TF)})`);
     } else if (element.type === 'nmos' || element.type === 'pmos') {
       // Body is tied to the source; W = L so KP is the device transconductance K.
       lines.push(`${reference} ${left} ${right} ${third} ${third} M_${id} W=1u L=1u`);
-      models.push(`.model M_${id} ${element.type.toUpperCase()}(LEVEL=1 VTO=${formatValue(element.type === 'pmos' ? -element.value : element.value)} KP=${formatValue(element.kp ?? MOSFET_DEFAULT_KP)} LAMBDA=${formatValue(MOSFET_LAMBDA)})`);
+      // Gate capacitances are constant overlap capacitances per metre of width (W = 1 µm).
+      models.push(`.model M_${id} ${element.type.toUpperCase()}(LEVEL=1 VTO=${formatValue(element.type === 'pmos' ? -element.value : element.value)} KP=${formatValue(element.kp ?? MOSFET_DEFAULT_KP)} LAMBDA=${formatValue(MOSFET_LAMBDA)} CGSO=${formatValue(MOSFET_CGS / 1e-6)} CGDO=${formatValue(MOSFET_CGD / 1e-6)})`);
     } else if (element.type === 'opamp') {
       lines.push(`${reference} ${left} ${right} ${third} OPENENTC_OPAMP vsat=${formatValue(element.value)}`);
       hasOpamp = true;

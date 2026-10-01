@@ -6,6 +6,7 @@ import { checkElectricalRules, locateElectricalRuleDiagnostic } from '../package
 import { getComponentDefinition, nodeFields, pinName } from '../packages/schematic/src/components.mjs';
 import { buildSpiceNetlist } from '../packages/schematic/src/spice.mjs';
 import { annotateReferences } from '../packages/schematic/src/annotation.mjs';
+import { BJT_CJC, BJT_CJE, BJT_TF, MOSFET_CGD, MOSFET_CGS } from '../packages/schematic/src/device-models.mjs';
 import { pasteComponents } from '../src/core/circuit-editing.js';
 import { createProject, validateProject } from '../src/core/project.js';
 
@@ -110,9 +111,9 @@ test('BJT common-emitter amplifier gain matches gm·RC', () => {
 test('SPICE export writes transistor, MOSFET, op-amp and per-part diode models', () => {
   const text = buildSpiceNetlist([part('V1', 'voltage', 5, 'vcc', '0'), part('Q1', 'npn', 150, 'c', 'b', '0'), part('M1', 'pmos', 1.5, 'd', 'g', 'vcc', { kp: 0.05 }), part('U1', 'opamp', 12, 'p', 'm', 'out'), part('D1', 'led', 2, 'a', '0')]);
   assert.match(text, /^Q1 c b 0 Q_Q1$/m);
-  assert.match(text, /^\.model Q_Q1 NPN\(IS=1e-14 BF=150 BR=1\)$/m);
+  assert.match(text, /^\.model Q_Q1 NPN\(IS=1e-14 BF=150 BR=1 CJE=8e-12 MJE=0 CJC=4e-12 MJC=0 TF=3e-10\)$/m);
   assert.match(text, /^M1 d g vcc vcc M_M1 W=1u L=1u$/m);
-  assert.match(text, /^\.model M_M1 PMOS\(LEVEL=1 VTO=-1\.5 KP=0\.05 LAMBDA=0\.01\)$/m);
+  assert.match(text, /^\.model M_M1 PMOS\(LEVEL=1 VTO=-1\.5 KP=0\.05 LAMBDA=0\.01 CGSO=0\.00001 CGDO=0\.000002\)$/m);
   assert.match(text, /^XU1 p m out OPENENTC_OPAMP vsat=12$/m);
   assert.match(text, /^\.subckt OPENENTC_OPAMP inp inn out params: vsat=15$/m);
   assert.match(text, /^D1 a 0 D_D1$/m);
@@ -127,4 +128,32 @@ test('Circuit Lab renders three-pin symbols, pins and device parameters', async 
   assert.match(app, /pins-transistor/);
   assert.match(app, /data-part-field="kp"/);
   assert.match(app, /nodeFields\(part\)\.includes\(field\)/);
+});
+
+test('BJT junction and diffusion capacitances set the transition frequency fT', () => {
+  const circuit = [part('VCC', 'voltage', 5, 'vcc', '0'), part('RS', 'resistor', 1e-3, 'vcc', 'c'), part('IB', 'current', -10e-6, 'b', '0'), part('Q1', 'npn', 100, 'c', 'b', '0')];
+  const gm = simulateDC(circuit).currents.Q1 / VT;
+  const transition = gm / (2 * Math.PI * (BJT_CJE + BJT_TF * gm + BJT_CJC));
+  const response = simulateAC(circuit, [], [], { startFrequency: 1e8, stopFrequency: 1e9, pointsPerDecade: 1, inputSourceId: 'IB' });
+  // Collector AC current is sensed across the 1 mΩ resistor; well above f_beta, |h21| · f = fT.
+  near(response.nodes.c.magnitude[0] / 1e-3 * 1e8, transition, transition * 0.01, 'fT from short-circuit current gain');
+});
+
+test('common-emitter amplifier rolls off at the Miller-effect corner', () => {
+  const amplifier = [part('VCC', 'voltage', 12, 'vcc', '0'), part('VS', 'voltage', 0, 's', '0'), part('RS', 'resistor', 1e3, 's', 's2'), part('CIN', 'capacitor', 10e-6, 's2', 'b'), part('R1', 'resistor', 47e3, 'vcc', 'b'), part('R2', 'resistor', 10e3, 'b', '0'), part('RC', 'resistor', 2.2e3, 'vcc', 'c'), part('RE', 'resistor', 470, 'e', '0'), part('CE', 'capacitor', 100e-6, 'e', '0'), part('Q1', 'npn', 100, 'c', 'b', 'e')];
+  const gm = simulateDC(amplifier).currents.Q1 / VT;
+  const source = 1 / (1 / 1e3 + 1 / 47e3 + 1 / 10e3 + gm / 100);
+  const miller = 1 / (2 * Math.PI * source * (BJT_CJE + BJT_TF * gm + BJT_CJC * (1 + gm * 2.2e3)));
+  const response = simulateAC(amplifier, [], [], { startFrequency: 1e3, stopFrequency: 1e8, pointsPerDecade: 40, inputSourceId: 'VS' });
+  const decibels = response.nodes.c.magnitude.map((value) => 20 * Math.log10(value));
+  const corner = response.frequency[decibels.findIndex((value) => value < decibels[0] - 3)];
+  near(corner, miller, miller * 0.1, 'upper -3 dB frequency within 10 % of the Miller approximation');
+});
+
+test('MOSFET gate capacitance charges like an RC while the device is off', () => {
+  const circuit = [part('VDD', 'voltage', 10, 'vdd', '0'), part('VG', 'voltage', 1, 'in', '0'), part('RG', 'resistor', 1e3, 'in', 'g'), part('RD', 'resistor', 100, 'vdd', 'd'), part('M1', 'nmos', 2, 'd', 'g', '0')];
+  const tau = 1e3 * (MOSFET_CGS + MOSFET_CGD);
+  const result = simulateTransient(circuit, [], [], { stopTime: 5 * tau, timeStep: tau / 200, stimulus: { sourceId: 'VG', shape: 'step' } });
+  for (const index of [200, 400, 600]) near(result.nodes.g[index], 1 - Math.exp(-result.time[index] / tau), 2e-3, `gate voltage at ${index / 200} tau`);
+  assert.ok(result.currents.M1.slice(1).some((current) => current < 0), 'Cgd displacement current flows out of the drain while the gate rises');
 });

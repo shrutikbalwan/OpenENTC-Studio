@@ -147,3 +147,32 @@ test('opt-in exported transistor and op-amp netlists agree with the built-in sol
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test('opt-in transistor capacitances agree with ngspice in AC and transient analyses', { skip: !enabled }, async () => {
+  const root = await mkdtemp(join(tmpdir(), 'openentc-capacitance-crosscheck-'));
+  const part = (id, type, value, n1, n2, n3, extra = {}) => ({ id, type, label: id, value, unit: '', n1, n2, ...(n3 ? { n3 } : {}), ...extra });
+  const measure = async (name, netlist, control) => {
+    const file = join(root, `${name}.cir`);
+    await writeFile(file, `${netlist}.options reltol=1e-6 vntol=1e-9\n.control\n${control}\n.endc\n.end\n`);
+    const result = await runProcess({ executable, args: ['-b', file], cwd: root, timeoutMs: 60_000, maxOutputBytes: 1024 * 1024 });
+    assert.equal(result.ok, true, result.error || result.stderr);
+    return (label) => Number(result.stdout.match(new RegExp(`^${label}\\s*=\\s*([-0-9.eE+]+)`, 'mi'))[1]);
+  };
+  try {
+    const amplifier = [part('VCC', 'voltage', 12, 'vcc', '0'), part('VS', 'voltage', 0, 's', '0'), part('RS', 'resistor', 1e3, 's', 's2'), part('CIN', 'capacitor', 10e-6, 's2', 'b'), part('R1', 'resistor', 47e3, 'vcc', 'b'), part('R2', 'resistor', 10e3, 'b', '0'), part('RC', 'resistor', 2.2e3, 'vcc', 'c'), part('RE', 'resistor', 470, 'e', '0'), part('CE', 'capacitor', 100e-6, 'e', '0'), part('Q1', 'npn', 100, 'c', 'b', 'e')];
+    const acNetlist = buildSpiceNetlist(amplifier).replace(/\.end\n$/, '').replace(/^(VS s 0) 0$/m, '$1 DC 0 AC 1');
+    let value = await measure('miller', acNetlist, 'ac dec 1 1meg 100meg\nmeas ac m1 FIND vdb(c) AT=1meg\nmeas ac m2 FIND vdb(c) AT=10meg\nmeas ac m3 FIND vdb(c) AT=100meg');
+    const response = simulateAC(amplifier, [], [], { startFrequency: 1e6, stopFrequency: 1e8, pointsPerDecade: 1, inputSourceId: 'VS' });
+    ['m1', 'm2', 'm3'].forEach((label, index) => assert.ok(Math.abs(20 * Math.log10(response.nodes.c.magnitude[index]) - value(label)) < 1e-3, `Miller roll-off ${label}`));
+    const step = 2.5e-11;
+    const gateDrive = [part('VDD', 'voltage', 10, 'vdd', '0'), part('VG', 'voltage', 10, 'in', '0'), part('RG', 'resistor', 1e3, 'in', 'g'), part('RD', 'resistor', 100, 'vdd', 'd'), part('M1', 'nmos', 2, 'd', 'g', '0', { kp: 0.05 })];
+    const tranNetlist = buildSpiceNetlist(gateDrive).replace(/\.end\n$/, '').replace(/^VG in 0 10$/m, `VG in 0 PWL(0 0 ${step} 10)`);
+    value = await measure('gate', tranNetlist, `tran ${step} 60n 0 ${step}\nmeas tran g1 FIND v(g) AT=20n\nmeas tran d1 FIND v(d) AT=20n\nmeas tran d2 FIND v(d) AT=60n`);
+    const transient = simulateTransient(gateDrive, [], [], { stopTime: 60e-9, timeStep: step, stimulus: { sourceId: 'VG', shape: 'step' } });
+    assert.ok(Math.abs(transient.nodes.g[800] - value('g1')) < 0.01, 'gate voltage during the Miller plateau');
+    assert.ok(Math.abs(transient.nodes.d[800] - value('d1')) < 2e-3, 'drain voltage while switching');
+    assert.ok(Math.abs(transient.nodes.d[2400] - value('d2')) < 1e-3, 'drain voltage after switching');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

@@ -1,6 +1,6 @@
 import { resolveNodeAliases } from '../../packages/schematic/src/index.mjs';
 import { nodeFields } from '../../packages/schematic/src/components.mjs';
-import { BJT_REVERSE_BETA, BJT_SATURATION_CURRENT, DIODE_EMISSION, MOSFET_DEFAULT_KP, MOSFET_LAMBDA, OPAMP_GAIN_BANDWIDTH, OPAMP_OPEN_LOOP_GAIN, OPAMP_POLE_CAPACITANCE, THERMAL_VOLTAGE, diodeSaturationCurrent, opampLimit } from '../../packages/schematic/src/device-models.mjs';
+import { BJT_CJC, BJT_CJE, BJT_REVERSE_BETA, BJT_SATURATION_CURRENT, BJT_TF, DIODE_EMISSION, MOSFET_CGD, MOSFET_CGS, MOSFET_DEFAULT_KP, MOSFET_LAMBDA, OPAMP_GAIN_BANDWIDTH, OPAMP_OPEN_LOOP_GAIN, OPAMP_POLE_CAPACITANCE, THERMAL_VOLTAGE, diodeSaturationCurrent, opampLimit } from '../../packages/schematic/src/device-models.mjs';
 
 export { OPAMP_GAIN_BANDWIDTH, OPAMP_OPEN_LOOP_GAIN, opampLimit };
 
@@ -193,9 +193,19 @@ function bjtDevice(part, nodes) {
       const vbe = limitJunction(rawBe, state.vbe, junction), vbc = limitJunction(rawBc, state.vbc, junction);
       return { state: { vbe, vbc }, settled: vbe === rawBe && vbc === rawBc && settledVoltage(vbe, state.vbe) && settledVoltage(vbc, state.vbc) };
     },
-    currents(x) {
+    // Base-emitter: depletion CJE plus diffusion charge TF·If; base-collector: depletion CJC.
+    // Branch terminals are ordered so the branch voltage is the polarity-adjusted junction voltage.
+    reactive(state) {
+      const forward = BJT_SATURATION_CURRENT * Math.expm1(state.vbe / THERMAL_VOLTAGE) + GMIN * state.vbe;
+      const gf = BJT_SATURATION_CURRENT * Math.exp(state.vbe / THERMAL_VOLTAGE) / THERMAL_VOLTAGE + GMIN;
+      return [
+        { terminals: polarity > 0 ? [1, 2] : [2, 1], v: state.vbe, q: BJT_CJE * state.vbe + BJT_TF * forward, c: BJT_CJE + BJT_TF * gf },
+        { terminals: polarity > 0 ? [1, 0] : [0, 1], v: state.vbc, q: BJT_CJC * state.vbc, c: BJT_CJC },
+      ];
+    },
+    currents(x, extra = [0, 0, 0]) {
       const { currents } = terminalCurrents(dot(be, nodes, x), dot(bc, nodes, x));
-      return { [part.id]: currents[0], [`${part.id}.base`]: currents[1] };
+      return { [part.id]: currents[0] + extra[0], [`${part.id}.base`]: currents[1] + extra[1] };
     },
     power(x) { const { currents } = terminalCurrents(dot(be, nodes, x), dot(bc, nodes, x)); return currents.reduce((sum, current, k) => sum + current * (nodes[k] >= 0 ? x[nodes[k]] : 0), 0); },
   };
@@ -239,7 +249,15 @@ function mosfetDevice(part, nodes) {
       const vgs = limitStep(rawGs, state.vgs, 2), vds = limitStep(rawDs, state.vds, 10);
       return { state: { vgs, vds }, settled: vgs === rawGs && vds === rawDs && settledVoltage(vgs, state.vgs) && settledVoltage(vds, state.vds) };
     },
-    currents: (x) => ({ [part.id]: terminal(dot(gs, nodes, x), dot(ds, nodes, x)).currents[0] }),
+    // Constant gate-source and gate-drain capacitances (gate to drain is the Miller capacitance).
+    reactive(state) {
+      const vgs = polarity * state.vgs, vgd = polarity * (state.vgs - state.vds);
+      return [
+        { terminals: [1, 2], v: vgs, q: MOSFET_CGS * vgs, c: MOSFET_CGS },
+        { terminals: [1, 0], v: vgd, q: MOSFET_CGD * vgd, c: MOSFET_CGD },
+      ];
+    },
+    currents: (x, extra = [0, 0, 0]) => ({ [part.id]: terminal(dot(gs, nodes, x), dot(ds, nodes, x)).currents[0] + extra[0] }),
     power: (x) => terminal(dot(gs, nodes, x), dot(ds, nodes, x)).currents[0] * dot(ds, nodes, x) * polarity,
   };
 }
@@ -352,6 +370,34 @@ function stampLinearParts(circuit, matrix, vector, { sourceValue, scale = 1, ste
   }
 }
 
+/**
+ * Charge-based companion for a device capacitance: i = dq/dt integrated with backward
+ * Euler or the trapezoidal rule, with q linearized at the current Newton iterate.
+ */
+function stampCharges(matrix, vector, device, state, step, history) {
+  device.reactive(state).forEach((branch, k) => {
+    const previous = history[k];
+    const scale = step.method === 'euler' ? 1 / step.h : 2 / step.h;
+    const constant = scale * (branch.q - branch.c * branch.v - previous.q) - (step.method === 'euler' ? 0 : previous.i);
+    const [a, b] = branch.terminals.map((terminal) => device.nodes[terminal]);
+    stampConductance(matrix, a, b, scale * branch.c);
+    stampCurrent(vector, a, b, constant);
+  });
+}
+
+/** Charge and current of each device capacitance after a converged time point. */
+function advanceCharges(device, x, step, history) {
+  const extra = device.nodes.map(() => 0);
+  const next = device.reactive(device.initial(x, false)).map((branch, k) => {
+    const previous = history[k];
+    const current = step.method === 'euler' ? (branch.q - previous.q) / step.h : 2 * (branch.q - previous.q) / step.h - previous.i;
+    extra[branch.terminals[0]] += current;
+    extra[branch.terminals[1]] -= current;
+    return { q: branch.q, i: current };
+  });
+  return { next, extra };
+}
+
 function solveNonlinearWith(circuit, options, gmin) {
   const { size, devices, nodeNames } = circuit;
   let x = options.guess ? [...options.guess] : Array(size).fill(0);
@@ -361,7 +407,10 @@ function solveNonlinearWith(circuit, options, gmin) {
     const vector = Array(size).fill(0);
     for (let index = 0; index < nodeNames.length; index += 1) matrix[index][index] += gmin;
     stampLinearParts(circuit, matrix, vector, options);
-    for (const [id, device] of devices) device.stamp(matrix, vector, states.get(id));
+    for (const [id, device] of devices) {
+      device.stamp(matrix, vector, states.get(id));
+      if (options.step && device.reactive) stampCharges(matrix, vector, device, states.get(id), options.step, options.step.charges.get(id));
+    }
     const next = solveLinear(matrix, vector);
     if (!devices.size) return next;
     let converged = true;
@@ -388,11 +437,11 @@ function operatingPoint(circuit, sourceValue) {
   }
 }
 
-function partCurrents(circuit, x, sourceValue, capacitorCurrents = null) {
+function partCurrents(circuit, x, sourceValue, capacitorCurrents = null, deviceCurrents = null) {
   const currents = {};
   for (const part of circuit.parts) {
     if (part.internal) continue;
-    if (circuit.devices.has(part.id)) { Object.assign(currents, circuit.devices.get(part.id).currents(x)); continue; }
+    if (circuit.devices.has(part.id)) { Object.assign(currents, circuit.devices.get(part.id).currents(x, deviceCurrents?.get(part.id))); continue; }
     const [a, b] = circuit.terminals.get(part.id);
     if (part.type === 'resistor') currents[part.id] = voltageAcross(x, a, b) / Number(part.value);
     else if (circuit.branchIndex.has(part.id)) currents[part.id] = x[circuit.branchIndex.get(part.id)];
@@ -462,6 +511,7 @@ export function simulateTransient(components, wires = [], netLabels = [], { stop
   let x = operatingPoint(circuit, sourceAt(0));
   const capacitors = new Map(circuit.parts.filter((part) => part.type === 'capacitor').map((part) => { const [a, b] = circuit.terminals.get(part.id); return [part.id, { voltage: voltageAcross(x, a, b), current: 0 }]; }));
   const inductors = new Map(circuit.parts.filter((part) => part.type === 'inductor').map((part) => [part.id, { current: x[circuit.branchIndex.get(part.id)], voltage: 0 }]));
+  const charges = new Map([...circuit.devices].filter(([, device]) => device.reactive).map(([id, device]) => [id, device.reactive(device.initial(x, false)).map((branch) => ({ q: branch.q, i: 0 }))]));
   const time = [0];
   const visible = visibleNodes(circuit);
   const nodes = Object.fromEntries(visible.map(([name, index]) => [name, [x[index]]]));
@@ -472,7 +522,14 @@ export function simulateTransient(components, wires = [], netLabels = [], { stop
     const t = Math.min(index * h, stop);
     const dt = t - time[time.length - 1];
     const method = index === 1 ? 'euler' : 'trapezoidal';
-    x = solveNonlinear(circuit, { guess: x, sourceValue: sourceAt(t), step: { h: dt, method, capacitors, inductors } });
+    const step = { h: dt, method, capacitors, inductors, charges };
+    x = solveNonlinear(circuit, { guess: x, sourceValue: sourceAt(t), step });
+    const deviceCurrents = new Map();
+    for (const [id, history] of charges) {
+      const { next, extra } = advanceCharges(circuit.devices.get(id), x, step, history);
+      charges.set(id, next);
+      deviceCurrents.set(id, extra);
+    }
     const capacitorCurrents = new Map();
     for (const part of circuit.parts) {
       if (part.type !== 'capacitor' && part.type !== 'inductor') continue;
@@ -488,7 +545,7 @@ export function simulateTransient(components, wires = [], netLabels = [], { stop
     }
     time.push(t);
     for (const [name, nodeIndex] of visible) nodes[name].push(x[nodeIndex]);
-    const stepCurrents = partCurrents(circuit, x, sourceAt(t), capacitorCurrents);
+    const stepCurrents = partCurrents(circuit, x, sourceAt(t), capacitorCurrents, deviceCurrents);
     for (const [id, value] of Object.entries(stepCurrents)) currents[id].push(value);
   }
   return { kind: 'circuit-transient', time, nodes: { 0: time.map(() => 0), ...nodes }, currents, stimulus: { sourceId: driven.id, shape: stimulus.shape ?? 'step' }, warnings: circuit.warnings };
@@ -527,7 +584,12 @@ export function simulateAC(components, wires = [], netLabels = [], { startFreque
     const bRe = Array(size).fill(0), bIm = Array(size).fill(0);
     for (const part of circuit.parts) {
       // Nonlinear devices contribute their small-signal Jacobian at the bias point.
-      if (devices.has(part.id)) { devices.get(part.id).stamp(re, Array(size).fill(0), biasStates.get(part.id)); continue; }
+      if (devices.has(part.id)) {
+        const device = devices.get(part.id);
+        device.stamp(re, Array(size).fill(0), biasStates.get(part.id));
+        for (const branch of device.reactive?.(biasStates.get(part.id)) ?? []) stampConductance(im, device.nodes[branch.terminals[0]], device.nodes[branch.terminals[1]], omega * branch.c);
+        continue;
+      }
       const [a, b] = terminals.get(part.id);
       const value = Number(part.value);
       if (part.type === 'resistor') stampConductance(re, a, b, 1 / value);
