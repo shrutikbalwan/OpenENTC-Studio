@@ -7,8 +7,8 @@ OpenENTC Studio is a free, open-source foundation for an all-in-one Electronics 
 - Interactive ENTC dashboard with Circuit and Embedded alpha workspaces plus seven specialist workflow previews
 - Schematic canvas with components, selection, editing, wire aliases, ERC diagnostics and project persistence
 - Deterministic SPICE export plus permission-gated desktop ngspice operating-point, DC, AC and transient workflows with version evidence, magnitude/phase traces, cursor deltas, CSV export and source-linked engine failures (native execution remains unavailable in the browser preview)
-- Built-in circuit simulator (modified nodal analysis, Newton-Raphson, trapezoidal integration) for resistors, capacitors, inductors, diodes, LEDs, switches and independent sources: DC operating point, transient (step, sine and square-pulse stimulus) and small-signal AC sweeps, cross-checked against ngspice
-- Interactive waveform and Bode plots with rise time, overshoot, RMS and −3 dB bandwidth readouts, CSV export, and five ready-made example circuits
+- Built-in circuit simulator (modified nodal analysis, Newton-Raphson, trapezoidal integration) for resistors, capacitors, inductors, diodes, LEDs, switches, NPN/PNP transistors (Ebers-Moll), N/P-channel MOSFETs (level 1) and op-amps (finite gain, 1 MHz GBW, rail clipping) with independent sources: DC operating point, transient (step, sine and square-pulse stimulus) and small-signal AC sweeps, cross-checked against ngspice
+- Interactive waveform and Bode plots with rise time, overshoot, RMS and −3 dB bandwidth readouts, CSV export, and nine ready-made example circuits including BJT and op-amp amplifiers
 - Limited DC-result meter and generated signal preview
 - Built-in Signals workspace with bounded sine generation, causal FIR filtering and FFT
 - Authored experiment configurations persist in the versioned project manifest and restore into Signals, Control, QPSK, RF, Network and Digital Waveform labs; generated results remain runtime data
@@ -47,7 +47,7 @@ The repository pins TypeScript as a development dependency. The `typecheck` comm
 
 ## Important scope
 
-The built-in circuit simulator covers linear R/L/C networks, exponential diode and LED models, ideal switches and independent sources. It has no transistors, op-amps or controlled sources yet, uses a fixed transient time step, and is limited to 400 unknowns; use the ngspice workflow for larger or more detailed circuits. Specialist applications are unavailable previews: there is no detection or execution in this browser alpha, and no external executable is represented as installed. Future desktop packaging can discover installed engines and invoke reviewed versions according to their own licences.
+The built-in circuit simulator covers linear R/L/C networks, exponential diode and LED models, ideal switches, BJTs, MOSFETs, op-amps and independent sources. Transistors use fixed small-signal capacitances (BJT Cje 8 pF, Cjc 4 pF, τF 0.3 ns; MOSFET Cgs 10 pF, Cgd 2 pF) and have no Early effect, the MOSFET body is tied to the source, the op-amp has a single pole and zero output resistance, there are no controlled sources, the transient time step is fixed, and circuits are limited to 400 unknowns; use the ngspice workflow for larger or more detailed circuits. Specialist applications are unavailable previews: there is no detection or execution in this browser alpha, and no external executable is represented as installed. Future desktop packaging can discover installed engines and invoke reviewed versions according to their own licences.
 
 Browser projects use crash-aware localStorage writes with bounded corrupt backups and interrupted-write recovery. The Windows Tauri shell is compiled and exercises native Unicode-path persistence, a reviewed folder picker, project-scoped permissions, bounded jobs/artifacts/events, and owned process-tree timeout/cancellation. Linux and clean-machine installer verification remain pending.
 

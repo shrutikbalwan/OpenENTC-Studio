@@ -1,8 +1,10 @@
+import { nodeFields } from './components.mjs';
+
 const TEXT_FIELDS = ['id', 'type', 'label', 'n1', 'n2'];
 
 function assertComponent(component, index) {
   if (!component || typeof component !== 'object') throw new TypeError(`Component ${index} must be an object.`);
-  for (const field of TEXT_FIELDS) if (typeof component[field] !== 'string' || !component[field].trim()) throw new TypeError(`Component ${index} has an invalid ${field}.`);
+  for (const field of [...TEXT_FIELDS, ...nodeFields(component).slice(2)]) if (typeof component[field] !== 'string' || !component[field].trim()) throw new TypeError(`Component ${index} has an invalid ${field}.`);
   if (typeof component.value !== 'number' || !Number.isFinite(component.value)) throw new TypeError(`Component ${component.id} has an invalid value.`);
 }
 
@@ -16,7 +18,7 @@ export function buildConnectivity(components = [], wires = [], netLabels = []) {
   if (!Array.isArray(wires)) throw new TypeError('Wires must be an array.');
   if (!Array.isArray(netLabels)) throw new TypeError('Net labels must be an array.');
   const nodes = new Set(['0']);
-  for (const [index, component] of components.entries()) { assertComponent(component, index); nodes.add(normalizeNode(component.n1)); nodes.add(normalizeNode(component.n2)); }
+  for (const [index, component] of components.entries()) { assertComponent(component, index); for (const field of nodeFields(component)) nodes.add(normalizeNode(component[field])); }
   const parent = new Map([...nodes].map((node) => [node, node]));
   const find = (node) => { if (!parent.has(node)) parent.set(node, node); const root = parent.get(node); if (root !== node) parent.set(node, find(root)); return parent.get(node); };
   for (const [index, wire] of wires.entries()) {
@@ -43,7 +45,7 @@ export function resolveNodeAliases(components = [], wires = [], netLabels = []) 
 
 export function buildIntermediateNetlist(components = [], wires = [], netLabels = []) {
   if (!Array.isArray(components)) throw new TypeError('Components must be an array.');
-  const elements = components.map((component, index) => { assertComponent(component, index); return { id: component.id, type: component.type, label: component.label, value: component.value, unit: component.unit, nodes: [normalizeNode(component.n1), normalizeNode(component.n2)] }; });
+  const elements = components.map((component, index) => { assertComponent(component, index); return { id: component.id, type: component.type, label: component.label, value: component.value, unit: component.unit, nodes: nodeFields(component).map((field) => normalizeNode(component[field])), ...(Number.isFinite(component.kp) ? { kp: component.kp } : {}) }; });
   const duplicateIds = elements.map((item) => item.id).filter((id, index, ids) => ids.indexOf(id) !== index);
   if (duplicateIds.length) throw new TypeError(`Duplicate component reference: ${[...new Set(duplicateIds)].sort()[0]}.`);
   return Object.freeze({ nodes: buildConnectivity(components, wires, netLabels), elements: elements.sort((a, b) => a.id.localeCompare(b.id)).map((element) => Object.freeze(element)) });

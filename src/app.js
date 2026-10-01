@@ -8,6 +8,7 @@ import { exampleCircuits } from './data/example-circuits.js';
 import { circuitTraces, decimate, niceRange, decadeTicks, linePath, stepMetrics, waveformMetrics, bodeMetrics, circuitResultCsv } from './core/circuit-plot.js';
 import { checkElectricalRules, locateElectricalRuleDiagnostic } from '../packages/schematic/src/erc.mjs';
 import { normalizeNode } from '../packages/schematic/src/index.mjs';
+import { nodeFields, pinName as componentPinName } from '../packages/schematic/src/components.mjs';
 import { connectNodes, disconnectNodes, pruneWires, setWireRoute } from './core/wires.js';
 import { duplicateComponent, moveComponents, pasteComponents, rotateComponents } from './core/circuit-editing.js';
 import { buildSpiceNetlist } from '../packages/schematic/src/spice.mjs';
@@ -190,14 +191,19 @@ function circuitSymbol(part) {
   if (part.type === 'capacitor') return '<svg viewBox="0 0 90 38"><path d="M2 19h36m0-15v30m14-30v30m0-15h36"/></svg>';
   if (part.type === 'inductor') return '<svg viewBox="0 0 90 38"><path d="M2 21h12c0-20 16-20 16 0 0-20 16-20 16 0 0-20 16-20 16 0h26"/></svg>';
   if (part.type === 'switch') return '<svg viewBox="0 0 90 38"><path d="M2 19h25m36 0h25M27 19 58 7"/></svg>';
+  if (part.type === 'npn') return '<svg viewBox="0 0 90 46"><path d="M2 23h28M30 10v26M30 17l22-11h36M30 29l22 11h36M44 33.5l8 6.5-10 1"/></svg>';
+  if (part.type === 'pnp') return '<svg viewBox="0 0 90 46"><path d="M2 23h28M30 10v26M30 17l22-11h36M30 29l22 11h36M38 37l-8-8 11-1"/></svg>';
+  if (part.type === 'nmos' || part.type === 'pmos') return `<svg viewBox="0 0 90 46"><path d="M2 23h20M22 11v24M29 8v8M29 19v8M29 30v8M29 12h23V6h36M29 34h23v6h36M29 23h23v17${part.type === 'nmos' ? 'M35 19l-6 4 6 4' : 'M44 19l6 4-6 4'}"/></svg>`;
+  if (part.type === 'opamp') return '<svg viewBox="0 0 90 46"><path d="M22 3v40l46-20zM2 13h20M2 33h20M68 23h20M26 13h7M29.5 9.5v7M26 33h7"/></svg>';
   return `<span class="simple-symbol">${part.type === 'led' ? '↗|▷' : '|▷'}</span>`;
 }
 
 function renderWires(parts, wires = [], netLabels = [], junctions = []) {
   const lines = [];
-  const nodes = [...new Set(parts.flatMap((part) => [part.n1, part.n2]).filter(Boolean).map((node) => normalizeNode(node)).filter((node) => node !== '0'))];
+  const nodesOf = (part) => nodeFields(part).map((field) => part[field]).filter(Boolean).map((node) => normalizeNode(node));
+  const nodes = [...new Set(parts.flatMap(nodesOf).filter((node) => node !== '0'))];
   for (const node of nodes) {
-    const connected = parts.filter((part) => normalizeNode(part.n1) === node || normalizeNode(part.n2) === node);
+    const connected = parts.filter((part) => nodesOf(part).includes(node));
     for (let i = 0; i < connected.length - 1; i += 1) {
       const a = connected[i], b = connected[i + 1];
       lines.push(`<path d="${orthogonalPath({ x: a.x + 45, y: a.y + 25 }, { x: b.x + 45, y: b.y + 25 })}"/><circle cx="${b.x + 45}" cy="${b.y + 25}" r="3"/>`);
@@ -252,7 +258,12 @@ function renderCircuitPart(part, selectedIds, issues) {
     const error = pinCodes?.size ? `, ERC: ${[...pinCodes].sort().join(', ')}` : '';
     return `<span class="canvas-pin pin-${name}${pinCodes?.size ? ' erc-error' : ''}" role="button" tabindex="0" data-canvas-node="${esc(part.id)}:${name}" aria-label="${esc(part.label)} ${label} terminal${esc(error)}"${pinCodes?.size ? ` aria-invalid="true" title="${esc([...pinCodes].sort().join(', '))}"` : ''}></span>`;
   };
-  return `<div class="circuit-part ${selectedIds.includes(part.id) ? 'selected' : ''}${issue ? ' erc-error' : ''}" role="button" tabindex="0" data-component-id="${esc(part.id)}" style="left:${part.x}px;top:${part.y}px;--part-rotation:${Number(part.rotation) || 0}deg" aria-label="${esc(part.label)}${issue ? `, ERC: ${esc(codes)}` : ''}" aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown"${issue ? ` aria-invalid="true" title="${esc(codes)}"` : ''}>${pin('n1', 'positive')}${circuitSymbol(part)}<b>${esc(part.label)}</b><small>${fmt(part.value, 6)} ${part.unit}</small><i>${esc(part.n1)} → ${esc(part.n2)}</i>${pin('n2', 'negative')}</div>`;
+  const fields = nodeFields(part);
+  const threePin = fields.length === 3;
+  const pinClass = threePin ? (part.type === 'opamp' ? ' pins-opamp' : ' pins-transistor') : '';
+  const pins = threePin ? fields.map((field) => pin(field, componentPinName(part, field))).join('') : `${pin('n1', 'positive')}${pin('n2', 'negative')}`;
+  const nodeText = threePin ? fields.map((field) => esc(part[field] || '—')).join(' · ') : `${esc(part.n1)} → ${esc(part.n2)}`;
+  return `<div class="circuit-part${pinClass} ${selectedIds.includes(part.id) ? 'selected' : ''}${issue ? ' erc-error' : ''}" role="button" tabindex="0" data-component-id="${esc(part.id)}" style="left:${part.x}px;top:${part.y}px;--part-rotation:${Number(part.rotation) || 0}deg" aria-label="${esc(part.label)}${issue ? `, ERC: ${esc(codes)}` : ''}" aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown"${issue ? ` aria-invalid="true" title="${esc(codes)}"` : ''}>${circuitSymbol(part)}<b>${esc(part.label)}</b><small>${fmt(part.value, 6)} ${part.unit}</small><i>${nodeText}</i>${pins}</div>`;
 }
 
 function renderCircuit(state) {
@@ -295,14 +306,26 @@ function renderCircuit(state) {
   </div>`;
 }
 
+const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+const DEVICE_HELP = Object.freeze({
+  npn: 'Value is the current gain β. Ebers-Moll model, Is = 10 fA, Cje = 8 pF, Cjc = 4 pF, τF = 0.3 ns.',
+  pnp: 'Value is the current gain β. Ebers-Moll model, Is = 10 fA, Cje = 8 pF, Cjc = 4 pF, τF = 0.3 ns.',
+  nmos: 'Value is the threshold voltage. Level-1 square law, body tied to source, Cgs = 10 pF, Cgd = 2 pF.',
+  pmos: 'Value is the threshold magnitude |Vth|. Level-1 square law, body tied to source, Cgs = 10 pF, Cgd = 2 pF.',
+  opamp: 'Value is the supply rail ±Vsat. Open-loop gain 200k, 1 MHz gain-bandwidth.',
+});
+
 function renderInspector(part) {
-  const connectedWires = getState().project.circuit.wires.filter((wire) => [part.n1, part.n2].includes(wire.from) || [part.n1, part.n2].includes(wire.to));
+  const partNodes = nodeFields(part).map((field) => part[field]);
+  const connectedWires = getState().project.circuit.wires.filter((wire) => partNodes.includes(wire.from) || partNodes.includes(wire.to));
   return `<div class="inspector-head"><div><span class="panel-label">INSPECTOR</span><h3>${esc(part.label)}</h3></div><button data-action="deselect">×</button></div>
     <div class="symbol-preview">${circuitSymbol(part)}</div>
     <label>Reference<input data-part-field="label" value="${esc(part.label)}"></label>
     <label>Value<input type="text" inputmode="decimal" data-part-field="value" value="${fmt(part.value, 8)}" aria-describedby="engineering-value-help"><span>${part.unit}</span></label><small id="engineering-value-help" class="field-help">Use SI suffixes such as 1k, 4.7k or 220n.</small>
-    <div class="field-pair"><label>Positive node<input data-part-field="n1" value="${esc(part.n1)}"></label><label>Negative node<input data-part-field="n2" value="${esc(part.n2)}"></label></div>
-    <div class="wire-connect"><span class="panel-label">WIRE ALIASES</span><p>${wireSource ? `Source selected: <code>${esc(wireSource.node)}</code>. Choose another terminal.` : 'Choose a terminal, then another terminal to connect their node names.'}</p><div class="wire-endpoints"><button class="tool ${wireSource?.partId === part.id && wireSource?.field === 'n1' ? 'active' : ''}" data-wire-node="${esc(part.id)}:n1">+ ${esc(part.n1)}</button><button class="tool ${wireSource?.partId === part.id && wireSource?.field === 'n2' ? 'active' : ''}" data-wire-node="${esc(part.id)}:n2">− ${esc(part.n2)}</button></div>${connectedWires.length ? `<div class="wire-list" aria-label="Connected wires">${connectedWires.map((wire) => `<div class="wire-row"><code>${esc(wire.from)} ↔ ${esc(wire.to)}</code><button class="tool" data-wire-remove-from="${esc(wire.from)}" data-wire-remove-to="${esc(wire.to)}" aria-label="Disconnect ${esc(wire.from)} from ${esc(wire.to)}">Remove</button></div>`).join('')}</div>` : ''}<div class="wire-endpoints"><button class="tool" data-action="add-net-label">Add net label</button><button class="tool" data-action="add-junction">Add junction</button></div></div>
+    ${nodeFields(part).length === 3
+    ? `<div class="field-pair three">${nodeFields(part).map((field) => `<label>${esc(capitalize(componentPinName(part, field)))}<input data-part-field="${field}" value="${esc(part[field] || '')}"></label>`).join('')}</div>${['nmos', 'pmos'].includes(part.type) ? `<label>Transconductance K<input type="text" inputmode="decimal" data-part-field="kp" value="${fmt(part.kp ?? 0.02, 8)}"><span>A/V²</span></label>` : ''}<small class="field-help">${esc(DEVICE_HELP[part.type] || '')}</small>`
+    : `<div class="field-pair"><label>Positive node<input data-part-field="n1" value="${esc(part.n1)}"></label><label>Negative node<input data-part-field="n2" value="${esc(part.n2)}"></label></div>`}
+    <div class="wire-connect"><span class="panel-label">WIRE ALIASES</span><p>${wireSource ? `Source selected: <code>${esc(wireSource.node)}</code>. Choose another terminal.` : 'Choose a terminal, then another terminal to connect their node names.'}</p><div class="wire-endpoints">${nodeFields(part).length === 3 ? nodeFields(part).map((field) => `<button class="tool ${wireSource?.partId === part.id && wireSource?.field === field ? 'active' : ''}" data-wire-node="${esc(part.id)}:${field}">${esc(componentPinName(part, field).slice(0, 3))} ${esc(part[field] || '')}</button>`).join('') : `<button class="tool ${wireSource?.partId === part.id && wireSource?.field === 'n1' ? 'active' : ''}" data-wire-node="${esc(part.id)}:n1">+ ${esc(part.n1)}</button><button class="tool ${wireSource?.partId === part.id && wireSource?.field === 'n2' ? 'active' : ''}" data-wire-node="${esc(part.id)}:n2">− ${esc(part.n2)}</button>`}</div>${connectedWires.length ? `<div class="wire-list" aria-label="Connected wires">${connectedWires.map((wire) => `<div class="wire-row"><code>${esc(wire.from)} ↔ ${esc(wire.to)}</code><button class="tool" data-wire-remove-from="${esc(wire.from)}" data-wire-remove-to="${esc(wire.to)}" aria-label="Disconnect ${esc(wire.from)} from ${esc(wire.to)}">Remove</button></div>`).join('')}</div>` : ''}<div class="wire-endpoints"><button class="tool" data-action="add-net-label">Add net label</button><button class="tool" data-action="add-junction">Add junction</button></div></div>
     <div class="inspector-tip"><b>Node convention</b><p>Use <code>0</code> for ground. Components sharing a node name are electrically connected.</p></div>
     <div class="inspector-actions"><button class="button ghost" data-action="rotate-component">Rotate 90°</button><button class="button danger" data-action="delete-component">Delete component</button></div>`;
 }
@@ -1375,6 +1398,14 @@ function bindCircuitEvents() {
   bindCanvasSelection();
   document.querySelectorAll('[data-part-field]').forEach((input) => input.addEventListener('change', () => {
     wireSource = null;
+    if (input.dataset.partField === 'kp') {
+      try {
+        const kp = parseEngineeringValue(input.value);
+        if (!(kp > 0)) throw new RangeError('Transconductance K must be greater than zero.');
+        updateProject((project) => { const part = project.circuit.components.find((item) => item.id === getState().selectedComponentId); if (part) part.kp = kp; });
+      } catch (error) { notify(error.message, 'error'); }
+      return;
+    }
     if (input.dataset.partField === 'value') {
       const selected = getState().project.circuit.components.find((item) => item.id === getState().selectedComponentId);
       try {
@@ -1582,8 +1613,15 @@ function addComponent(type) {
     let count = 1;
     while (used.has(`${prefix}${count}`)) count += 1;
     const id = `${prefix}${count}`;
-    const point = project.settings.grid ? snapCanvasPoint({ x: 130 + (count * 47) % 420, y: 90 + (count * 71) % 260 }, project.settings.gridSize) : { x: 130 + (count * 47) % 420, y: 90 + (count * 71) % 260 };
-    project.circuit.components.push({ id, type, label: type === 'ground' ? 'GND' : id, value: template.defaultValue, unit: template.unit, n1: type === 'ground' ? '0' : `n${count}`, n2: '0', x: point.x, y: point.y });
+    // Spread new parts by total part count so different types never land on the same spot.
+    const slot = project.circuit.components.length + 1;
+    const raw = { x: 130 + (slot * 47) % 420, y: 90 + (slot * 71) % 260 };
+    const point = project.settings.grid ? snapCanvasPoint(raw, project.settings.gridSize) : raw;
+    const base = id.toLowerCase();
+    const terminals = type === 'opamp' ? { n1: '0', n2: `${base}_in`, n3: `${base}_out` }
+      : nodeFields({ type }).length === 3 ? { n1: `${base}_${type.endsWith('mos') ? 'd' : 'c'}`, n2: `${base}_${type.endsWith('mos') ? 'g' : 'b'}`, n3: '0' }
+        : { n1: type === 'ground' ? '0' : `n${count}`, n2: '0' };
+    project.circuit.components.push({ id, type, label: type === 'ground' ? 'GND' : id, value: template.defaultValue, unit: template.unit, ...terminals, x: point.x, y: point.y });
     setTimeout(() => setState({ selectedComponentId: id, selectedComponentIds: [id] }), 0);
   });
 }
@@ -1628,7 +1666,7 @@ function deleteSelected() {
   updateProject((project) => {
     project.circuit.components = project.circuit.components.filter((part) => !selectedIds.includes(part.id));
     const retainedNodes = [
-      ...project.circuit.components.flatMap((part) => [part.n1, part.n2]),
+      ...project.circuit.components.flatMap((part) => nodeFields(part).map((field) => part[field])),
       ...project.circuit.netLabels.map((label) => label.node),
       ...project.circuit.junctions.map((junction) => junction.node),
     ];
@@ -1668,7 +1706,7 @@ function copySelected() {
   const state = getState();
   const ids = state.selectedComponentIds?.length ? state.selectedComponentIds : (state.selectedComponentId ? [state.selectedComponentId] : []);
   clipboardParts = state.project.circuit.components.filter((part) => ids.includes(part.id)).map((part) => structuredClone(part));
-  const nodes = new Set(clipboardParts.flatMap((part) => [part.n1, part.n2]).filter((node) => typeof node === 'string'));
+  const nodes = new Set(clipboardParts.flatMap((part) => nodeFields(part).map((field) => part[field])).filter((node) => typeof node === 'string'));
   clipboardWires = state.project.circuit.wires.filter((wire) => nodes.has(wire.from) && nodes.has(wire.to)).map((wire) => structuredClone(wire));
   if (!clipboardParts.length) return false;
   notify(`${clipboardParts.length} component${clipboardParts.length === 1 ? '' : 's'} copied`, 'info');
@@ -1702,7 +1740,7 @@ function pasteCopied() {
 function chooseWireNode(endpoint) {
   const [partId, field] = endpoint.split(':');
   const part = getState().project.circuit.components.find((item) => item.id === partId);
-  if (!part || !['n1', 'n2'].includes(field)) return;
+  if (!part || !nodeFields(part).includes(field)) return;
   const node = part[field];
   if (!wireSource) {
     wireSource = { partId, field, node };
@@ -2040,7 +2078,7 @@ function loadExampleCircuit(id) {
   if (!example) return;
   wireSource = null; selectedWire = null;
   updateProject((project) => { project.circuit.components = structuredClone(example.components); project.circuit.wires = []; project.circuit.junctions = []; project.circuit.netLabels = []; });
-  recordExperiment({ id: 'circuit-builtin-analysis', kind: 'circuit', operation: 'builtin-analysis', inputs: { ...builtinConfiguration(getState()), ...example.analysis, source: 'V1' } });
+  recordExperiment({ id: 'circuit-builtin-analysis', kind: 'circuit', operation: 'builtin-analysis', inputs: { ...builtinConfiguration(getState()), source: 'V1', ...example.analysis } });
   setState({ simulation: null, selectedComponentId: null, selectedComponentIds: [], circuitPlotTrace: example.trace });
   notify(`${example.name} loaded. Press Run to simulate.`, 'success');
 }

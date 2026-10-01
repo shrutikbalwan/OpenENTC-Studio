@@ -9,6 +9,11 @@ const definitions = [
   { type: 'diode', label: 'Diode', symbol: 'D', defaultValue: 0.7, unit: 'Vf', pins: ['anode', 'cathode'], simulation: { dc: 'diode-model' } },
   { type: 'led', label: 'LED', symbol: '↗', defaultValue: 2, unit: 'Vf', pins: ['anode', 'cathode'], simulation: { dc: 'diode-model' } },
   { type: 'switch', label: 'Switch', symbol: 'S', defaultValue: 1, unit: 'state', pins: ['1', '2'], simulation: { dc: 'ideal-switch' } },
+  { type: 'npn', label: 'NPN transistor', symbol: 'Q', defaultValue: 100, unit: 'β', pins: ['collector', 'base', 'emitter'], simulation: { dc: 'ebers-moll-bjt', transient: 'ebers-moll-bjt', ac: 'small-signal-bjt' } },
+  { type: 'pnp', label: 'PNP transistor', symbol: 'Q', defaultValue: 100, unit: 'β', pins: ['collector', 'base', 'emitter'], simulation: { dc: 'ebers-moll-bjt', transient: 'ebers-moll-bjt', ac: 'small-signal-bjt' } },
+  { type: 'nmos', label: 'N-channel MOSFET', symbol: 'M', defaultValue: 2, unit: 'Vth', pins: ['drain', 'gate', 'source'], simulation: { dc: 'level1-mosfet', transient: 'level1-mosfet', ac: 'small-signal-mosfet' } },
+  { type: 'pmos', label: 'P-channel MOSFET', symbol: 'M', defaultValue: 2, unit: 'Vth', pins: ['drain', 'gate', 'source'], simulation: { dc: 'level1-mosfet', transient: 'level1-mosfet', ac: 'small-signal-mosfet' } },
+  { type: 'opamp', label: 'Op-amp', symbol: '▷', defaultValue: 15, unit: 'Vsat', pins: ['non-inverting', 'inverting', 'output'], simulation: { dc: 'single-pole-opamp', transient: 'single-pole-opamp', ac: 'single-pole-opamp' } },
   { type: 'ground', label: 'Ground', symbol: '⏚', defaultValue: 0, unit: 'V', pins: ['ground'], simulation: { dc: 'reference-node' } }
 ];
 
@@ -28,6 +33,21 @@ export function validateComponentDefinitions(input = COMPONENT_DEFINITIONS) {
   const types = input.map((definition) => definition.type);
   if (new Set(types).size !== types.length) throw new TypeError('Component definition types must be unique.');
   return input;
+}
+
+/** Project fields that hold node names, in pin order. */
+export const PIN_FIELDS = Object.freeze(['n1', 'n2', 'n3']);
+
+/** Node fields a component uses: three-pin parts (transistors, op-amps) add `n3`. */
+export function nodeFields(component) {
+  return getComponentDefinition(component?.type)?.pins.length === 3 ? PIN_FIELDS : PIN_FIELDS.slice(0, 2);
+}
+
+/** Human-readable pin name for a node field, e.g. `collector` for an NPN `n1`. */
+export function pinName(component, field) {
+  const pins = getComponentDefinition(component?.type)?.pins;
+  const index = PIN_FIELDS.indexOf(field);
+  return pins?.length === 3 || pins?.length === 2 ? pins[index] ?? field : field;
 }
 
 export function getComponentDefinition(type) {

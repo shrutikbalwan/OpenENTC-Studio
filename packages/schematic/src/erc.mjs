@@ -1,6 +1,6 @@
 import { createDiagnostic } from '../../diagnostics/src/index.mjs';
 import { normalizeNode, resolveNodeAliases } from './index.mjs';
-import { getComponentDefinition } from './components.mjs';
+import { getComponentDefinition, nodeFields } from './components.mjs';
 
 export const ERC_CODES = Object.freeze({
   MISSING_GROUND: 'ERC_MISSING_GROUND',
@@ -24,6 +24,7 @@ export function checkElectricalRules(components = [], wires = [], netLabels = []
     unit: typeof component?.unit === 'string' ? component.unit : '',
     n1: typeof component?.n1 === 'string' && component.n1.trim() ? component.n1 : `__unconnected_${index}_1`,
     n2: typeof component?.n2 === 'string' && component.n2.trim() ? component.n2 : `__unconnected_${index}_2`,
+    ...(nodeFields(component).length === 3 ? { n3: typeof component?.n3 === 'string' && component.n3.trim() ? component.n3 : `__unconnected_${index}_3` } : {}),
     value: Number.isFinite(component?.value) ? component.value : 0
   }));
   const aliases = resolveNodeAliases(topologyComponents, wires, netLabels);
@@ -41,7 +42,7 @@ export function checkElectricalRules(components = [], wires = [], netLabels = []
     references.set(id, component);
     const definition = getComponentDefinition(component.type);
     if (definition) {
-      const pins = definition.pins.length === 1 ? ['n1'] : ['n1', 'n2'];
+      const pins = definition.pins.length === 1 ? ['n1'] : nodeFields(component);
       for (const pin of pins) {
         if (typeof component[pin] !== 'string' || !component[pin].trim()) {
           diagnostics.push(createDiagnostic({
@@ -53,7 +54,7 @@ export function checkElectricalRules(components = [], wires = [], netLabels = []
         }
       }
     }
-    for (const raw of [component.n1, component.n2]) { if (typeof raw === 'string' && raw.trim()) { const node = resolve(raw); nodeUse.set(node, (nodeUse.get(node) ?? 0) + 1); } }
+    for (const raw of nodeFields(component).map((field) => component[field])) { if (typeof raw === 'string' && raw.trim()) { const node = resolve(raw); nodeUse.set(node, (nodeUse.get(node) ?? 0) + 1); } }
     if (component.type !== 'ground' && (typeof component.value !== 'number' || !Number.isFinite(component.value))) diagnostics.push(createDiagnostic({ code: ERC_CODES.INVALID_VALUE, message: `${id} has an invalid numeric value.`, source: id, fix: 'Enter a finite engineering value.' }));
     if (component.type === 'voltage') { const key = [resolve(component.n1), resolve(component.n2)].sort().join('::'); if (sources.has(key)) diagnostics.push(createDiagnostic({ code: ERC_CODES.CONFLICTING_SOURCE, message: `Ideal voltage sources ${sources.get(key)} and ${id} share the same terminals.`, source: id })); else sources.set(key, id); }
   }
@@ -68,7 +69,7 @@ export function locateElectricalRuleDiagnostic(components = [], wires = [], netL
   const source = typeof diagnostic.source === 'string' ? diagnostic.source : '';
   if (!source) return Object.freeze([]);
 
-  const directPin = source.match(/^(.*):(n1|n2)$/);
+  const directPin = source.match(/^(.*):(n1|n2|n3)$/);
   if (directPin) {
     const component = components.find((entry) => entry?.id === directPin[1]);
     if (component) return Object.freeze([Object.freeze({ componentId: component.id, pin: directPin[2] })]);
@@ -88,7 +89,7 @@ export function locateElectricalRuleDiagnostic(components = [], wires = [], netL
   const targets = [];
   for (const component of components) {
     if (!component || typeof component.id !== 'string') continue;
-    for (const pin of ['n1', 'n2']) {
+    for (const pin of nodeFields(component)) {
       if (typeof component[pin] === 'string' && component[pin].trim() && resolve(component[pin]) === targetNode) {
         targets.push(Object.freeze({ componentId: component.id, pin }));
       }

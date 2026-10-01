@@ -144,3 +144,11 @@ button { cursor:pointer; }
 .example-list small { font-size: 8px; color: var(--muted); }
 [data-theme="light"] .plot-trace { filter: brightness(.72) saturate(1.3); }
 [data-theme="light"] .result-value b { color: #0f766e; }
+/* Three-terminal parts: pins line up with the symbol leads */
+.pins-transistor .pin-n1 { right: -6px; left: auto; top: 3px; }
+.pins-transistor .pin-n2 { left: -6px; right: auto; top: 14px; }
+.pins-transistor .pin-n3 { right: -6px; left: auto; top: 25px; }
+.pins-opamp .pin-n1 { left: -6px; right: auto; top: 7px; }
+.pins-opamp .pin-n2 { left: -6px; right: auto; top: 20px; }
+.pins-opamp .pin-n3 { right: -6px; left: auto; top: 14px; }
+.field-pair.three { grid-template-columns: 1fr 1fr 1fr; }
