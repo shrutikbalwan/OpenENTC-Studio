@@ -71,10 +71,10 @@ test('every example circuit is a valid project circuit that its configured analy
     validateProject(project);
     const config = example.analysis;
     if (config.analysis === 'ac') {
-      const result = simulateAC(example.components, [], [], { startFrequency: config.startHz, stopFrequency: config.stopHz, pointsPerDecade: config.pointsPerDecade, inputSourceId: 'V1' });
+      const result = simulateAC(example.components, [], [], { startFrequency: config.startHz, stopFrequency: config.stopHz, pointsPerDecade: config.pointsPerDecade, inputSourceId: config.source ?? 'V1' });
       assert.ok(result.nodes[example.trace.slice(2, -1)], `${example.id} trace exists`);
     } else if (config.analysis === 'transient') {
-      const result = simulateTransient(example.components, [], [], { stopTime: config.stopTime, timeStep: config.timeStep, stimulus: { sourceId: 'V1', shape: config.shape, frequency: config.frequency } });
+      const result = simulateTransient(example.components, [], [], { stopTime: config.stopTime, timeStep: config.timeStep, stimulus: { sourceId: config.source ?? 'V1', shape: config.shape, frequency: config.frequency } });
       assert.ok(circuitTraces(result).some((trace) => trace.key === example.trace), `${example.id} trace exists`);
     } else {
       assert.ok(Number.isFinite(simulateDC(example.components).nodes[example.trace.slice(2, -1)]), `${example.id} trace exists`);

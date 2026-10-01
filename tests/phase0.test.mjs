@@ -324,7 +324,7 @@ test('Circuit Lab authors bounded net labels and junction markers through the pr
   assert.match(source, /project\.circuit\.netLabels\.push/);
   assert.match(source, /project\.circuit\.junctions\.push/);
   assert.match(source, /renderWires\(parts, state\.project\.circuit\.wires, state\.project\.circuit\.netLabels, state\.project\.circuit\.junctions\)/);
-  assert.match(source, /normalizeNode\(part\.n1\)/);
+  assert.match(source, /nodeFields\(part\)\.map\(\(field\) => part\[field\]\)\.filter\(Boolean\)\.map\(\(node\) => normalizeNode\(node\)\)/);
   assert.match(source, /bindAuthoredMarkerEvents/);
   assert.match(source, /removeNetLabel/);
   assert.match(source, /removeJunction/);

@@ -119,3 +119,12 @@ test('SPICE export writes transistor, MOSFET, op-amp and per-part diode models',
   assert.match(text, /^\.model D_D1 D\(Is=[0-9.e-]+ N=2\)$/m);
   assert.match(text, /\.end\n$/);
 });
+
+test('Circuit Lab renders three-pin symbols, pins and device parameters', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const app = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  for (const type of ['npn', 'pnp', 'nmos', 'opamp']) assert.match(app, new RegExp(`part\\.type === '${type}'`));
+  assert.match(app, /pins-transistor/);
+  assert.match(app, /data-part-field="kp"/);
+  assert.match(app, /nodeFields\(part\)\.includes\(field\)/);
+});
