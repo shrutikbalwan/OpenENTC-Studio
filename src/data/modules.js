@@ -7,6 +7,8 @@ export const modules = [
   { id: 'embedded', name: 'Embedded Lab', short: 'Embedded', icon: '▣', color: '#f59e0b', description: 'Write firmware and prepare MCU projects.' },
   { id: 'power', name: 'Power Electronics', short: 'Power', icon: 'ϟ', color: '#f87171', description: 'Controlled rectifiers, DC-DC converters, inverters and AC controllers with waveforms, harmonics and textbook formulas.' },
   { id: 'adc', name: 'ADC & DAC Lab', short: 'ADC', icon: '⊿', color: '#2dd4bf', description: 'Quantisation, DNL/INL, SNR and ENOB; SAR, flash, dual-slope and sigma-delta conversion step by step; R-2R and weighted DACs.' },
+  { id: 'sensors', name: 'Sensors & Instrumentation', short: 'Sensors', icon: '♨', color: '#fb923c', description: 'Thermocouples (NIST tables), RTDs, thermistors, strain-gauge bridges, LVDTs and complete sensor → amplifier → ADC chains.' },
+  { id: 'ev', name: 'EV Engineering', short: 'EV', icon: '⚡', color: '#a3e635', description: 'Battery-pack sizing, road load and range, motor torque–speed and acceleration, and charging time.' },
   { id: 'mcu', name: 'Microcontroller Lab', short: 'MCU', icon: '⌗', color: '#fbbf24', description: '8051 and Arduino Uno (ATmega328P) simulators with virtual boards, serial terminals and debugging.' },
   { id: 'pcb', name: 'PCB Studio', short: 'PCB', icon: '▤', color: '#34d399', description: 'Schematic-to-board design workflow.' },
   { id: 'fpga', name: 'FPGA & Digital', short: 'FPGA', icon: '◇', color: '#a78bfa', description: 'Design, synthesize and verify digital logic.' },

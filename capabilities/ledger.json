@@ -262,6 +262,22 @@
       "plannedPhase": 5
     },
     {
+      "id": "sensors.instrumentation-lab",
+      "surface": "Sensors & Instrumentation: thermocouples, RTDs, thermistors, bridges, LVDT and measurement chains",
+      "state": "built-in",
+      "evidence": ["packages/sensors/src/index.mjs", "src/app.js#renderSensors", "tests/sensors.test.mjs"],
+      "limitations": "Thermocouple types E, J, K, N and T only (NIST ITS-90 reference functions, matched to the NIST tables within 1 µV); no lead-wire, self-heating or thermal-lag effects. In-amp models are ideal apart from the E96 gain resistor (no offset, CMRR, noise or bandwidth). The measurement chain assumes an ideal ADC and reference.",
+      "plannedPhase": 5
+    },
+    {
+      "id": "ev.engineering-calculators",
+      "surface": "EV Engineering: battery pack, road load and range, motor and acceleration, charging",
+      "state": "built-in",
+      "evidence": ["packages/ev/src/index.mjs", "src/app.js#renderEv", "tests/sensors.test.mjs"],
+      "limitations": "Steady-state and lumped models: constant cell voltage and resistance (no SoC or temperature dependence), constant drivetrain efficiency, ideal torque–speed envelope, no drive cycles, and a linear CC-CV taper. Cell presets are typical values, not specific products.",
+      "plannedPhase": 5
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",
