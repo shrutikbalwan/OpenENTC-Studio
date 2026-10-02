@@ -15,7 +15,7 @@ export const MAX_AC_POINTS = 1000;
 const ANALOG_TYPES = Object.freeze(['resistor', 'voltage', 'current', 'capacitor', 'inductor', 'diode', 'led', 'switch', 'npn', 'pnp', 'nmos', 'pmos', 'opamp']);
 const BRANCH_TYPES = Object.freeze(['voltage', 'inductor', 'switch', 'opamp']);
 const INTERNAL_PREFIX = '#';
-const STIMULUS_SHAPES = Object.freeze(['dc', 'step', 'sine', 'pulse']);
+const STIMULUS_SHAPES = Object.freeze(['dc', 'step', 'sine', 'pulse', 'square', 'triangle', 'sawtooth']);
 
 function solveLinear(matrix, vector) {
   const n = vector.length;
@@ -483,12 +483,19 @@ export function stimulusWaveform(stimulus = {}, nominal = 0) {
   if (!STIMULUS_SHAPES.includes(shape)) throw new RangeError(`Stimulus shape must be one of ${STIMULUS_SHAPES.join(', ')}.`);
   const amplitude = stimulus.amplitude === undefined ? nominal : boundedNumber(stimulus.amplitude, -1e6, 1e6, 'Stimulus amplitude');
   const offset = stimulus.offset === undefined ? 0 : boundedNumber(stimulus.offset, -1e6, 1e6, 'Stimulus offset');
-  const frequency = shape === 'sine' || shape === 'pulse' ? boundedNumber(stimulus.frequency ?? 1000, 1e-6, 1e12, 'Stimulus frequency') : 0;
+  const frequency = shape === 'dc' || shape === 'step' ? 0 : boundedNumber(stimulus.frequency ?? 1000, 1e-6, 1e12, 'Stimulus frequency');
+  const duty = stimulus.duty === undefined ? 0.5 : boundedNumber(stimulus.duty, 0.001, 0.999, 'Duty cycle');
   if (shape === 'dc') return () => offset + amplitude;
   if (shape === 'step') return (time) => offset + (time > 0 ? amplitude : 0);
   if (shape === 'sine') return (time) => offset + amplitude * Math.sin(2 * Math.PI * frequency * time);
-  // Square pulse: high for the first half of each period after t = 0, low otherwise.
-  return (time) => { const cycle = time * frequency; return offset + (time > 0 && cycle - Math.ceil(cycle) + 1 <= 0.5 ? amplitude : 0); };
+  // Fraction of the current period, with the high part of a pulse covering (0, duty] of each period.
+  const fraction = (time) => { const cycle = time * frequency; return cycle - Math.ceil(cycle) + 1; };
+  // Pulse: 0 → amplitude (unipolar); square: −amplitude → +amplitude (bipolar, like a function generator).
+  if (shape === 'pulse') return (time) => offset + (time > 0 && fraction(time) <= duty ? amplitude : 0);
+  if (shape === 'square') return (time) => offset + (time > 0 && fraction(time) <= duty ? amplitude : -amplitude);
+  // Triangle starts at the offset rising, like a sine; sawtooth ramps −A → +A each period.
+  if (shape === 'triangle') return (time) => { const f = (time * frequency + 0.25) % 1; const u = f < 0 ? f + 1 : f; return offset + amplitude * (u < 0.5 ? 4 * u - 1 : 3 - 4 * u); };
+  return (time) => { const f = (time * frequency) % 1; const u = f < 0 ? f + 1 : f; return offset + amplitude * (2 * u - 1); };
 }
 
 /**

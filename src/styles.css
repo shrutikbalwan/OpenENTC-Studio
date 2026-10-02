@@ -465,3 +465,48 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .la-frame { fill: rgba(96, 165, 250, .28); stroke: #60a5fa; stroke-width: 1; vector-effect: non-scaling-stroke; }
 .la-frame.error { fill: rgba(244, 63, 94, .3); stroke: #f43f5e; }
 .la-frame-text { fill: #e2e8f0; font: 600 10px DM Mono; text-anchor: middle; }
+
+/* Lab Bench */
+.bench-page .bench-example { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted, #94a3b8); }
+.bench-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-top: 16px; }
+.bench-instrument .bench-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.scope-layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(280px, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 1000px) { .scope-layout { grid-template-columns: 1fr; } }
+.scope-display { min-width: 0; }
+.scope-status { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; font: 12px ui-monospace, monospace; margin-bottom: 6px; color: #cbd5e1; }
+.scope-screen { width: 100%; height: auto; display: block; border-radius: 8px; border: 1px solid #334155; }
+.scope-bg { fill: #050b14; }
+.scope-grid line { stroke: #1e3a4a; stroke-width: 1; }
+.scope-grid line.axis { stroke: #2f5b70; }
+.scope-trace { fill: none; stroke-width: 1.6; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.scope-marker-text, .scope-cursor-text { font: 10px ui-monospace, monospace; }
+.scope-cursor { stroke: #f97316; stroke-dasharray: 4 3; }
+.scope-cursor-text { fill: #f97316; }
+.scope-cursor-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; font-size: 12px; }
+.scope-cursor-controls input { width: 100%; }
+.scope-controls { display: flex; flex-direction: column; gap: 12px; }
+.scope-channel { border-left: 3px solid var(--chip, #475569); padding-left: 10px; }
+.scope-measurements { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 14px; }
+.scope-measure { border-top: 3px solid var(--chip); padding-top: 6px; }
+.scope-measure > b { display: block; font-size: 12px; margin-bottom: 4px; color: var(--chip); }
+.dmm-display { font: 600 40px/1.1 ui-monospace, 'SFMono-Regular', monospace; letter-spacing: 1px; text-align: right; padding: 14px 18px; margin: 6px 0 12px; border-radius: 8px; background: #a3b18a; color: #111827; box-shadow: inset 0 2px 6px #0006; overflow-wrap: anywhere; }
+.supply-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+.supply-display { display: flex; gap: 14px; align-items: baseline; padding: 8px 12px; margin: 6px 0 8px; border-radius: 6px; background: #120a05; font: 600 22px ui-monospace, monospace; color: #fb923c; }
+.supply-display small { font-size: 12px; }
+.supply-display.idle { color: #57534e; }
+.supply-display .mode { font-style: normal; font-size: 11px; padding: 2px 6px; border-radius: 4px; margin-left: auto; }
+.supply-display .mode.cv { background: #14532d; color: #86efac; }
+.supply-display .mode.cc { background: #7f1d1d; color: #fca5a5; }
+.supply-display .mode.off { background: #292524; color: #a8a29e; }
+.bench-page .bench-instrument { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 14px 16px; }
+.bench-page .bench-instrument .panel-label { font: 500 10px DM Mono; letter-spacing: 1px; color: #facc15; }
+.bench-page label { display: flex; flex-direction: column; gap: 5px; font-size: 11px; color: var(--muted); position: relative; }
+.bench-page .dsp-controls { align-items: flex-start; gap: 10px; margin-bottom: 4px; }
+.bench-page .dsp-controls label { min-width: 120px; flex: 1 1 120px; }
+.bench-page input[type="text"], .bench-page select { border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); padding: 7px 9px; font: 500 12px DM Mono; width: 100%; }
+.bench-page .dsp-controls label > span { position: absolute; right: 9px; bottom: 9px; font: 500 9px DM Mono; color: var(--muted); }
+.bench-page .heading-actions { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.bench-page .scope-measure .result-value { flex-direction: row; justify-content: space-between; align-items: baseline; padding: 2px 0; border-bottom: 1px dashed color-mix(in srgb, var(--line) 60%, transparent); }
+.bench-page .scope-measure .result-value span { font-size: 10px; }
+.bench-page .scope-measure .result-value b { margin: 0; font-size: 11px; }
+.bench-page .tool[aria-pressed="true"] { border-color: #facc15; color: #facc15; }

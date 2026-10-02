@@ -3,6 +3,7 @@ import { COMPONENT_DEFINITIONS, COMPONENT_DEFINITION_VERSION, validateComponentD
 export const modules = [
   { id: 'home', name: 'Mission control', short: 'Home', icon: '⌂', color: '#5eead4', description: 'Projects, engines and guided workflows.' },
   { id: 'circuit', name: 'Circuit Lab', short: 'Circuit', icon: '⌁', color: '#60a5fa', description: 'Draw, inspect and solve electronic circuits.' },
+  { id: 'bench', name: 'Lab Bench', short: 'Bench', icon: '◔', color: '#facc15', description: 'Oscilloscope, function generator, bench power supply and multimeter connected to your Circuit Lab circuit.' },
   { id: 'embedded', name: 'Embedded Lab', short: 'Embedded', icon: '▣', color: '#f59e0b', description: 'Write firmware and prepare MCU projects.' },
   { id: 'mcu', name: 'Microcontroller Lab', short: 'MCU', icon: '⌗', color: '#fbbf24', description: '8051 and Arduino Uno (ATmega328P) simulators with virtual boards, serial terminals and debugging.' },
   { id: 'pcb', name: 'PCB Studio', short: 'PCB', icon: '▤', color: '#34d399', description: 'Schematic-to-board design workflow.' },

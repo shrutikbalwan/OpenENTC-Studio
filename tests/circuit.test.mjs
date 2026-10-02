@@ -101,6 +101,13 @@ test('transient stimulus drives sine and pulse waveforms through the selected so
   const pulse = stimulusWaveform({ shape: 'pulse', frequency: 1000, amplitude: 3 });
   assert.deepEqual([0, 0.2e-3, 0.5e-3, 0.7e-3, 1.2e-3].map(pulse), [0, 3, 3, 0, 3]);
   assert.equal(stimulusWaveform({ shape: 'step', offset: 1 }, 4)(1e-9), 5);
+  const square = stimulusWaveform({ shape: 'square', frequency: 1000, amplitude: 2, offset: 1, duty: 0.25 });
+  assert.deepEqual([0.1e-3, 0.3e-3, 0.9e-3, 1.2e-3].map(square), [3, -1, -1, 3]);
+  const triangle = stimulusWaveform({ shape: 'triangle', frequency: 1000, amplitude: 2 });
+  assert.deepEqual([0, 0.25e-3, 0.5e-3, 0.75e-3].map((t) => Math.round(triangle(t) * 1e9) / 1e9), [0, 2, 0, -2]);
+  const saw = stimulusWaveform({ shape: 'sawtooth', frequency: 1000, amplitude: 1 });
+  assert.deepEqual([0, 0.25e-3, 0.5e-3].map((t) => Math.round(saw(t) * 1e9) / 1e9), [-1, -0.5, 0]);
+  assert.throws(() => stimulusWaveform({ shape: 'pulse', duty: 1.5 }), /Duty cycle/);
   assert.throws(() => stimulusWaveform({ shape: 'saw' }), /Stimulus shape/);
   assert.throws(() => simulateTransient([part('V1', 'voltage', 1, 'a', '0'), part('R1', 'resistor', 1, 'a', '0')], [], [], { stopTime: 1, timeStep: 1e-6 }), new RegExp(String(MAX_TRANSIENT_POINTS)));
   assert.throws(() => simulateTransient([part('V1', 'voltage', 1, 'a', '0'), part('R1', 'resistor', 1, 'a', '0')], [], [], { stopTime: 1e-3, timeStep: 1e-5, stimulus: { sourceId: 'V9' } }), /not an independent source/);

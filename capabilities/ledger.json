@@ -222,6 +222,14 @@
       "plannedPhase": 5
     },
     {
+      "id": "bench.virtual-instruments",
+      "surface": "Lab Bench: oscilloscope, function generator, CV/CC bench supply and multimeter on the Circuit Lab circuit",
+      "state": "built-in",
+      "evidence": ["packages/instruments/src/index.mjs", "src/engines/circuit-engine.js#stimulusWaveform", "src/app.js#renderBench", "tests/instruments.test.mjs", "tests/circuit.test.mjs"],
+      "limitations": "Instruments read the built-in transient solver (fixed time step, at most 20 000 points per capture), so very fast edges at long time/div settings are under-sampled. Probes are ideal (no 1 MΩ/10 pF loading) and channels are referenced to ground; the generator drives one voltage source and the supply up to two. CC mode is decided at the DC operating point. The multimeter measures resistance with every source switched off and has no input-impedance loading.",
+      "plannedPhase": 5
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",
