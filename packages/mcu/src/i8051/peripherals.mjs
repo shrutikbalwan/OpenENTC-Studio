@@ -1,5 +1,6 @@
 // Trainer-board peripherals wired to 8051 port pins: LEDs, DIP switches, push buttons,
 // a seven-segment display, a 4×4 keypad and an HD44780 16×2 character LCD.
+import { Recorder } from '../analyzer.mjs';
 
 const pinBit = (pin) => { const match = /^P([0-3])\.([0-7])$/.exec(String(pin).toUpperCase()); if (!match) throw new RangeError(`Pin must look like P2.0, not "${pin}".`); return { port: Number(match[1]), bit: Number(match[2]) }; };
 
@@ -87,7 +88,37 @@ export class TrainerBoard {
     this.buttons = this.wiring.buttons.pins.map(() => false);
     this.keys = new Set(); // pressed keypad keys as "row,col"
     cpu.onPortChange(() => this.update());
+    this.startCapture();
     this.update();
+  }
+
+  /** Record all 32 port pins (and the TXD waveform the UART puts on P3.1). */
+  startCapture() {
+    const names = [0, 1, 2, 3].flatMap((port) => Array.from({ length: 8 }, (_, bit) => `P${port}.${bit}`));
+    this.recorder = new Recorder(names);
+    this.lastPins = null;
+    const toSeconds = (cycles) => cycles * 12 / this.cpu.clock;
+    this.cpu.serialListeners.length = 0;
+    this.cpu.serialListeners.push(({ value, stopCycle, bitCycles, bits }) => {
+      // TI rises at the start of the stop bit: the frame started (bits − 1) bit times earlier.
+      const bit = toSeconds(bitCycles);
+      let t = toSeconds(stopCycle) - (bits - 1) * bit;
+      const dataBits = bits === 8 ? 8 : bits - 2 - (bits === 11 ? 1 : 0);
+      this.recorder.set('P3.1', t, 0); t += bit;
+      for (let k = 0; k < Math.min(8, dataBits); k += 1) { this.recorder.set('P3.1', t, (value >> k) & 1); t += bit; }
+      this.recorder.set('P3.1', t, 1);
+    });
+  }
+
+  capturePins() {
+    const pins = this.cpu.portPins();
+    const t = this.cpu.cycles * 12 / this.cpu.clock;
+    const uartOn = (this.cpu.sfr[0x98 - 0x80] >> 6) !== 0 || this.cpu.serialOutput.length;
+    pins.forEach((value, port) => {
+      if (this.lastPins && this.lastPins[port] === value) return;
+      for (let bit = 0; bit < 8; bit += 1) if (!(uartOn && port === 3 && bit === 1)) this.recorder.set(`P${port}.${bit}`, t, (value >> bit) & 1);
+    });
+    this.lastPins = pins;
   }
   setSwitches(value) { this.switches = value & 0xff; this.update(); }
   setButton(index, pressed) { this.buttons[index] = pressed; this.update(); }
@@ -112,6 +143,7 @@ export class TrainerBoard {
       if (level(rw) && level(en)) drive[lcd.dataPort] &= this.lcd.status();
     }
     for (let port = 0; port < 4; port += 1) this.cpu.setExternal(port, drive[port]);
+    if (this.recorder) this.capturePins();
   }
 
   /** What the board shows: LED states, seven-segment pattern and digit, LCD text. */

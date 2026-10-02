@@ -210,7 +210,15 @@
       "surface": "Microcontroller Lab: Arduino Uno (ATmega328P) simulator",
       "state": "built-in",
       "evidence": ["packages/mcu/src/avr/cpu.mjs", "packages/mcu/src/avr/peripherals.mjs", "packages/mcu/src/avr/board.mjs", "packages/mcu/src/avr/examples.mjs", "scripts/build-avr-examples.mjs", "tests/mcu-avr.test.mjs"],
-      "limitations": "Runs compiled Intel HEX only (sketches are compiled in the Arduino IDE/CLI, not in the browser). Instruction results and cycle counts match simavr; interrupt entry follows the datasheet. Timer input capture, watchdog reset, analog comparator, sleep-mode power behaviour and self-programming are not modelled; SPI reads 0xFF and I²C has no devices. Browser speed is roughly half of real time.",
+      "limitations": "Runs compiled Intel HEX only (sketches are compiled in the Arduino IDE/CLI, not in the browser). Instruction results and cycle counts match simavr; interrupt entry follows the datasheet. Timer input capture, watchdog reset, analog comparator, sleep-mode power behaviour and self-programming are not modelled; SPI slaves other than a 74HC595 read 0xFF; the I²C bus models a PCF8574 LCD backpack and a DS1307 RTC only. Browser speed is roughly half of real time.",
+      "plannedPhase": 5
+    },
+    {
+      "id": "mcu.logic-analyser",
+      "surface": "Microcontroller Lab: logic analyser with UART, SPI and I²C decoders and VCD import/export",
+      "state": "built-in",
+      "evidence": ["packages/mcu/src/analyzer.mjs", "packages/mcu/src/avr/board.mjs", "packages/mcu/src/i8051/peripherals.mjs", "src/app.js#renderAnalyzerPanel", "tests/analyzer.test.mjs"],
+      "limitations": "Captures the simulated boards only (no USB logic-analyser hardware). Peripheral waveforms (TXD, SCK/MOSI/MISO, SCL/SDA) are drawn from the hardware events at ideal timing, without rise times or clock stretching. Each channel keeps the latest 40 000 edges. Decoder output matches sigrok-cli 0.7.2 for the tested framings; 10-bit I²C addresses and 9-bit UART frames with parity are not decoded.",
       "plannedPhase": 5
     },
     {

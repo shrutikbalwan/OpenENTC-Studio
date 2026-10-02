@@ -441,3 +441,27 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .uno-pot { display: flex !important; flex-direction: row !important; align-items: center; gap: 8px !important; color: var(--text) !important; }
 .uno-pot input { flex: 1; }
 @media (max-width: 700px) { .uno-pins { grid-template-columns: repeat(5, 1fr); } }
+.la-panel { margin-top: 14px; }
+.la-panel > summary { cursor: pointer; list-style: none; }
+.la-controls { align-items: flex-end !important; margin: 10px 0; }
+.la-controls label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--muted); }
+.la-channels { font-size: 12px; margin-bottom: 8px; }
+.la-channels summary { cursor: pointer; color: var(--muted); }
+.la-channels > div { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; }
+.la-channels label.check-label { flex-direction: row !important; align-items: center; gap: 4px !important; font: 500 11px DM Mono; color: var(--text); }
+.la-decoders { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.la-decoder { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
+.la-decoder select { border: 1px solid var(--line); border-radius: 5px; background: var(--bg); color: var(--text); padding: 3px 5px; font: 500 11px DM Mono; }
+.la-decoder b { font: 700 11px DM Mono; color: #fbbf24; width: 40px; }
+.la-view { background: #050a14; border: 1px solid var(--line); border-radius: 8px; padding: 4px 0; overflow: hidden; }
+.la-svg { display: block; width: 100%; }
+.la-wave { fill: none; stroke: #4ade80; stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+.la-busy { fill: rgba(74, 222, 128, .25); }
+.la-name { fill: #cbd5e1; font: 600 11px DM Mono; }
+.la-name.decoder { fill: #fbbf24; }
+.la-note, .la-time { fill: #64748b; font: 500 9px DM Mono; }
+.la-time { text-anchor: middle; }
+.la-grid { stroke: #1e293b; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.la-frame { fill: rgba(96, 165, 250, .28); stroke: #60a5fa; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.la-frame.error { fill: rgba(244, 63, 94, .3); stroke: #f43f5e; }
+.la-frame-text { fill: #e2e8f0; font: 600 10px DM Mono; text-anchor: middle; }

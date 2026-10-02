@@ -7,3 +7,5 @@ export { AvrCpu } from './avr/cpu.mjs';
 export { Adc, Eeprom, ExternalInterrupts, GpioPort, Spi, Timer, Twi, Usart, createAtmega328p } from './avr/peripherals.mjs';
 export { DEFAULT_UNO_BOARD, PIN_LABELS, UnoBoard, unoPin } from './avr/board.mjs';
 export { AVR_EXAMPLES } from './avr/examples.mjs';
+export { Recorder, createChannel, decodeI2c, decodeSpi, decodeUart, estimateBaud, fromVcd, i2cTransaction, levelAt, record, sliceChannel, spiByte, toVcd, uartFrame } from './analyzer.mjs';
+export { Ds1307, Pcf8574 } from './avr/peripherals.mjs';

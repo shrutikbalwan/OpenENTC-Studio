@@ -22,7 +22,7 @@ import { coaxImpedance, ELEMENT_PATTERNS, freeSpacePathLossDb, linearArray, link
 import { analyzeSystem, classifyStability, firstOrderStability, firstOrderStep, formatPolynomial, makeTransferFunction, pidController, pidLoop, rootLocus, routhArray, timeResponse, zieglerNichols } from '../packages/control/src/index.mjs';
 import { adcResolution, COLOR_BANDS, convertLevel, dbToRatio, decodeCapacitorCode, decodeResistorBands, decodeSmdResistor, design555Astable, E_SERIES, encodeResistorBands, ledResistor, nearestPreferred, OPAMP_CONFIGS, opampStage, POWER_UNITS, ratioToDb, rcFilter, reactance, rlcResonance, seriesParallel, solveOhm, timer555Astable, timer555Monostable, voltageDivider } from '../packages/calculators/src/index.mjs';
 import { autoPlace, autoroute, billOfMaterials, buildBoard, createZip, extractNetlist, fabricationFiles, normalizeRules, ratsnest, runDrc, silkscreen, traceWidthForCurrent } from '../packages/pcb/src/index.mjs';
-import { assemble, AVR_EXAMPLES, Cpu8051, disassemble, EXAMPLES_8051, parseIntelHex, toImage, toIntelHex, TrainerBoard, UnoBoard, unoPin } from '../packages/mcu/src/index.mjs';
+import { assemble, AVR_EXAMPLES, Cpu8051, disassemble, EXAMPLES_8051, parseIntelHex, toImage, toIntelHex, TrainerBoard, UnoBoard, unoPin, PIN_LABELS, decodeI2c, decodeSpi, decodeUart, estimateBaud, fromVcd, sliceChannel, toVcd } from '../packages/mcu/src/index.mjs';
 import { parsePcap, parsePcapNg } from '../packages/packets/src/index.mjs';
 import { topologyMetrics } from '../packages/topology/src/index.mjs';
 import { parseVcd } from '../packages/hdl/src/index.mjs';
@@ -1776,6 +1776,7 @@ function paintMcu() {
   if (terminal && terminal.textContent !== mcuRuntime.terminal) { terminal.textContent = mcuRuntime.terminal; terminal.scrollTop = terminal.scrollHeight; }
   const run = root.querySelector('[data-action="mcu-run"]');
   if (run) run.textContent = mcuRuntime.running ? 'Pause' : 'Run';
+  paintAnalyzer('i8051', !mcuRuntime.running);
 }
 
 function renderMcuWiring(config) {
@@ -1831,6 +1832,7 @@ function render8051Tab(config) {
         <div class="dsp-card"><span class="panel-label">INTERNAL RAM 00–7F</span><div class="mcu-ram" data-mcu-ram></div></div>
       </section>
     </div>
+    ${renderAnalyzerPanel('i8051')}
     <p class="module-footnote">Cycle-accurate MCS-51 core (12 clocks per machine cycle) with timers, UART and interrupts; validated against SDCC's assembler and the ucsim simulator. The LCD model ignores controller busy time.</p></div>`;
 }
 
@@ -1843,6 +1845,7 @@ function bindMcuEvents() {
   bindUnoEvents();
   const root = document.querySelector('[data-mcu-root]');
   if (!root) return;
+  bindAnalyzerEvents('i8051');
   paintMcu();
   const config = () => mcuConfiguration(getState());
   const source = root.querySelector('[data-mcu-source]');
@@ -2004,6 +2007,7 @@ function paintUno() {
   if (terminal && terminal.textContent !== unoRuntime.terminal) { terminal.textContent = unoRuntime.terminal; terminal.scrollTop = terminal.scrollHeight; }
   const run = root.querySelector('[data-action="uno-run"]');
   if (run) run.textContent = unoRuntime.running ? 'Pause' : 'Run';
+  paintAnalyzer('uno', !unoRuntime.running);
 }
 
 function renderUnoTab(config) {
@@ -2037,12 +2041,14 @@ function renderUnoTab(config) {
       </section>
       <section class="mcu-right"><div class="dsp-card"><span class="panel-label">ATMEGA328P · 16 MHz</span><div data-uno-cpu></div></div></section>
     </div>
+    ${renderAnalyzerPanel('uno')}
     <p class="module-footnote">Instruction-level ATmega328P model (timers, PWM, USART, ADC, external and pin-change interrupts, EEPROM, SPI); register results and cycle counts match simavr on 190 test programs and interrupt timing follows the datasheet. I²C has no devices attached.</p></div>`;
 }
 
 function bindUnoEvents() {
   const root = document.querySelector('[data-uno-root]');
   if (!root) return;
+  bindAnalyzerEvents('uno');
   paintUno();
   root.querySelector('[data-action="uno-run"]')?.addEventListener('click', () => { if (unoRuntime.running) { unoStop(); paintUno(); } else unoStart(); });
   root.querySelector('[data-action="uno-reset"]')?.addEventListener('click', () => { unoStop(); unoRuntime.board.reset(); unoRuntime.terminal = ''; paintUno(); });
@@ -2076,6 +2082,179 @@ function bindUnoEvents() {
     } catch (error) { notify(error.message, 'error'); }
   }));
   if (unoRuntime.running && !unoRuntime.frame) unoStart();
+}
+
+// ---------------------------------------------------------------------------
+// Logic analyser panel (shared by the 8051 and Arduino simulators).
+
+const LA_WINDOWS = [['0.5', '0.5 ms'], ['2', '2 ms'], ['10', '10 ms'], ['50', '50 ms'], ['200', '200 ms'], ['1000', '1 s'], ['5000', '5 s']];
+const LA_DEFAULTS = {
+  uno: { windowMs: '10', channels: ['D1', 'D2', 'D9', 'D10', 'D11', 'D13', 'A4', 'A5'], decoders: [{ type: 'uart', rx: 'D1', baud: 'auto', parity: 'none' }, { type: 'spi', sck: 'D13', mosi: 'D11', miso: 'D12', cs: 'D10', mode: 0 }, { type: 'i2c', scl: 'A5', sda: 'A4' }] },
+  i8051: { windowMs: '50', channels: ['P1.0', 'P1.1', 'P1.2', 'P1.3', 'P3.1', 'P3.2'], decoders: [{ type: 'uart', rx: 'P3.1', baud: 'auto', parity: 'none' }] },
+};
+const laState = { frozen: { uno: false, i8051: false }, offset: { uno: 0, i8051: 0 }, imported: { uno: null, i8051: null }, lastPaint: 0 };
+
+function laConfig(target) {
+  const config = mcuConfiguration(getState());
+  return { ...LA_DEFAULTS[target], ...(config.analyzer?.[target] || {}) };
+}
+function persistLa(target, patch) {
+  const config = mcuConfiguration(getState());
+  persistMcu({ analyzer: { ...(config.analyzer || {}), [target]: { ...laConfig(target), ...patch } } });
+}
+function laSource(target) {
+  if (laState.imported[target]) return { channels: laState.imported[target].channels, end: laState.imported[target].end, imported: true };
+  const recorder = target === 'uno' ? unoRuntime.board?.recorder : mcuRuntime.board?.recorder;
+  if (!recorder) return null;
+  // The view ends at the most recent activity, so bursts stay on screen after the line goes idle.
+  const now = target === 'uno' ? unoRuntime.board.cpu.cycles / unoRuntime.board.cpu.clock : mcuRuntime.cpu.cycles * 12 / mcuRuntime.cpu.clock;
+  return { channels: recorder.list(), end: recorder.end > 0 ? recorder.end + 0.05 * Number(laConfig(target).windowMs) / 1000 : now, imported: false };
+}
+
+function laDecode(decoder, byName, from, to) {
+  const ch = (name) => byName.get(name);
+  const margin = 0.02 * (to - from) + 2e-3;
+  if (decoder.type === 'uart') {
+    const rx = ch(decoder.rx);
+    if (!rx) return [];
+    const baud = decoder.baud === 'auto' ? estimateBaud(sliceChannel(rx, from - 0.2, to)) || 9600 : Number(decoder.baud);
+    return decodeUart(sliceChannel(rx, from - margin, to), { baud, parity: decoder.parity || 'none' })
+      .filter((frame) => frame.end >= from && frame.start <= to)
+      .map((frame) => ({ start: frame.start, end: frame.end, text: frame.value >= 32 && frame.value < 127 ? `'${String.fromCharCode(frame.value)}'` : `${hex2(frame.value)}h`, detail: `${hex2(frame.value)}h${frame.framingError ? ' framing error' : ''}${frame.parityOk ? '' : ' parity error'}`, error: frame.framingError || !frame.parityOk, label: `UART ${decoder.rx} @ ${baud}` }));
+  }
+  if (decoder.type === 'spi') {
+    if (!ch(decoder.sck) || !ch(decoder.mosi)) return [];
+    const slice = (name) => (ch(name) ? sliceChannel(ch(name), from - margin, to) : null);
+    return decodeSpi({ sck: slice(decoder.sck), mosi: slice(decoder.mosi), miso: slice(decoder.miso), cs: slice(decoder.cs) }, { mode: Number(decoder.mode) || 0 })
+      .map((word) => ({ start: word.start, end: word.end, text: `${hex2(word.mosi)}h`, detail: `MOSI ${hex2(word.mosi)}h${word.miso !== null ? ` · MISO ${hex2(word.miso)}h` : ''}`, label: `SPI mode ${decoder.mode}` }));
+  }
+  if (decoder.type === 'i2c') {
+    if (!ch(decoder.scl) || !ch(decoder.sda)) return [];
+    return decodeI2c({ scl: sliceChannel(ch(decoder.scl), from - margin, to), sda: sliceChannel(ch(decoder.sda), from - margin, to) })
+      .map((event) => ({ start: event.t, end: event.end ?? event.t, text: event.type === 'address' ? `${hex2(event.address)}h ${event.read ? 'R' : 'W'}${event.ack ? '' : ' NACK'}` : event.type === 'data' ? `${hex2(event.value)}h${event.ack ? '' : ' N'}` : event.type === 'start' ? 'S' : event.type === 'stop' ? 'P' : 'Sr', detail: event.type, error: event.ack === false && event.type === 'address', label: 'I²C' }));
+  }
+  return [];
+}
+
+function laSvg(target, pixelWidth = 1000) {
+  const config = laConfig(target);
+  const source = laSource(target);
+  if (!source) return '<p class="module-footnote">Run a program to capture signals.</p>';
+  const windowSeconds = Number(config.windowMs) / 1000;
+  const to = source.end - (laState.offset[target] || 0) * windowSeconds;
+  const from = Math.max(0, to - windowSeconds);
+  const byName = new Map(source.channels.map((channel) => [channel.name, channel]));
+  const channels = source.imported ? source.channels.slice(0, 16) : config.channels.map((name) => byName.get(name)).filter(Boolean);
+  const decoders = config.decoders.map((decoder) => ({ decoder, items: laDecode(decoder, byName, from, to) })).filter((entry) => entry.items.length || !source.imported);
+  const width = Math.max(400, Math.round(pixelWidth)), labelWidth = 70, rowHeight = 26, decoderHeight = 24;
+  const x = (t) => labelWidth + ((t - from) / (to - from || 1)) * (width - labelWidth);
+  const rows = [];
+  let y = 18;
+  channels.forEach((channel) => {
+    const slice = sliceChannel(channel, from, to);
+    const top = y + 4, bottom = y + rowHeight - 6;
+    const level = (v) => (v ? top : bottom);
+    let path = `M${labelWidth} ${level(slice.initial)}`;
+    const dense = slice.edges.length > 1500;
+    if (dense) path += `L${width} ${level(slice.initial)}`;
+    else { let current = slice.initial; for (const edge of slice.edges) { const px = x(edge.t).toFixed(1); path += `L${px} ${level(current)}L${px} ${level(edge.v)}`; current = edge.v; } path += `L${width} ${level(current)}`; }
+    rows.push(`<text class="la-name" x="4" y="${y + 16}">${esc(channel.name)}</text>${dense ? `<rect class="la-busy" x="${labelWidth}" y="${top}" width="${width - labelWidth}" height="${bottom - top}"/><text class="la-note" x="${labelWidth + 6}" y="${y + 16}">${slice.edges.length} edges — zoom in</text>` : `<path class="la-wave" d="${path}"/>`}`);
+    y += rowHeight;
+  });
+  decoders.forEach(({ decoder, items }) => {
+    rows.push(`<text class="la-name decoder" x="4" y="${y + 15}">${esc(decoder.type.toUpperCase())}</text>`);
+    for (const item of items.slice(0, 400)) {
+      const x1 = Math.max(labelWidth, x(item.start)), x2 = Math.min(width, Math.max(x(item.end), x1 + 3));
+      rows.push(`<g><title>${esc(`${item.label}: ${item.detail}`)}</title><rect class="la-frame${item.error ? ' error' : ''}" x="${x1.toFixed(1)}" y="${y + 3}" width="${(x2 - x1).toFixed(1)}" height="${decoderHeight - 6}" rx="3"/>${x2 - x1 > 22 ? `<text class="la-frame-text" x="${((x1 + x2) / 2).toFixed(1)}" y="${y + 16}">${esc(item.text)}</text>` : ''}</g>`);
+    }
+    y += decoderHeight;
+  });
+  const ticks = Array.from({ length: 6 }, (_, k) => { const t = from + (to - from) * k / 5; return `<line class="la-grid" x1="${x(t)}" x2="${x(t)}" y1="12" y2="${y}"/><text class="la-time" x="${x(t)}" y="10">${esc(eng(t, 's'))}</text>`; }).join('');
+  return `<svg class="la-svg" viewBox="0 0 ${width} ${y + 4}" width="${width}" height="${y + 4}">${ticks}${rows.join('')}</svg>`;
+}
+
+function renderAnalyzerPanel(target) {
+  const config = laConfig(target);
+  const names = target === 'uno' ? PIN_LABELS : [0, 1, 2, 3].flatMap((port) => Array.from({ length: 8 }, (_, bit) => `P${port}.${bit}`));
+  const decoderRow = (decoder, index) => {
+    const select = (key, value) => `<select data-la-decoder="${index}" data-la-key="${key}">${['', ...names].map((name) => `<option value="${name}" ${name === value ? 'selected' : ''}>${name || '—'}</option>`).join('')}</select>`;
+    if (decoder.type === 'uart') return `<div class="la-decoder"><b>UART</b> RX ${select('rx', decoder.rx)} baud <select data-la-decoder="${index}" data-la-key="baud">${['auto', 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200].map((rate) => `<option value="${rate}" ${String(rate) === String(decoder.baud) ? 'selected' : ''}>${rate}</option>`).join('')}</select> parity <select data-la-decoder="${index}" data-la-key="parity">${['none', 'even', 'odd'].map((p) => `<option ${p === decoder.parity ? 'selected' : ''}>${p}</option>`).join('')}</select><button class="tool" data-la-remove="${index}">✕</button></div>`;
+    if (decoder.type === 'spi') return `<div class="la-decoder"><b>SPI</b> SCK ${select('sck', decoder.sck)} MOSI ${select('mosi', decoder.mosi)} MISO ${select('miso', decoder.miso)} CS ${select('cs', decoder.cs)} mode <select data-la-decoder="${index}" data-la-key="mode">${[0, 1, 2, 3].map((m) => `<option ${m === Number(decoder.mode) ? 'selected' : ''}>${m}</option>`).join('')}</select><button class="tool" data-la-remove="${index}">✕</button></div>`;
+    return `<div class="la-decoder"><b>I²C</b> SCL ${select('scl', decoder.scl)} SDA ${select('sda', decoder.sda)}<button class="tool" data-la-remove="${index}">✕</button></div>`;
+  };
+  return `<details class="dsp-card la-panel" data-la-target="${target}" ${config.open === false ? '' : 'open'}><summary><span class="panel-label">LOGIC ANALYSER</span></summary>
+    <div class="la-controls dsp-controls">
+      ${labSelect('data-la-field', 'windowMs', 'Time window', config.windowMs, LA_WINDOWS)}
+      <label>Scroll back<input type="range" min="0" max="20" step="0.25" value="${laState.offset[target] || 0}" data-la-offset></label>
+      <button class="button ghost" data-la-action="freeze">${laState.frozen[target] ? 'Live' : 'Freeze'}</button>
+      <button class="button ghost" data-la-action="export">Export VCD</button>
+      <label>Import VCD<input type="file" accept=".vcd" data-la-import></label>
+      ${laState.imported[target] ? '<button class="button ghost" data-la-action="live">Back to simulator</button>' : ''}
+      <button class="button ghost" data-la-action="add-uart">+ UART</button><button class="button ghost" data-la-action="add-spi">+ SPI</button><button class="button ghost" data-la-action="add-i2c">+ I²C</button>
+    </div>
+    <details class="la-channels"><summary>Channels (${config.channels.length})</summary><div>${names.map((name) => `<label class="check-label"><input type="checkbox" data-la-channel="${name}" ${config.channels.includes(name) ? 'checked' : ''}> ${name}</label>`).join('')}</div></details>
+    <div class="la-decoders">${config.decoders.map(decoderRow).join('')}</div>
+    <div class="la-view" data-la-view>${laSvg(target)}</div>
+    <p class="module-footnote">Captures every pin with exact simulated timestamps; the USART, SPI and TWI hardware draw their real waveforms on TXD, SCK/MOSI/MISO and SCL/SDA. UART, SPI and I²C decoding match sigrok's decoders. Exported VCD files open in GTKWave, PulseView and sigrok.</p></details>`;
+}
+
+function paintAnalyzer(target, force = false) {
+  const now = performance.now();
+  if (!force && now - laState.lastPaint < 200) return;
+  laState.lastPaint = now;
+  if (laState.frozen[target] && !force) return;
+  const view = document.querySelector(`[data-la-target="${target}"] [data-la-view]`);
+  if (view && view.closest('details')?.open) view.innerHTML = laSvg(target, view.clientWidth || 1000);
+}
+
+function bindAnalyzerEvents(target) {
+  const panel = document.querySelector(`[data-la-target="${target}"]`);
+  if (!panel) return;
+  const config = () => laConfig(target);
+  panel.addEventListener('toggle', (event) => { if (event.target === panel && panel.open !== (config().open !== false)) persistLa(target, { open: panel.open }); });
+  panel.querySelectorAll('[data-la-field]').forEach((field) => field.addEventListener('change', () => persistLa(target, { [field.dataset.laField]: field.value })));
+  panel.querySelector('[data-la-offset]')?.addEventListener('input', (event) => { laState.offset[target] = Number(event.target.value); paintAnalyzer(target, true); });
+  panel.querySelectorAll('[data-la-channel]').forEach((box) => box.addEventListener('change', () => {
+    const channels = new Set(config().channels);
+    if (box.checked) channels.add(box.dataset.laChannel); else channels.delete(box.dataset.laChannel);
+    const order = target === 'uno' ? PIN_LABELS : [0, 1, 2, 3].flatMap((port) => Array.from({ length: 8 }, (_, bit) => `P${port}.${bit}`));
+    persistLa(target, { channels: order.filter((name) => channels.has(name)) });
+  }));
+  panel.querySelectorAll('[data-la-decoder]').forEach((field) => field.addEventListener('change', () => {
+    const decoders = structuredClone(config().decoders);
+    decoders[Number(field.dataset.laDecoder)][field.dataset.laKey] = field.dataset.laKey === 'mode' ? Number(field.value) : field.value;
+    persistLa(target, { decoders });
+  }));
+  panel.querySelectorAll('[data-la-remove]').forEach((button) => button.addEventListener('click', () => { const decoders = structuredClone(config().decoders); decoders.splice(Number(button.dataset.laRemove), 1); persistLa(target, { decoders }); }));
+  panel.querySelectorAll('[data-la-action]').forEach((button) => button.addEventListener('click', () => {
+    const action = button.dataset.laAction;
+    const uno = target === 'uno';
+    if (action === 'freeze') { laState.frozen[target] = !laState.frozen[target]; button.textContent = laState.frozen[target] ? 'Live' : 'Freeze'; paintAnalyzer(target, true); }
+    else if (action === 'live') { laState.imported[target] = null; render(); }
+    else if (action.startsWith('add-')) {
+      const type = action.slice(4);
+      const fresh = type === 'uart' ? { type, rx: uno ? 'D1' : 'P3.1', baud: 'auto', parity: 'none' } : type === 'spi' ? { type, sck: uno ? 'D13' : 'P1.0', mosi: uno ? 'D11' : 'P1.1', miso: uno ? 'D12' : '', cs: uno ? 'D10' : '', mode: 0 } : { type, scl: uno ? 'A5' : 'P1.6', sda: uno ? 'A4' : 'P1.7' };
+      persistLa(target, { decoders: [...config().decoders, fresh] });
+    } else if (action === 'export') {
+      const source = laSource(target);
+      if (!source) { notify('Nothing captured yet.', 'error'); return; }
+      const selected = source.imported ? source.channels : config().channels.map((name) => source.channels.find((channel) => channel.name === name)).filter(Boolean);
+      const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([toVcd(selected, { endTime: source.end })], { type: 'text/plain' })); link.download = `${uno ? 'arduino' : '8051'}-capture.vcd`; link.click(); URL.revokeObjectURL(link.href);
+    }
+  }));
+  panel.querySelector('[data-la-import]')?.addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.size > 20_000_000) { notify('VCD file is too large (20 MB limit).', 'error'); return; }
+    try {
+      const channels = fromVcd(await file.text());
+      if (!channels.length) throw new Error('No 1-bit signals found in that VCD file.');
+      const end = Math.max(...channels.map((channel) => (channel.edges.length ? channel.edges[channel.edges.length - 1].t : 0)));
+      laState.imported[target] = { channels, end, name: file.name };
+      persistLa(target, { windowMs: String(Math.max(0.5, Math.round(end * 1000))) });
+      notify(`Imported ${channels.length} signals from ${file.name}`, 'success');
+    } catch (error) { notify(error.message, 'error'); }
+  });
 }
 
 const CONTROL_DEFAULTS = Object.freeze({

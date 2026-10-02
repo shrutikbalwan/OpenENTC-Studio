@@ -28,6 +28,7 @@ export class Cpu8051 {
     this.portListeners = [];
     this.serialOutput = [];
     this.serialInput = [];
+    this.serialListeners = [];
     this.reset();
   }
 
@@ -364,7 +365,15 @@ export class Cpu8051 {
     if (this.tx) {
       // Transmission starts at the next tick; TI rises at the start of the stop bit.
       this.tx.progress += ticks;
-      if (this.tx.progress >= this.tx.bits) { this.serialOutput.push(this.tx.value); this.tx = null; this.sfr[SCON] |= 0x02; }
+      if (this.tx.progress >= this.tx.bits) {
+        this.serialOutput.push(this.tx.value);
+        if (this.serialListeners.length) {
+          // Bit time in machine cycles: timer-1 overflow period × 16/32 in modes 1/3.
+          const bitCycles = mode === 1 || mode === 3 ? (smod ? 16 : 32) * (((this.sfr[TMOD] >> 4) & 3) === 2 ? 256 - this.sfr[TH1] : 256) : this.serialBitCycles();
+          for (const listener of this.serialListeners) listener({ value: this.tx.value, stopCycle: this.cycles, bitCycles, bits: this.tx.bits });
+        }
+        this.tx = null; this.sfr[SCON] |= 0x02;
+      }
     }
     const ren = this.sfr[SCON] & 0x10;
     if (!this.rx && ren && this.serialInput.length && !(this.sfr[SCON] & 0x01)) this.rx = { value: this.serialInput.shift(), progress: 0, bits: mode === 0 ? 8 : mode === 1 ? 10 : 11 };

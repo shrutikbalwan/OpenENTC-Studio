@@ -34,3 +34,7 @@ Engineering Calculators and PCB Studio (placement, autorouting, DRC, Gerber expo
 
 Thirty items in total. Phases run in order; each phase ends with documentation, the full
 verification suite and a push.
+
+## Progress
+
+- [x] Phase 1 — 8051 emulator, Arduino Uno emulator (with Wire/SPI devices: I²C LCD, DS1307, 74HC595), logic analyser with UART/SPI/I²C decoders and VCD

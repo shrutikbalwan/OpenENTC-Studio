@@ -160,7 +160,9 @@ export class Timer {
 
 /** USART0 in asynchronous mode. */
 export class Usart {
-  constructor() { this.vectors = [18, 19, 20]; this.output = []; this.input = []; }
+  constructor() { this.vectors = [18, 19, 20]; this.output = []; this.input = []; this.listeners = []; }
+  frameFormat() { const D = this.cpu.data, c = D[0xc2]; return { dataBits: [5, 6, 7, 8][(c >> 1) & 3], parity: ['none', 'none', 'even', 'odd'][(c >> 4) & 3], stopBits: c & 0x08 ? 2 : 1 }; }
+  announce(value, startCycle) { if (this.listeners.length) { const format = { ...this.frameFormat(), baud: this.baud(), value, startCycle }; for (const listener of this.listeners) listener(format); } }
   reset() {
     this.txShift = null; this.txBuffer = null; this.rx = null; this.rxData = 0;
     if (this.cpu) { this.cpu.data[0xc0] = 0x20; this.cpu.data[0xc2] = 0x06; } // UDRE set, 8-bit frames after reset
@@ -169,8 +171,13 @@ export class Usart {
     this.cpu = cpu; this.reset();
     const D = cpu.data;
     cpu.onRead(0xc6, () => { D[0xc0] &= ~0x80; return this.rxData; });
-    cpu.onWrite(0xc6, (value) => { if (!(D[0xc1] & 0x08)) return; if (this.txShift === null) this.txShift = { value, remaining: this.frameCycles() }; else this.txBuffer = value; D[0xc0] = this.txBuffer === null ? D[0xc0] | 0x20 : D[0xc0] & ~0x20; });
+    cpu.onWrite(0xc6, (value) => { if (!(D[0xc1] & 0x08)) return; if (this.txShift === null) { this.txShift = { value, remaining: this.frameCycles() }; this.announce(value, cpu.cycles); } else this.txBuffer = value; D[0xc0] = this.txBuffer === null ? D[0xc0] | 0x20 : D[0xc0] & ~0x20; });
     cpu.onWrite(0xc0, (value) => { D[0xc0] = (D[0xc0] & ~0x03) | (value & 0x03); if (value & 0x40) D[0xc0] &= ~0x40; });
+    cpu.onWrite(0xc1, (value) => {
+      const enabling = !(D[0xc1] & 0x08) && value & 0x08;
+      D[0xc1] = value;
+      if (enabling) for (const listener of this.listeners) listener({ enable: true, startCycle: cpu.cycles }); // TXD now idles high
+    });
   }
   frameCycles() {
     const D = this.cpu.data;
@@ -191,7 +198,7 @@ export class Usart {
       this.txShift.remaining -= cycles;
       if (this.txShift.remaining <= 0) {
         this.output.push(this.txShift.value);
-        if (this.txBuffer !== null) { this.txShift = { value: this.txBuffer, remaining: this.frameCycles() + this.txShift.remaining }; this.txBuffer = null; D[0xc0] |= 0x20; }
+        if (this.txBuffer !== null) { this.txShift = { value: this.txBuffer, remaining: this.frameCycles() + this.txShift.remaining }; this.announce(this.txBuffer, this.cpu.cycles + this.txShift.remaining - this.frameCycles()); this.txBuffer = null; D[0xc0] |= 0x20; }
         else { this.txShift = null; D[0xc0] |= 0x40; }
       }
     }
@@ -319,7 +326,7 @@ export class Eeprom {
 
 /** SPI master: each byte completes after 8 SCK periods; MISO reads idle-high (0xFF). */
 export class Spi {
-  constructor() { this.vectors = [17]; this.sent = []; this.miso = () => 0xff; }
+  constructor() { this.vectors = [17]; this.sent = []; this.miso = () => 0xff; this.listeners = []; }
   reset() { this.transfer = null; }
   attach(cpu) {
     this.cpu = cpu; this.reset();
@@ -328,7 +335,7 @@ export class Spi {
     cpu.onWrite(0x4e, (value) => {
       if (!(D[0x4c] & 0x40)) return;
       const div = [4, 16, 64, 128][D[0x4c] & 3] / (D[0x4d] & 1 ? 2 : 1);
-      this.transfer = { value, remaining: 8 * div };
+      this.transfer = { value, remaining: 8 * div, start: cpu.cycles, div, mode: (D[0x4c] >> 2) & 3, lsbFirst: Boolean(D[0x4c] & 0x20) };
     });
   }
   tick(cycles) {
@@ -338,6 +345,7 @@ export class Spi {
     this.sent.push(this.transfer.value);
     if (this.sent.length > 4096) this.sent.splice(0, 2048);
     this.received = this.miso(this.transfer.value);
+    for (const listener of this.listeners) listener({ ...this.transfer, miso: this.received });
     this.transfer = null;
     this.cpu.data[0x4d] |= 0x80;
     this.cpu.irqDirty = true;
@@ -346,23 +354,63 @@ export class Spi {
   acknowledge() { this.cpu.data[0x4d] &= ~0x80; }
 }
 
-/** TWI master on an empty bus: START works, every address is NACKed. */
+/**
+ * TWI (I²C) master with attachable slave devices. Each device has `address`, `start(read)`,
+ * `write(byte) → ack`, `read() → byte` and `stop()`. Bus events (with times and the SCL period)
+ * go to `listeners` so a logic analyser can draw SCL/SDA.
+ */
 export class Twi {
-  constructor() { this.vectors = [24]; this.log = []; }
-  reset() { this.pending = null; this.started = false; this.addressNext = false; if (this.cpu) this.cpu.data[0xb9] = 0xf8; }
+  constructor() { this.vectors = [24]; this.devices = []; this.listeners = []; this.log = []; }
+  reset() { this.pending = null; this.state = 'idle'; this.target = null; this.read = false; if (this.cpu) this.cpu.data[0xb9] = 0xf8; }
   attach(cpu) {
     this.cpu = cpu; this.reset();
     const D = cpu.data;
+    cpu.onWrite(0xb9, (value) => { D[0xb9] = (D[0xb9] & 0xf8) | (value & 3); });
     cpu.onWrite(0xbc, (value) => {
       const twint = value & 0x80;
-      D[0xbc] = value & ~0x80; // writing TWINT = 1 clears the flag
+      D[0xbc] = value & ~0x80; // writing TWINT = 1 clears the flag and starts the next action
       if (!(value & 0x04) || !twint) return;
-      if (value & 0x10) { this.started = false; D[0xbc] &= ~0x10; this.log.push({ event: 'stop' }); return; }
-      if (value & 0x20) { this.pending = { status: this.started ? 0x10 : 0x08, remaining: 20 }; this.started = true; this.addressNext = true; this.log.push({ event: 'start' }); return; }
-      if (this.addressNext) { const address = D[0xbb]; this.addressNext = false; this.log.push({ event: 'address', address: address >> 1, read: Boolean(address & 1), ack: false }); this.pending = { status: address & 1 ? 0x48 : 0x20, remaining: 180 }; return; }
-      this.pending = { status: 0x30, remaining: 180 };
+      const period = this.sclPeriodCycles();
+      if (value & 0x10) { // STOP
+        this.target?.stop?.(); this.emit({ type: 'stop', period });
+        this.state = 'idle'; this.target = null; D[0xbc] &= ~0x10;
+        if (!(value & 0x20)) return;
+      }
+      if (value & 0x20) { // (repeated) START
+        const repeated = this.state !== 'idle';
+        this.target?.stop?.();
+        this.state = 'address';
+        this.emit({ type: repeated ? 'repeated-start' : 'start', period });
+        this.finish(repeated ? 0x10 : 0x08, period);
+        return;
+      }
+      if (this.state === 'address') {
+        const byte = D[0xbb];
+        this.read = Boolean(byte & 1);
+        this.target = this.devices.find((device) => device.address === byte >> 1) || null;
+        const ack = Boolean(this.target);
+        this.target?.start?.(this.read);
+        this.state = ack ? (this.read ? 'receive' : 'transmit') : 'nack';
+        this.log.push({ address: byte >> 1, read: this.read, ack });
+        if (this.log.length > 500) this.log.shift();
+        this.emit({ type: 'byte', value: byte, ack, period });
+        this.finish(ack ? (this.read ? 0x40 : 0x18) : (this.read ? 0x48 : 0x20), 9 * period);
+      } else if (this.state === 'transmit') {
+        const ack = this.target.write(D[0xbb]) !== false;
+        this.emit({ type: 'byte', value: D[0xbb], ack, period });
+        this.finish(ack ? 0x28 : 0x30, 9 * period);
+      } else if (this.state === 'receive') {
+        const byte = this.target.read() & 0xff;
+        const ack = Boolean(value & 0x40);
+        D[0xbb] = byte;
+        this.emit({ type: 'byte', value: byte, ack, period, fromSlave: true });
+        this.finish(ack ? 0x50 : 0x58, 9 * period);
+      } else this.finish(0xf8, period);
     });
   }
+  sclPeriodCycles() { const D = this.cpu.data; return 16 + 2 * D[0xb8] * [1, 4, 16, 64][D[0xb9] & 3]; }
+  emit(event) { const t = this.cpu.cycles; for (const listener of this.listeners) listener({ ...event, cycle: t }); }
+  finish(status, cycles) { this.pending = { status, remaining: cycles }; }
   tick(cycles) {
     if (!this.pending) return;
     this.pending.remaining -= cycles;
@@ -374,6 +422,49 @@ export class Twi {
     this.pending = null;
   }
   pendingInterrupt() { const D = this.cpu.data; return D[0xbc] & 0x80 && D[0xbc] & 0x01 ? 24 : 0; }
+}
+
+/** PCF8574 8-bit I/O expander (I²C LCD backpacks use P0 = RS, P1 = RW, P2 = E, P3 = backlight, P4–P7 = D4–D7). */
+export class Pcf8574 {
+  constructor(address = 0x27) { this.address = address; this.output = 0xff; this.listeners = []; }
+  start() {}
+  stop() {}
+  write(byte) { this.output = byte & 0xff; for (const listener of this.listeners) listener(this.output); return true; }
+  read() { return this.output; }
+}
+
+/** DS1307 real-time clock: BCD time registers 00–07 plus 56 bytes of RAM; runs on simulated time. */
+export class Ds1307 {
+  constructor(cpu, { address = 0x68, start = new Date() } = {}) {
+    this.cpu = cpu; this.address = address; this.pointer = 0; this.first = true;
+    this.ram = new Uint8Array(64);
+    this.setTime(start);
+  }
+  setTime(date) {
+    this.baseSeconds = Math.floor(date.getTime() / 1000) - date.getTimezoneOffset() * 60;
+    this.baseCycle = this.cpu.cycles; this.halted = false;
+  }
+  now() { return new Date((this.baseSeconds + Math.floor((this.cpu.cycles - this.baseCycle) / this.cpu.clock)) * 1000); }
+  registers() {
+    const bcd = (value) => ((Math.floor(value / 10) << 4) | (value % 10)) & 0xff;
+    const t = this.now();
+    return [bcd(t.getUTCSeconds()) | (this.halted ? 0x80 : 0), bcd(t.getUTCMinutes()), bcd(t.getUTCHours()), t.getUTCDay() + 1, bcd(t.getUTCDate()), bcd(t.getUTCMonth() + 1), bcd(t.getUTCFullYear() % 100), this.ram[7]];
+  }
+  start(read) { if (!read) this.first = true; }
+  stop() {}
+  write(byte) {
+    if (this.first) { this.pointer = byte & 0x3f; this.first = false; return true; }
+    if (this.pointer < 7) {
+      const regs = this.registers();
+      regs[this.pointer] = byte;
+      const unbcd = (value) => (value >> 4) * 10 + (value & 0x0f);
+      const date = Date.UTC(2000 + unbcd(regs[6]), unbcd(regs[5]) - 1, unbcd(regs[4]), unbcd(regs[2] & 0x3f), unbcd(regs[1]), unbcd(regs[0] & 0x7f));
+      this.baseSeconds = Math.floor(date / 1000); this.baseCycle = this.cpu.cycles; this.halted = Boolean(regs[0] & 0x80);
+    } else this.ram[this.pointer] = byte;
+    this.pointer = (this.pointer + 1) & 0x3f;
+    return true;
+  }
+  read() { const value = this.pointer < 8 ? this.registers()[this.pointer] : this.ram[this.pointer]; this.pointer = (this.pointer + 1) & 0x3f; return value; }
 }
 
 /** Build an ATmega328P: CPU plus every peripheral, wired at the datasheet addresses. */
