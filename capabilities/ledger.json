@@ -246,6 +246,14 @@
       "plannedPhase": 5
     },
     {
+      "id": "power.electronics-lab",
+      "surface": "Power Electronics: rectifiers, DC-DC converters, inverters and AC voltage controller",
+      "state": "built-in",
+      "evidence": ["packages/power/src/index.mjs", "src/app.js#renderPower", "tests/power.test.mjs"],
+      "limitations": "Ideal switches and diodes (no forward drop, reverse recovery or switching loss), no source/leakage inductance (instant commutation, no overlap angle), ideal transformer-less supplies. Inverter load currents are the steady-state harmonic response of a series R-L load (no dead time). DC-DC converters have no ESR, no snubbers and an ideal PWM. Values agree with the textbook formulas; a DCM buck matches ngspice 42 within 0.03 %.",
+      "plannedPhase": 5
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",

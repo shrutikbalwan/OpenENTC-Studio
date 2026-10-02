@@ -545,3 +545,16 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .cosim-card .check-label { flex-direction: row !important; align-items: center; gap: 8px !important; }
 .cosim-card .cosim-layout { margin-bottom: 14px; }
 .cosim-card .cosim-readout .result-value { display: flex; gap: 12px; min-height: 0; height: auto; }
+
+/* Power electronics */
+.power-page .dsp-card label { display: flex; flex-direction: column; gap: 5px; font-size: 11px; color: var(--muted); position: relative; }
+.power-page .dsp-card input, .power-page .dsp-card select { border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); padding: 7px 9px; font: 500 12px DM Mono; min-width: 120px; }
+.power-page .dsp-card label > span { position: absolute; right: 9px; bottom: 8px; font: 500 9px DM Mono; color: var(--muted); }
+.power-page .dsp-controls { align-items: flex-start; }
+.power-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(320px, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 1100px) { .power-grid { grid-template-columns: 1fr; } }
+.power-table td:nth-child(n+2) { text-align: right; font-family: DM Mono; white-space: nowrap; }
+.power-table td:last-child { color: var(--muted); }
+.power-table { width: 100%; margin-bottom: 8px; }
+.power-table td:first-child, .power-table th:first-child { text-align: left; }
+.power-grid .field-help { margin: 6px 0 14px; position: static; }
