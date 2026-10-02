@@ -572,3 +572,21 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .verilog-card select, .verilog-card input, .verilog-card textarea { border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); padding: 7px 9px; font: 500 12px DM Mono; }
 .verilog-card .dsp-controls { align-items: flex-end; }
 .verilog-card .dsp-controls label > span { position: absolute; right: 9px; bottom: 8px; font: 500 9px DM Mono; color: var(--muted); }
+
+/* RTOS scheduler */
+.gantt-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: #071018; margin: 12px 0 4px; }
+.gantt { display: block; }
+.gantt-label { fill: #dbeafe; font: 500 11px DM Mono; }
+.gantt-axis { stroke: #1e3a4a; }
+.gantt-tick { fill: #6f879b; font: 500 9px DM Mono; }
+.gantt-release { stroke: #94a3b8; fill: none; stroke-width: 1.2; }
+.gantt-deadline { stroke: #f97316; fill: none; stroke-width: 1.2; }
+.gantt-miss { fill: #f43f5e; font: 700 13px DM Mono; }
+.gantt-critical { stroke: #0b1220; stroke-width: 1.5; stroke-dasharray: 2 2; }
+.rtos-tasks input { width: 100%; min-width: 60px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); color: var(--text); padding: 4px 6px; font: 500 11px DM Mono; }
+.rtos-tasks { width: 100%; margin-bottom: 8px; }
+.power-table td.miss { color: #f43f5e; font-weight: 700; }
+
+/* Many modules: the navigation rail scrolls on short screens. */
+.sidebar > nav { overflow-y: auto; min-height: 0; scrollbar-width: thin; }
+.sidebar .nav-item { flex-shrink: 0; }

@@ -286,6 +286,22 @@
       "plannedPhase": 5
     },
     {
+      "id": "vlsi.cmos-inverter-lab",
+      "surface": "VLSI Lab: CMOS inverter VTC, noise margins, delay and power",
+      "state": "built-in",
+      "evidence": ["packages/vlsi/src/index.mjs", "src/app.js#renderVlsi", "tests/vlsi.test.mjs"],
+      "limitations": "SPICE level-1 square-law devices with channel-length modulation only: no velocity saturation, body effect, subthreshold leakage, short-channel effects or device capacitances (the load is a single lumped capacitor). Agrees with ngspice 42 level-1 within 1 mV on the VTC and 0.5 ps on the delays for the default process.",
+      "plannedPhase": 5
+    },
+    {
+      "id": "rtos.scheduling-simulator",
+      "surface": "RTOS Scheduler: RM, DM, EDF, LLF, FCFS, round robin, resource protocols and response-time analysis",
+      "state": "built-in",
+      "evidence": ["packages/rtos/src/index.mjs", "src/app.js#renderRtos", "tests/rtos.test.mjs"],
+      "limitations": "Uniprocessor, integer ticks, zero context-switch and scheduling overhead, periodic tasks only (no aperiodic servers or jitter), at most 5000 ticks and 8 tasks in the UI. Resource protocols model single-unit resources with non-nested critical sections.",
+      "plannedPhase": 5
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",

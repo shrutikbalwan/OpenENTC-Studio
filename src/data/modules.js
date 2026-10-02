@@ -12,6 +12,8 @@ export const modules = [
   { id: 'mcu', name: 'Microcontroller Lab', short: 'MCU', icon: '⌗', color: '#fbbf24', description: '8051 and Arduino Uno (ATmega328P) simulators with virtual boards, serial terminals and debugging.' },
   { id: 'pcb', name: 'PCB Studio', short: 'PCB', icon: '▤', color: '#34d399', description: 'Schematic-to-board design workflow.' },
   { id: 'fpga', name: 'FPGA & Digital', short: 'FPGA', icon: '◇', color: '#a78bfa', description: 'Design, synthesize and verify digital logic.' },
+  { id: 'vlsi', name: 'VLSI Lab', short: 'VLSI', icon: '⧈', color: '#c084fc', description: 'CMOS inverter: VTC, switching threshold, noise margins, propagation delay and power with the SPICE level-1 model.' },
+  { id: 'rtos', name: 'RTOS Scheduler', short: 'RTOS', icon: '⏱', color: '#38bdf8', description: 'RM, DM, EDF, LLF, FCFS and round-robin scheduling with Gantt charts, response-time analysis and priority inversion.' },
   { id: 'logic', name: 'Digital Logic Lab', short: 'Logic', icon: '⊼', color: '#e879f9', description: 'Boolean algebra, K-maps, gate and flip-flop simulation, number codes.' },
   { id: 'dsp', name: 'Signals & DSP', short: 'DSP', icon: '∿', color: '#fb7185', description: 'Generate, transform and inspect signals.' },
   { id: 'communication', name: 'Communication', short: 'Comms', icon: '⌁', color: '#22d3ee', description: 'Explore modulation and communication chains.' },
