@@ -198,6 +198,14 @@
       "plannedPhase": 4
     },
     {
+      "id": "mcu.8051-simulator",
+      "surface": "Microcontroller Lab: 8051 assembler, simulator, trainer board and serial terminal",
+      "state": "built-in",
+      "evidence": ["packages/mcu/src/i8051/isa.mjs", "packages/mcu/src/i8051/assembler.mjs", "packages/mcu/src/i8051/cpu.mjs", "packages/mcu/src/i8051/peripherals.mjs", "tests/mcu8051.test.mjs"],
+      "limitations": "8051/8052-style core with 128 B direct + 256 B indirect RAM, timers 0/1 and UART; no timer 2, power-down/idle modes or on-chip variants (e.g. AT89S52 watchdog). UART TI timing follows the datasheet (start of stop bit) and differs from ucsim by under 1 %. The LCD model ignores controller busy time; keypad and switches have no bounce.",
+      "plannedPhase": 5
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",

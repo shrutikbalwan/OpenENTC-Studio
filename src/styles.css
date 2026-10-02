@@ -361,3 +361,70 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .pcb-drc li.error b { color: #f43f5e; } .pcb-drc li.warning b { color: #f59e0b; }
 .pcb-drc li b { font: 600 10px DM Mono; text-transform: uppercase; margin-right: 6px; }
 @media (max-width: 1100px) { .pcb-layout { grid-template-columns: 1fr; } }
+
+/* Microcontroller Lab */
+.mcu-page .dsp-card label { display: flex; flex-direction: column; gap: 5px; font-size: 11px; color: var(--muted); }
+.mcu-page .dsp-card input, .mcu-page .dsp-card select, .mcu-toolbar input, .mcu-toolbar select { border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); padding: 7px 9px; font: 500 12px DM Mono; }
+.mcu-toolbar { align-items: flex-end !important; }
+.mcu-toolbar label { display: flex; flex-direction: column; gap: 5px; font-size: 11px; color: var(--muted); }
+.mcu-toolbar label > span { font: 500 9px DM Mono; }
+.mcu-page .heading-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.mcu-layout { display: grid; grid-template-columns: minmax(320px, 1.1fr) minmax(300px, 1fr) minmax(320px, 1fr); gap: 14px; align-items: start; }
+.mcu-middle, .mcu-right { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.mcu-editor textarea { width: 100%; min-height: 560px; resize: vertical; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: 500 12px/1.5 DM Mono, monospace; tab-size: 8; white-space: pre; }
+.mcu-board { display: flex; flex-direction: column; gap: 14px; margin-top: 8px; }
+.mcu-part { display: flex; flex-direction: column; gap: 6px; }
+.mcu-leds { display: flex; gap: 8px; }
+.mcu-leds div { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.mcu-leds i { width: 20px; height: 20px; border-radius: 50%; background: #3f1d1d; border: 2px solid #7f1d1d; }
+.mcu-leds i.lit { background: #ef4444; box-shadow: 0 0 12px #ef4444; border-color: #fca5a5; }
+.mcu-leds small, .mcu-switches small { font: 500 9px DM Mono; color: var(--muted); }
+.mcu-seg { width: 64px; height: 104px; background: #0b0b0b; border-radius: 6px; padding: 4px; }
+.mcu-seg polygon, .mcu-seg circle { fill: #2a1010; }
+.mcu-seg .on { fill: #ff3b3b; filter: drop-shadow(0 0 3px #ff3b3b); }
+.mcu-lcd { font: 600 17px/1.35 DM Mono, monospace; background: #4d6b1c; color: #20300a; padding: 8px 10px; border-radius: 6px; border: 3px solid #1f2a0d; width: max-content; letter-spacing: 1px; }
+.mcu-lcd.on { background: #9ccf3a; }
+.mcu-switches, .mcu-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+.mcu-switches button { width: 26px; height: 46px; border-radius: 4px; background: #1e3a8a; border: 1px solid #93c5fd; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 3px; }
+.mcu-switches button i { width: 14px; height: 14px; background: #f8fafc; border-radius: 2px; }
+.mcu-switches button.closed { flex-direction: column-reverse; }
+.mcu-buttons button, .mcu-keypad button { border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 8px; padding: 10px 14px; font: 600 12px DM Mono; touch-action: none; user-select: none; }
+.mcu-buttons button.pressed, .mcu-keypad button.pressed { background: #f59e0b; color: #111; }
+.mcu-keypad { display: grid; grid-template-columns: repeat(4, 44px); gap: 6px; }
+.mcu-terminal { min-height: 120px; max-height: 220px; overflow: auto; background: #050505; color: #4ade80; font: 500 12px/1.4 DM Mono, monospace; padding: 10px; border-radius: 8px; white-space: pre-wrap; margin: 8px 0; }
+.mcu-send { display: flex; gap: 6px; }
+.mcu-send input { flex: 1; }
+.mcu-regs { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 6px; margin: 6px 0; }
+.mcu-regs div { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 7px; display: flex; justify-content: space-between; gap: 6px; }
+.mcu-regs span { font: 500 9px DM Mono; color: var(--muted); }
+.mcu-regs b { font: 600 12px DM Mono; }
+.mcu-flags { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; }
+.mcu-flags span { font: 600 10px DM Mono; padding: 3px 6px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted); }
+.mcu-flags span.on { background: #fbbf24; color: #111; border-color: #fbbf24; }
+.mcu-ports { display: flex; flex-direction: column; gap: 4px; }
+.mcu-ports div { display: flex; gap: 10px; align-items: center; font: 500 11px DM Mono; }
+.mcu-ports code i { font-style: normal; display: inline-block; width: 14px; text-align: center; color: var(--muted); }
+.mcu-ports code i.on { color: #fbbf24; font-weight: 700; }
+.mcu-status { font: 500 10px DM Mono; color: var(--muted); margin: 6px 0 0; }
+.mcu-listing { max-height: 300px; overflow: auto; font: 500 11px/1.5 DM Mono, monospace; margin-top: 6px; }
+.mcu-listing div { display: grid; grid-template-columns: 54px 90px 1fr; gap: 6px; padding: 0 6px; border-left: 3px solid transparent; cursor: pointer; white-space: pre; }
+.mcu-listing div:hover { background: var(--bg); }
+.mcu-listing div.current { background: rgba(251, 191, 36, .18); border-left-color: #fbbf24; }
+.mcu-listing div.bp span::before { content: "●"; color: #f43f5e; margin-right: 2px; }
+.mcu-listing div.err { color: #f43f5e; }
+.mcu-listing span, .mcu-listing code { color: var(--muted); }
+.mcu-listing b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+.mcu-ram { font: 500 10.5px/1.6 DM Mono, monospace; margin-top: 6px; overflow-x: auto; }
+.mcu-ram div { display: flex; gap: 5px; white-space: nowrap; }
+.mcu-ram span { color: var(--muted); width: 22px; }
+.mcu-ram i { font-style: normal; color: var(--muted); }
+.mcu-ram i.nz { color: var(--text); }
+.mcu-wiring { margin-top: 12px; font-size: 12px; }
+.mcu-wiring summary { cursor: pointer; color: var(--muted); }
+.mcu-wiring-grid { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.mcu-wiring-grid > div { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.mcu-wiring-grid label { flex-direction: row !important; align-items: center; gap: 4px !important; }
+.mcu-wiring-grid label.check-label { color: var(--text); }
+.mcu-wiring-grid input[size] { width: 56px; }
+@media (max-width: 1250px) { .mcu-layout { grid-template-columns: 1fr 1fr; } .mcu-right { grid-column: 1 / -1; } }
+@media (max-width: 800px) { .mcu-layout { grid-template-columns: 1fr; } }

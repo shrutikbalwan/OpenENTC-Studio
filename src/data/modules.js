@@ -4,6 +4,7 @@ export const modules = [
   { id: 'home', name: 'Mission control', short: 'Home', icon: '⌂', color: '#5eead4', description: 'Projects, engines and guided workflows.' },
   { id: 'circuit', name: 'Circuit Lab', short: 'Circuit', icon: '⌁', color: '#60a5fa', description: 'Draw, inspect and solve electronic circuits.' },
   { id: 'embedded', name: 'Embedded Lab', short: 'Embedded', icon: '▣', color: '#f59e0b', description: 'Write firmware and prepare MCU projects.' },
+  { id: 'mcu', name: 'Microcontroller Lab', short: 'MCU', icon: '⌗', color: '#fbbf24', description: '8051 assembler and simulator with a virtual trainer board, serial terminal and debugger.' },
   { id: 'pcb', name: 'PCB Studio', short: 'PCB', icon: '▤', color: '#34d399', description: 'Schematic-to-board design workflow.' },
   { id: 'fpga', name: 'FPGA & Digital', short: 'FPGA', icon: '◇', color: '#a78bfa', description: 'Design, synthesize and verify digital logic.' },
   { id: 'logic', name: 'Digital Logic Lab', short: 'Logic', icon: '⊼', color: '#e879f9', description: 'Boolean algebra, K-maps, gate and flip-flop simulation, number codes.' },

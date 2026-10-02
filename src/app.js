@@ -22,6 +22,7 @@ import { coaxImpedance, ELEMENT_PATTERNS, freeSpacePathLossDb, linearArray, link
 import { analyzeSystem, classifyStability, firstOrderStability, firstOrderStep, formatPolynomial, makeTransferFunction, pidController, pidLoop, rootLocus, routhArray, timeResponse, zieglerNichols } from '../packages/control/src/index.mjs';
 import { adcResolution, COLOR_BANDS, convertLevel, dbToRatio, decodeCapacitorCode, decodeResistorBands, decodeSmdResistor, design555Astable, E_SERIES, encodeResistorBands, ledResistor, nearestPreferred, OPAMP_CONFIGS, opampStage, POWER_UNITS, ratioToDb, rcFilter, reactance, rlcResonance, seriesParallel, solveOhm, timer555Astable, timer555Monostable, voltageDivider } from '../packages/calculators/src/index.mjs';
 import { autoPlace, autoroute, billOfMaterials, buildBoard, createZip, extractNetlist, fabricationFiles, normalizeRules, ratsnest, runDrc, silkscreen, traceWidthForCurrent } from '../packages/pcb/src/index.mjs';
+import { assemble, Cpu8051, disassemble, EXAMPLES_8051, parseIntelHex, toImage, toIntelHex, TrainerBoard } from '../packages/mcu/src/index.mjs';
 import { parsePcap, parsePcapNg } from '../packages/packets/src/index.mjs';
 import { topologyMetrics } from '../packages/topology/src/index.mjs';
 import { parseVcd } from '../packages/hdl/src/index.mjs';
@@ -150,6 +151,7 @@ function renderWorkspace(state, active) {
   if (active.id === 'rf') return renderRf(state);
   if (active.id === 'calc') return renderCalculators(state);
   if (active.id === 'pcb') return renderPcb(state);
+  if (active.id === 'mcu') return renderMcu(state);
   if (active.id === 'iot') return renderControl(state);
   if (active.id === 'network') return renderNetwork(state);
   if (active.id === 'fpga') return renderDigital(state);
@@ -1632,6 +1634,271 @@ function bindPcbEvents() {
   svg.addEventListener('pointercancel', finish);
 }
 
+// ---------------------------------------------------------------------------
+// Microcontroller Lab: 8051 trainer (assembler, simulator, board, serial terminal).
+
+const MCU_SPEEDS = [['0.01', 'Slow motion (1 %)'], ['0.1', '10 %'], ['1', 'Real time'], ['10', '10×'], ['max', 'As fast as possible']];
+const mcuRuntime = { cpu: null, board: null, assembly: null, key: null, running: false, frame: 0, last: 0, breakpoints: new Set(), terminal: '', loadedHex: null, error: null };
+
+function mcuConfiguration(state) {
+  const saved = state.project.experiments.find((experiment) => experiment?.id === 'mcu-lab')?.inputs || {};
+  const example = EXAMPLES_8051[0];
+  return { source: example.source, exampleId: example.id, wiring: example.wiring, clockMHz: 11.0592, speed: '1', ...saved };
+}
+
+function persistMcu(patch) {
+  const next = { ...mcuConfiguration(getState()), ...patch };
+  if (new TextEncoder().encode(JSON.stringify(next)).length > 60_000) { notify('The program is too long to save in the project (60 KB limit).', 'error'); return; }
+  recordExperiment({ id: 'mcu-lab', kind: 'mcu', operation: 'mcu-lab', inputs: next });
+}
+
+/** (Re)build the simulated system when the program, wiring or clock changes. */
+function mcuEnsure(config) {
+  const key = JSON.stringify([config.source, config.wiring, config.clockMHz, mcuRuntime.loadedHex?.name]);
+  if (mcuRuntime.key === key && mcuRuntime.cpu) return;
+  mcuStop();
+  mcuRuntime.key = key;
+  mcuRuntime.terminal = '';
+  mcuRuntime.error = null;
+  const cpu = new Cpu8051({ clock: Number(config.clockMHz) * 1e6 || 11_059_200 });
+  if (mcuRuntime.loadedHex) { mcuRuntime.assembly = null; cpu.load(mcuRuntime.loadedHex.image); }
+  else {
+    const assembly = assemble(config.source);
+    mcuRuntime.assembly = assembly;
+    if (!assembly.errors.length) cpu.load(toImage(assembly.bytes));
+  }
+  mcuRuntime.cpu = cpu;
+  mcuRuntime.board = new TrainerBoard(cpu, config.wiring);
+}
+
+function mcuStop() { mcuRuntime.running = false; if (mcuRuntime.frame) cancelAnimationFrame(mcuRuntime.frame); mcuRuntime.frame = 0; }
+
+function mcuStart() {
+  const { cpu, assembly } = mcuRuntime;
+  if (!cpu || assembly?.errors.length) { notify('Fix the assembly errors first.', 'error'); return; }
+  if (cpu.halted) { notify(cpu.haltReason || 'The CPU has halted; press Reset.', 'error'); return; }
+  mcuRuntime.running = true;
+  mcuRuntime.last = performance.now();
+  const tick = (now) => {
+    if (!mcuRuntime.running) return;
+    if (!document.querySelector('[data-mcu-root]')) { mcuStop(); return; }
+    const config = mcuConfiguration(getState());
+    const elapsed = Math.min(0.1, (now - mcuRuntime.last) / 1000);
+    mcuRuntime.last = now;
+    const budget = config.speed === 'max' ? 2_000_000 : Math.max(1, Math.round(cpu.clock / 12 * Number(config.speed) * elapsed));
+    const result = cpu.run(budget, mcuRuntime.breakpoints);
+    mcuDrainSerial();
+    paintMcu();
+    if (result.reason !== 'cycles') { mcuStop(); paintMcu(); notify(result.reason === 'breakpoint' ? `Breakpoint at ${hex4(result.pc)}` : cpu.haltReason || 'CPU halted', result.reason === 'breakpoint' ? 'success' : 'error'); return; }
+    mcuRuntime.frame = requestAnimationFrame(tick);
+  };
+  mcuRuntime.frame = requestAnimationFrame(tick);
+  paintMcu();
+}
+
+function mcuDrainSerial() {
+  const output = mcuRuntime.cpu.serialOutput;
+  if (!output.length) return;
+  for (const byte of output) mcuRuntime.terminal += byte === 13 ? '' : byte === 10 || (byte >= 32 && byte < 127) ? String.fromCharCode(byte) : `\\x${byte.toString(16).padStart(2, '0')}`;
+  output.length = 0;
+  if (mcuRuntime.terminal.length > 8000) mcuRuntime.terminal = mcuRuntime.terminal.slice(-6000);
+}
+
+const hex2 = (value) => value.toString(16).toUpperCase().padStart(2, '0');
+const hex4 = (value) => `${value.toString(16).toUpperCase().padStart(4, '0')}H`;
+const portBits = (value) => Array.from({ length: 8 }, (_, k) => `<i class="${(value >> (7 - k)) & 1 ? 'on' : ''}">${(value >> (7 - k)) & 1}</i>`).join('');
+
+function mcuRegistersHtml(cpu) {
+  const s = cpu.snapshot();
+  const flags = [['CY', 7], ['AC', 6], ['F0', 5], ['RS1', 4], ['RS0', 3], ['OV', 2], ['P', 0]].map(([name, bit]) => `<span class="${(s.psw >> bit) & 1 ? 'on' : ''}">${name}</span>`).join('');
+  const regs = s.registers.map((value, n) => `<div><span>R${n}</span><b>${hex2(value)}</b></div>`).join('');
+  return `<div class="mcu-regs"><div><span>PC</span><b>${hex4(s.pc)}</b></div><div><span>A</span><b>${hex2(s.a)}</b></div><div><span>B</span><b>${hex2(s.b)}</b></div><div><span>SP</span><b>${hex2(s.sp)}</b></div><div><span>DPTR</span><b>${hex4(s.dptr)}</b></div><div><span>Bank</span><b>${s.bank}</b></div>${regs}</div>
+    <div class="mcu-flags">${flags}</div>
+    <div class="mcu-ports">${['P0', 'P1', 'P2', 'P3'].map((name, port) => `<div><span>${name}</span><code>${portBits(s.pins[port])}</code><b>${hex2(s.pins[port])}</b></div>`).join('')}</div>
+    <div class="mcu-regs small"><div><span>TMOD</span><b>${hex2(s.tmod)}</b></div><div><span>TCON</span><b>${hex2(s.tcon)}</b></div><div><span>T0</span><b>${hex4(s.timer0)}</b></div><div><span>T1</span><b>${hex4(s.timer1)}</b></div><div><span>SCON</span><b>${hex2(s.scon)}</b></div><div><span>IE</span><b>${hex2(s.ie)}</b></div><div><span>IP</span><b>${hex2(s.ip)}</b></div></div>
+    <p class="mcu-status">${s.instructions.toLocaleString()} instructions · ${s.cycles.toLocaleString()} machine cycles · ${eng(s.timeSeconds, 's')} at ${fmt(cpu.clock / 1e6, 6)} MHz${cpu.lastInterrupt ? ` · last interrupt: ${esc(cpu.lastInterrupt)}` : ''}</p>`;
+}
+
+function mcuRamHtml(cpu) {
+  const rows = [];
+  for (let base = 0; base < 0x80; base += 16) rows.push(`<div><span>${hex2(base)}</span>${Array.from({ length: 16 }, (_, k) => `<i class="${cpu.iram[base + k] ? 'nz' : ''}">${hex2(cpu.iram[base + k])}</i>`).join('')}</div>`);
+  return rows.join('');
+}
+
+function mcuListingHtml() {
+  const { cpu, assembly } = mcuRuntime;
+  if (!assembly) {
+    const lines = [];
+    let address = cpu.pc;
+    for (let k = 0; k < 18; k += 1) { const d = disassemble((a) => cpu.code[a], address); lines.push(`<div class="${address === cpu.pc ? 'current' : ''}${mcuRuntime.breakpoints.has(address) ? ' bp' : ''}" data-mcu-bp="${address}"><span>${hex4(address)}</span><code>${d.bytes.map(hex2).join(' ')}</code><b>${esc(d.text)}</b></div>`); address = (address + d.size) & 0xffff; }
+    return lines.join('');
+  }
+  return assembly.listing.map((line) => {
+    const current = line.address !== null && line.bytes.length && cpu.pc >= line.address && cpu.pc < line.address + line.bytes.length;
+    const executable = line.address !== null && line.bytes.length;
+    return `<div class="${current ? 'current' : ''}${executable && mcuRuntime.breakpoints.has(line.address) ? ' bp' : ''}${line.error ? ' err' : ''}" ${executable ? `data-mcu-bp="${line.address}"` : ''}><span>${line.address === null ? '' : hex4(line.address)}</span><code>${line.bytes.slice(0, 4).map(hex2).join(' ')}${line.bytes.length > 4 ? '…' : ''}</code><b>${esc(line.source.replace(/\t/g, '    '))}</b></div>`;
+  }).join('');
+}
+
+function sevenSegmentSvg(segments) {
+  const on = (bit) => (segments !== null && (segments >> bit) & 1 ? 'on' : '');
+  return `<svg viewBox="0 0 60 100" class="mcu-seg"><polygon class="${on(0)}" points="12,6 48,6 42,13 18,13"/><polygon class="${on(1)}" points="50,8 50,46 43,42 43,15"/><polygon class="${on(2)}" points="50,54 50,92 43,85 43,58"/><polygon class="${on(3)}" points="12,94 48,94 42,87 18,87"/><polygon class="${on(4)}" points="10,54 10,92 17,85 17,58"/><polygon class="${on(5)}" points="10,8 10,46 17,42 17,15"/><polygon class="${on(6)}" points="12,50 18,46 42,46 48,50 42,54 18,54"/><circle class="${on(7)}" cx="55" cy="93" r="3.5"/></svg>`;
+}
+
+function mcuBoardHtml(config) {
+  const { board } = mcuRuntime;
+  const view = board.view();
+  const wiring = config.wiring;
+  const parts = [];
+  if (wiring.leds.enabled) parts.push(`<div class="mcu-part"><span class="panel-label">LEDS · P${wiring.leds.port}</span><div class="mcu-leds">${view.leds.map((lit, bit) => `<div><i class="${lit ? 'lit' : ''}"></i><small>${bit}</small></div>`).reverse().join('')}</div></div>`);
+  if (wiring.sevenSegment.enabled) parts.push(`<div class="mcu-part"><span class="panel-label">7-SEGMENT · P${wiring.sevenSegment.port}</span>${sevenSegmentSvg(view.segments)}</div>`);
+  if (wiring.lcd.enabled) parts.push(`<div class="mcu-part"><span class="panel-label">LCD 16×2 · DATA P${wiring.lcd.dataPort}</span><div class="mcu-lcd ${view.lcd.on ? 'on' : ''}">${view.lcd.lines.map((line) => `<div>${esc(line).replaceAll(' ', '&nbsp;')}</div>`).join('')}</div></div>`);
+  if (wiring.switches.enabled) parts.push(`<div class="mcu-part"><span class="panel-label">DIP SWITCHES · P${wiring.switches.port} (down = closed = 0)</span><div class="mcu-switches">${Array.from({ length: 8 }, (_, k) => 7 - k).map((bit) => `<button class="${(board.switches >> bit) & 1 ? '' : 'closed'}" data-mcu-switch="${bit}"><i></i><small>${bit}</small></button>`).join('')}</div></div>`);
+  if (wiring.buttons.enabled) parts.push(`<div class="mcu-part"><span class="panel-label">PUSH BUTTONS (hold to press)</span><div class="mcu-buttons">${wiring.buttons.pins.map((pin, index) => `<button data-mcu-button="${index}" class="${board.buttons[index] ? 'pressed' : ''}">${esc(pin)}${pin === 'P3.2' ? ' · INT0' : pin === 'P3.3' ? ' · INT1' : ''}</button>`).join('')}</div></div>`);
+  if (wiring.keypad.enabled) parts.push(`<div class="mcu-part"><span class="panel-label">4×4 KEYPAD · P${wiring.keypad.port} (rows 0–3, columns 4–7)</span><div class="mcu-keypad">${Array.from({ length: 16 }, (_, k) => `<button data-mcu-key="${Math.floor(k / 4)},${k % 4}" class="${board.keys.has(`${Math.floor(k / 4)},${k % 4}`) ? 'pressed' : ''}">${'0123456789ABCDEF'[k]}</button>`).join('')}</div></div>`);
+  return parts.join('') || '<p class="module-footnote">No peripherals connected — enable some under Board wiring.</p>';
+}
+
+function paintMcu() {
+  const root = document.querySelector('[data-mcu-root]');
+  if (!root || !mcuRuntime.cpu) return;
+  const config = mcuConfiguration(getState());
+  const set = (selector, html) => { const element = root.querySelector(selector); if (element && element.innerHTML !== html) element.innerHTML = html; };
+  set('[data-mcu-regs]', mcuRegistersHtml(mcuRuntime.cpu));
+  set('[data-mcu-ram]', mcuRamHtml(mcuRuntime.cpu));
+  set('[data-mcu-board]', mcuBoardHtml(config));
+  const listing = root.querySelector('[data-mcu-listing]');
+  if (listing) {
+    const html = mcuListingHtml();
+    if (listing.innerHTML !== html) { listing.innerHTML = html; listing.querySelector('.current')?.scrollIntoView({ block: 'nearest' }); }
+  }
+  const terminal = root.querySelector('[data-mcu-terminal]');
+  if (terminal && terminal.textContent !== mcuRuntime.terminal) { terminal.textContent = mcuRuntime.terminal; terminal.scrollTop = terminal.scrollHeight; }
+  const run = root.querySelector('[data-action="mcu-run"]');
+  if (run) run.textContent = mcuRuntime.running ? 'Pause' : 'Run';
+}
+
+function renderMcuWiring(config) {
+  const w = config.wiring;
+  const portSelect = (path, value) => `<select data-mcu-wire="${path}">${[0, 1, 2, 3].map((port) => `<option value="${port}" ${port === value ? 'selected' : ''}>P${port}</option>`).join('')}</select>`;
+  const check = (path, value, label) => `<label class="check-label"><input type="checkbox" data-mcu-wire="${path}" ${value ? 'checked' : ''}> ${label}</label>`;
+  return `<details class="mcu-wiring"><summary>Board wiring</summary><div class="mcu-wiring-grid">
+    <div>${check('leds.enabled', w.leds.enabled, 'LEDs on')}${portSelect('leds.port', w.leds.port)}${check('leds.activeLow', w.leds.activeLow, 'active low')}</div>
+    <div>${check('switches.enabled', w.switches.enabled, 'DIP switches on')}${portSelect('switches.port', w.switches.port)}</div>
+    <div>${check('buttons.enabled', w.buttons.enabled, 'Buttons on P3.2 / P3.3')}</div>
+    <div>${check('sevenSegment.enabled', w.sevenSegment.enabled, '7-segment on')}${portSelect('sevenSegment.port', w.sevenSegment.port)}${check('sevenSegment.commonAnode', w.sevenSegment.commonAnode, 'common anode')}</div>
+    <div>${check('lcd.enabled', w.lcd.enabled, 'LCD data on')}${portSelect('lcd.dataPort', w.lcd.dataPort)}<label>RS<input data-mcu-wire="lcd.rs" value="${esc(w.lcd.rs)}" size="4"></label><label>RW<input data-mcu-wire="lcd.rw" value="${esc(w.lcd.rw)}" size="4"></label><label>E<input data-mcu-wire="lcd.enable" value="${esc(w.lcd.enable)}" size="4"></label></div>
+    <div>${check('keypad.enabled', w.keypad.enabled, '4×4 keypad on')}${portSelect('keypad.port', w.keypad.port)}</div>
+  </div></details>`;
+}
+
+function renderMcu(state) {
+  const module = modules.find((item) => item.id === 'mcu');
+  const config = mcuConfiguration(state);
+  mcuEnsure(config);
+  const { assembly } = mcuRuntime;
+  const errors = assembly?.errors || [];
+  const actions = `<button class="button primary" data-action="mcu-assemble">Assemble &amp; load</button><button class="button run" data-action="mcu-run">${mcuRuntime.running ? 'Pause' : 'Run'}</button><button class="button ghost" data-action="mcu-step">Step</button><button class="button ghost" data-action="mcu-reset">Reset</button>`;
+  return `<div class="page scroll-page mcu-page" data-mcu-root>${pageHeader(module, 'BUILT-IN 8051 SIMULATOR', actions)}
+    <div class="mcu-toolbar dsp-controls">
+      ${labSelect('data-mcu-field', 'exampleId', 'Example program', config.exampleId, [...EXAMPLES_8051.map((example) => [example.id, example.name]), ['custom', 'My program']])}
+      ${labSelect('data-mcu-field', 'speed', 'Speed', config.speed, MCU_SPEEDS)}
+      ${labField('data-mcu-field', 'clockMHz', 'Crystal', config.clockMHz, 'MHz', 'type="number" step="0.0001" min="1" max="40"')}
+      <label>Program file<input type="file" accept=".hex,.ihx,.asm,.a51,.txt" data-mcu-file></label>
+      <button class="button ghost" data-action="mcu-download-hex">Download HEX</button>
+    </div>
+    ${mcuRuntime.loadedHex ? `<div class="diagnostic warning"><b>HEX loaded</b><span>Running ${esc(mcuRuntime.loadedHex.name)} (${mcuRuntime.loadedHex.bytes} bytes). Edit the source and press “Assemble &amp; load” to go back to the assembler.</span></div>` : ''}
+    <div class="mcu-layout">
+      <section class="dsp-card mcu-editor"><span class="panel-label">ASSEMBLY SOURCE (A51 syntax)</span>
+        <textarea data-mcu-source spellcheck="false" rows="28">${esc(config.source)}</textarea>
+        ${errors.length ? `<ul class="pcb-drc">${errors.slice(0, 12).map((error) => `<li class="error"><b>error</b> ${esc(error.message)}</li>`).join('')}</ul>` : `<p class="module-footnote">${assembly ? `${assembly.size} bytes of code · ${Object.keys(assembly.symbols).length} symbols` : ''}</p>`}
+      </section>
+      <section class="mcu-middle">
+        <div class="dsp-card"><span class="panel-label">TRAINER BOARD</span><div class="mcu-board" data-mcu-board></div>${renderMcuWiring(config)}</div>
+        <div class="dsp-card"><span class="panel-label">SERIAL TERMINAL (UART · TXD P3.1 / RXD P3.0)</span><pre class="mcu-terminal" data-mcu-terminal></pre>
+          <div class="mcu-send"><input data-mcu-input placeholder="Type text and press Enter to send to RXD"><button class="button ghost" data-action="mcu-send">Send</button><button class="button ghost" data-action="mcu-clear-terminal">Clear</button></div></div>
+      </section>
+      <section class="mcu-right">
+        <div class="dsp-card"><span class="panel-label">CPU</span><div data-mcu-regs></div></div>
+        <div class="dsp-card"><span class="panel-label">LISTING (click a line for a breakpoint)</span><div class="mcu-listing" data-mcu-listing></div></div>
+        <div class="dsp-card"><span class="panel-label">INTERNAL RAM 00–7F</span><div class="mcu-ram" data-mcu-ram></div></div>
+      </section>
+    </div>
+    <p class="module-footnote">Cycle-accurate MCS-51 core (12 clocks per machine cycle) with timers, UART and interrupts; validated against SDCC's assembler and the ucsim simulator. The LCD model ignores controller busy time.</p></div>`;
+}
+
+function bindMcuEvents() {
+  const root = document.querySelector('[data-mcu-root]');
+  if (!root) return;
+  paintMcu();
+  const config = () => mcuConfiguration(getState());
+  const source = root.querySelector('[data-mcu-source]');
+  source?.addEventListener('change', () => { if (source.value !== config().source) persistMcu({ source: source.value, exampleId: 'custom' }); });
+  source?.addEventListener('keydown', (event) => { if (event.key === 'Tab') { event.preventDefault(); const { selectionStart: start, selectionEnd: end } = source; source.value = `${source.value.slice(0, start)}\t${source.value.slice(end)}`; source.selectionStart = source.selectionEnd = start + 1; } });
+  root.querySelector('[data-action="mcu-assemble"]')?.addEventListener('click', () => {
+    mcuRuntime.loadedHex = null; mcuRuntime.key = null;
+    const text = source?.value ?? config().source;
+    persistMcu({ source: text, exampleId: text === config().source ? config().exampleId : 'custom' });
+    const errors = mcuRuntime.assembly?.errors.length;
+    notify(errors ? `${errors} assembly error(s)` : 'Assembled and loaded', errors ? 'error' : 'success');
+  });
+  root.querySelector('[data-action="mcu-run"]')?.addEventListener('click', () => { if (mcuRuntime.running) { mcuStop(); paintMcu(); } else mcuStart(); });
+  root.querySelector('[data-action="mcu-step"]')?.addEventListener('click', () => { mcuStop(); if (mcuRuntime.cpu && !mcuRuntime.assembly?.errors.length) { mcuRuntime.cpu.step(); mcuDrainSerial(); paintMcu(); } });
+  root.querySelector('[data-action="mcu-reset"]')?.addEventListener('click', () => { mcuStop(); mcuRuntime.cpu?.reset(); mcuRuntime.board?.lcd.reset(); mcuRuntime.board?.update(); mcuRuntime.terminal = ''; paintMcu(); });
+  root.querySelectorAll('[data-mcu-field]').forEach((field) => field.addEventListener('change', () => {
+    const name = field.dataset.mcuField;
+    if (name === 'exampleId') {
+      const example = EXAMPLES_8051.find((entry) => entry.id === field.value);
+      if (example) { mcuRuntime.loadedHex = null; mcuRuntime.breakpoints.clear(); persistMcu({ exampleId: example.id, source: example.source, wiring: structuredClone(example.wiring) }); }
+      return;
+    }
+    persistMcu({ [name]: name === 'clockMHz' ? Math.min(40, Math.max(1, Number(field.value) || 11.0592)) : field.value });
+  }));
+  root.querySelector('[data-mcu-file]')?.addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.size > 300_000) { notify('That file is too large.', 'error'); return; }
+    const text = await file.text();
+    if (/\.(hex|ihx)$/i.test(file.name)) {
+      try { const parsed = parseIntelHex(text); mcuRuntime.loadedHex = { name: file.name, image: parsed.image, bytes: parsed.bytes }; mcuRuntime.key = null; render(); notify(`Loaded ${parsed.bytes} bytes from ${file.name}`, 'success'); }
+      catch (error) { notify(error.message, 'error'); }
+    } else { mcuRuntime.loadedHex = null; persistMcu({ source: text, exampleId: 'custom' }); }
+  });
+  root.querySelector('[data-action="mcu-download-hex"]')?.addEventListener('click', () => {
+    const { assembly } = mcuRuntime;
+    if (!assembly || assembly.errors.length) { notify('Assemble the program without errors first.', 'error'); return; }
+    const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([toIntelHex(assembly.bytes)], { type: 'text/plain' })); link.download = 'program.hex'; link.click(); URL.revokeObjectURL(link.href);
+  });
+  root.addEventListener('click', (event) => {
+    const target = event.target.closest('[data-mcu-switch],[data-mcu-bp]');
+    if (!target) return;
+    if (target.dataset.mcuSwitch !== undefined) { const bit = Number(target.dataset.mcuSwitch); mcuRuntime.board.setSwitches(mcuRuntime.board.switches ^ (1 << bit)); paintMcu(); }
+    else { const address = Number(target.dataset.mcuBp); if (mcuRuntime.breakpoints.has(address)) mcuRuntime.breakpoints.delete(address); else mcuRuntime.breakpoints.add(address); paintMcu(); }
+  });
+  const press = (event, down) => {
+    const button = event.target.closest('[data-mcu-button],[data-mcu-key]');
+    if (!button) return;
+    if (button.dataset.mcuButton !== undefined) mcuRuntime.board.setButton(Number(button.dataset.mcuButton), down);
+    else { const [row, column] = button.dataset.mcuKey.split(',').map(Number); mcuRuntime.board.setKey(row, column, down); }
+    paintMcu();
+  };
+  root.addEventListener('pointerdown', (event) => press(event, true));
+  root.addEventListener('pointerup', (event) => press(event, false));
+  root.addEventListener('pointerleave', () => { mcuRuntime.board?.buttons.forEach((_, index) => mcuRuntime.board.setButton(index, false)); mcuRuntime.board?.keys.clear(); mcuRuntime.board?.update(); }, true);
+  const input = root.querySelector('[data-mcu-input]');
+  const send = () => { if (!input?.value) return; mcuRuntime.cpu.receive([...input.value].map((character) => character.charCodeAt(0) & 0xff)); input.value = ''; };
+  input?.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); send(); } });
+  root.querySelector('[data-action="mcu-send"]')?.addEventListener('click', send);
+  root.querySelector('[data-action="mcu-clear-terminal"]')?.addEventListener('click', () => { mcuRuntime.terminal = ''; paintMcu(); });
+  root.querySelectorAll('[data-mcu-wire]').forEach((field) => field.addEventListener('change', () => {
+    const wiring = structuredClone(config().wiring);
+    const [group, key] = field.dataset.mcuWire.split('.');
+    wiring[group][key] = field.type === 'checkbox' ? field.checked : key === 'port' || key === 'dataPort' ? Number(field.value) : field.value.trim().toUpperCase();
+    try { new TrainerBoard(new Cpu8051(), wiring); persistMcu({ wiring }); } catch (error) { notify(error.message, 'error'); }
+  }));
+  if (mcuRuntime.running && !mcuRuntime.frame) mcuStart();
+}
+
 const CONTROL_DEFAULTS = Object.freeze({
   tab: 'first-order', numerator: '10', denominator: 's(s+1)(s+5)', feedback: true, duration: '',
   locusNumerator: '1', locusDenominator: 's(s+2)(s+4)', locusGain: 20, routh: 's^4 + 2s^3 + 3s^2 + 4s + 5',
@@ -1954,7 +2221,7 @@ function bindEvents() {
   document.querySelector('[data-action="help"]')?.addEventListener('click', showHelp);
   document.querySelector('[data-action="command"]')?.addEventListener('click', showCommandPalette);
   document.querySelector('[data-action="engine-info"]')?.addEventListener('click', showEngineInfo);
-  const experimentModules = { 'signals-fft': 'dsp', 'dsp-lab': 'dsp', 'control-step': 'iot', 'control-lab': 'iot', 'comm-lab': 'communication', 'qpsk-ber': 'communication', 'rf-touchstone': 'rf', 'rf-lab': 'rf', 'calc-lab': 'calc', 'pcb-board': 'pcb', 'topology-metrics': 'network', 'vcd-import': 'fpga' };
+  const experimentModules = { 'signals-fft': 'dsp', 'dsp-lab': 'dsp', 'control-step': 'iot', 'control-lab': 'iot', 'comm-lab': 'communication', 'qpsk-ber': 'communication', 'rf-touchstone': 'rf', 'rf-lab': 'rf', 'calc-lab': 'calc', 'pcb-board': 'pcb', 'mcu-lab': 'mcu', 'topology-metrics': 'network', 'vcd-import': 'fpga' };
   document.querySelectorAll('.experiment-list .engine-row').forEach((row) => {
     const id = row.querySelector('b')?.textContent?.trim();
     const module = experimentModules[id];
@@ -2002,6 +2269,7 @@ function bindEvents() {
   bindRfEvents();
   bindCalculatorEvents();
   bindPcbEvents();
+  bindMcuEvents();
   bindControlEvents();
   bindNetworkEvents();
   bindDigitalEvents();
