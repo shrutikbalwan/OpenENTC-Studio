@@ -702,3 +702,10 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .sdr-const svg { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
 .sdr-const circle { fill: #38bdf8; fill-opacity: 0.6; }
 .sdr-const .axis { stroke: #475569; }
+.dip-row { display: flex; flex-wrap: wrap; gap: 14px; margin: 8px 0 14px; }
+.dip-figure { margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.dip-figure canvas { width: 220px; height: 220px; image-rendering: pixelated; border: 1px solid var(--line); border-radius: 6px; background: #000; }
+.dip-figure figcaption { font: 500 10px DM Mono; color: var(--muted); max-width: 220px; }
+.dip-kernel td { font-size: 10px; padding: 3px 5px; }
+.dip-kernel td.zero { color: var(--muted); opacity: 0.5; }
+.dip-blocks { display: flex; flex-wrap: wrap; gap: 14px; margin: 10px 0; }

@@ -374,6 +374,14 @@
       "plannedPhase": 6
     },
     {
+      "id": "dip.image-lab",
+      "surface": "Image Processing: test images and uploads, histograms and point operations, Otsu, spatial/median filters with noise, Sobel/Prewitt and Canny, 2-D FFT filters, binary morphology with object counting, JPEG-style DCT compression",
+      "state": "built-in",
+      "evidence": ["packages/imaging/src/index.mjs", "src/app.js#renderDip", "tests/imaging.test.mjs", "tests/fixtures/imaging/scipy-skimage.json"],
+      "limitations": "Greyscale only, at 128 × 128 pixels (uploads are converted with BT.601 luma and resized by nearest neighbour). Frequency filters need power-of-two sizes. JPEG compression stops before entropy coding, so the size estimate is the fraction of non-zero quantised coefficients. Convolution, Sobel, median, erosion/dilation, labels and DCT match scipy; Otsu and PSNR match scikit-image.",
+      "plannedPhase": 7
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",
