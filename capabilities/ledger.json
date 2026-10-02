@@ -366,6 +366,14 @@
       "plannedPhase": 6
     },
     {
+      "id": "sdr.flowgraph-editor",
+      "surface": "SDR Flowgraph: drag-and-drop block editor with sources, math, FIR filters, resampling, mixer, FM and PSK/QAM modulation with RRC pulses, channel model, scope, FFT, constellation, measurement and symbol-error sinks",
+      "state": "built-in",
+      "evidence": ["packages/sdr/src/index.mjs", "src/app.js#renderSdr", "tests/sdr.test.mjs", "tests/fixtures/sdr/scipy-fir.json"],
+      "limitations": "Offline batch processing of one buffer (up to 131072 samples) in topological order — no streaming, feedback loops, hardware sources or audio output, and no carrier/timing recovery (symbol timing is a fixed sample offset). FIR outputs match scipy firwin + lfilter; FM round trips and QPSK symbol error rates match theory.",
+      "plannedPhase": 6
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",

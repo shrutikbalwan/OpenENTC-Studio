@@ -676,3 +676,29 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .wsn-map .wsn-node.dead { fill: #ef4444; }
 .wsn-map .wsn-sink { fill: #f97316; stroke: #fff; }
 .wsn-map .wsn-label { fill: #f8fafc; font: 600 10px DM Mono; }
+.sdr-canvas-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: #070d18; margin: 10px 0; max-height: 520px; }
+.sdr-canvas { display: block; user-select: none; touch-action: none; }
+.sdr-block { cursor: grab; }
+.sdr-block .body { fill: #111c2e; stroke: #334155; stroke-width: 1.5; }
+.sdr-block.cat-sources .body { stroke: #4ade80; }
+.sdr-block.cat-filters .body { stroke: #a78bfa; }
+.sdr-block.cat-modulators .body { stroke: #f97316; }
+.sdr-block.cat-channel .body { stroke: #f87171; }
+.sdr-block.cat-sinks .body { stroke: #facc15; }
+.sdr-block.selected .body { stroke-width: 3; fill: #1e2b44; }
+.sdr-block.error .body { fill: #3b1219; }
+.sdr-block .title { fill: #f8fafc; font: 700 11px DM Mono; pointer-events: none; }
+.sdr-block .sub { fill: #94a3b8; font: 500 9px DM Mono; pointer-events: none; }
+.sdr-block .port { fill: #0f172a; stroke: #e2e8f0; stroke-width: 1.5; cursor: crosshair; }
+.sdr-block .port.out.pending { fill: #facc15; }
+.sdr-block .port-label { fill: #cbd5e1; font: 500 9px DM Mono; pointer-events: none; }
+.sdr-wire path { fill: none; stroke: #f97316; stroke-width: 2; }
+.sdr-wire.complex path { stroke: #38bdf8; }
+.sdr-wire.selected path { stroke: #facc15; stroke-width: 3.5; }
+.sdr-wire path.hit { stroke: transparent; stroke-width: 12; cursor: pointer; }
+.sdr-params { border-top: 1px solid var(--line); padding-top: 10px; }
+.sdr-sinks { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 14px; margin-top: 14px; }
+.sdr-sink { border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: var(--panel, #0b1220); }
+.sdr-const svg { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
+.sdr-const circle { fill: #38bdf8; fill-opacity: 0.6; }
+.sdr-const .axis { stroke: #475569; }
