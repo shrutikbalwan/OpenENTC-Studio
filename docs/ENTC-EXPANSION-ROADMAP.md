@@ -44,3 +44,6 @@ verification suite and a push.
 - [x] Phase 5 — Network Theory (phasor MNA, theorems, two-ports; matches ngspice), Signals & Systems explorer (matches SciPy), EM & Microwave lab (matches scikit-rf), receiver & noise and optical-fibre tabs in Communication
 - [x] Phase 6 — Cellular Planning, Computer Networks (subnetting, routing, ARQ, MAC), Cryptography step by step, Sensor Networks (LEACH lifetime), SDR Flowgraph editor
 - [x] Phase 7 — Image Processing (matches scipy/scikit-image), Biomedical Signals (Pan–Tompkins, HRV, EEG), Neural Networks playground, Math Console
+- [x] Phase 8 — Learning Hub: 36 lessons in six tracks linked to the labs, quizzes with fresh numbers, viva practice
+
+All eight phases (30 items) are built, validated and documented.
