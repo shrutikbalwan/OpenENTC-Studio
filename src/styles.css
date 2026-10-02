@@ -428,3 +428,16 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .mcu-wiring-grid input[size] { width: 56px; }
 @media (max-width: 1250px) { .mcu-layout { grid-template-columns: 1fr 1fr; } .mcu-right { grid-column: 1 / -1; } }
 @media (max-width: 800px) { .mcu-layout { grid-template-columns: 1fr; } }
+.uno-pins { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin: 6px 0 4px; }
+.uno-pin { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font: 500 9px DM Mono; }
+.uno-pin b { font-size: 10px; }
+.uno-pin small { color: var(--muted); font-size: 8px; }
+.uno-pin i { width: 10px; height: 10px; border-radius: 50%; background: color-mix(in srgb, #22c55e calc(var(--glow) * 100%), #1f2937); box-shadow: 0 0 calc(var(--glow) * 8px) #22c55e; }
+.uno-pin.in.high i { background: #3b82f6; }
+.uno-leds { display: flex; gap: 14px; flex-wrap: wrap; }
+.uno-led { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.uno-led i { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #7f1d1d; background: color-mix(in srgb, #ef4444 calc(var(--glow) * 100%), #3f1d1d); box-shadow: 0 0 calc(var(--glow) * 14px) #ef4444; }
+.uno-led small { font: 500 9px DM Mono; color: var(--muted); }
+.uno-pot { display: flex !important; flex-direction: row !important; align-items: center; gap: 8px !important; color: var(--text) !important; }
+.uno-pot input { flex: 1; }
+@media (max-width: 700px) { .uno-pins { grid-template-columns: repeat(5, 1fr); } }

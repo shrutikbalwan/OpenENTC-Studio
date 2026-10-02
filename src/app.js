@@ -22,7 +22,7 @@ import { coaxImpedance, ELEMENT_PATTERNS, freeSpacePathLossDb, linearArray, link
 import { analyzeSystem, classifyStability, firstOrderStability, firstOrderStep, formatPolynomial, makeTransferFunction, pidController, pidLoop, rootLocus, routhArray, timeResponse, zieglerNichols } from '../packages/control/src/index.mjs';
 import { adcResolution, COLOR_BANDS, convertLevel, dbToRatio, decodeCapacitorCode, decodeResistorBands, decodeSmdResistor, design555Astable, E_SERIES, encodeResistorBands, ledResistor, nearestPreferred, OPAMP_CONFIGS, opampStage, POWER_UNITS, ratioToDb, rcFilter, reactance, rlcResonance, seriesParallel, solveOhm, timer555Astable, timer555Monostable, voltageDivider } from '../packages/calculators/src/index.mjs';
 import { autoPlace, autoroute, billOfMaterials, buildBoard, createZip, extractNetlist, fabricationFiles, normalizeRules, ratsnest, runDrc, silkscreen, traceWidthForCurrent } from '../packages/pcb/src/index.mjs';
-import { assemble, Cpu8051, disassemble, EXAMPLES_8051, parseIntelHex, toImage, toIntelHex, TrainerBoard } from '../packages/mcu/src/index.mjs';
+import { assemble, AVR_EXAMPLES, Cpu8051, disassemble, EXAMPLES_8051, parseIntelHex, toImage, toIntelHex, TrainerBoard, UnoBoard, unoPin } from '../packages/mcu/src/index.mjs';
 import { parsePcap, parsePcapNg } from '../packages/packets/src/index.mjs';
 import { topologyMetrics } from '../packages/topology/src/index.mjs';
 import { parseVcd } from '../packages/hdl/src/index.mjs';
@@ -1643,7 +1643,7 @@ const mcuRuntime = { cpu: null, board: null, assembly: null, key: null, running:
 function mcuConfiguration(state) {
   const saved = state.project.experiments.find((experiment) => experiment?.id === 'mcu-lab')?.inputs || {};
   const example = EXAMPLES_8051[0];
-  return { source: example.source, exampleId: example.id, wiring: example.wiring, clockMHz: 11.0592, speed: '1', ...saved };
+  return { tab: '8051', source: example.source, exampleId: example.id, wiring: example.wiring, clockMHz: 11.0592, speed: '1', avrExampleId: 'blink', avrSpeed: '1', avrBoard: null, ...saved };
 }
 
 function persistMcu(patch) {
@@ -1792,20 +1792,27 @@ function renderMcuWiring(config) {
   </div></details>`;
 }
 
+const MCU_TABS = [['8051', '8051 trainer'], ['arduino', 'Arduino Uno (ATmega328P)']];
+
 function renderMcu(state) {
   const module = modules.find((item) => item.id === 'mcu');
   const config = mcuConfiguration(state);
+  const arduino = config.tab === 'arduino';
+  return `<div class="page scroll-page mcu-page">${pageHeader(module, arduino ? 'BUILT-IN ARDUINO UNO SIMULATOR' : 'BUILT-IN 8051 SIMULATOR', '<span class="pill live"><i></i> LOCAL SIMULATION</span>')}
+    ${labTabs(MCU_TABS, config.tab, 'data-mcu-tab')}${arduino ? renderUnoTab(config) : render8051Tab(config)}</div>`;
+}
+
+function render8051Tab(config) {
   mcuEnsure(config);
   const { assembly } = mcuRuntime;
   const errors = assembly?.errors || [];
-  const actions = `<button class="button primary" data-action="mcu-assemble">Assemble &amp; load</button><button class="button run" data-action="mcu-run">${mcuRuntime.running ? 'Pause' : 'Run'}</button><button class="button ghost" data-action="mcu-step">Step</button><button class="button ghost" data-action="mcu-reset">Reset</button>`;
-  return `<div class="page scroll-page mcu-page" data-mcu-root>${pageHeader(module, 'BUILT-IN 8051 SIMULATOR', actions)}
+  return `<div data-mcu-root>
     <div class="mcu-toolbar dsp-controls">
       ${labSelect('data-mcu-field', 'exampleId', 'Example program', config.exampleId, [...EXAMPLES_8051.map((example) => [example.id, example.name]), ['custom', 'My program']])}
       ${labSelect('data-mcu-field', 'speed', 'Speed', config.speed, MCU_SPEEDS)}
       ${labField('data-mcu-field', 'clockMHz', 'Crystal', config.clockMHz, 'MHz', 'type="number" step="0.0001" min="1" max="40"')}
       <label>Program file<input type="file" accept=".hex,.ihx,.asm,.a51,.txt" data-mcu-file></label>
-      <button class="button ghost" data-action="mcu-download-hex">Download HEX</button>
+      <button class="button primary" data-action="mcu-assemble">Assemble &amp; load</button><button class="button run" data-action="mcu-run">${mcuRuntime.running ? 'Pause' : 'Run'}</button><button class="button ghost" data-action="mcu-step">Step</button><button class="button ghost" data-action="mcu-reset">Reset</button><button class="button ghost" data-action="mcu-download-hex">Download HEX</button>
     </div>
     ${mcuRuntime.loadedHex ? `<div class="diagnostic warning"><b>HEX loaded</b><span>Running ${esc(mcuRuntime.loadedHex.name)} (${mcuRuntime.loadedHex.bytes} bytes). Edit the source and press “Assemble &amp; load” to go back to the assembler.</span></div>` : ''}
     <div class="mcu-layout">
@@ -1828,6 +1835,12 @@ function renderMcu(state) {
 }
 
 function bindMcuEvents() {
+  document.querySelectorAll('[data-mcu-tab]').forEach((button) => button.addEventListener('click', () => { mcuStop(); unoStop(); persistMcu({ tab: button.dataset.mcuTab }); }));
+  document.querySelectorAll('[data-uno-root] [data-mcu-field]').forEach((field) => field.addEventListener('change', () => {
+    if (field.dataset.mcuField === 'avrExampleId') { const example = AVR_EXAMPLES.find((entry) => entry.id === field.value); unoRuntime.hex = null; if (example) persistMcu({ avrExampleId: example.id, avrBoard: structuredClone(example.board) }); }
+    else persistMcu({ [field.dataset.mcuField]: field.value });
+  }));
+  bindUnoEvents();
   const root = document.querySelector('[data-mcu-root]');
   if (!root) return;
   paintMcu();
@@ -1897,6 +1910,172 @@ function bindMcuEvents() {
     try { new TrainerBoard(new Cpu8051(), wiring); persistMcu({ wiring }); } catch (error) { notify(error.message, 'error'); }
   }));
   if (mcuRuntime.running && !mcuRuntime.frame) mcuStart();
+}
+
+// ---------------------------------------------------------------------------
+// Microcontroller Lab: Arduino Uno (ATmega328P) simulator running compiled HEX files.
+
+const unoRuntime = { board: null, key: null, running: false, frame: 0, last: 0, terminal: '', hex: null, speedHistory: [] };
+const UNO_SPEEDS = [['1', 'Real time'], ['0.1', '10 %'], ['max', 'As fast as possible']];
+
+function unoExample(config) { return AVR_EXAMPLES.find((entry) => entry.id === config.avrExampleId) || AVR_EXAMPLES[0]; }
+
+function unoEnsure(config) {
+  const example = unoExample(config);
+  const hex = unoRuntime.hex?.text || example.hex;
+  const key = JSON.stringify([hex.length, unoRuntime.hex?.name, example.id, config.avrBoard]);
+  if (unoRuntime.key === key && unoRuntime.board) return;
+  unoStop();
+  unoRuntime.key = key;
+  unoRuntime.terminal = '';
+  unoRuntime.board = new UnoBoard(hex, config.avrBoard || example.board);
+}
+
+function unoStop() { unoRuntime.running = false; if (unoRuntime.frame) cancelAnimationFrame(unoRuntime.frame); unoRuntime.frame = 0; }
+
+function unoStart() {
+  const { board } = unoRuntime;
+  if (!board) return;
+  if (board.cpu.halted) { notify(board.cpu.haltReason || 'The CPU stopped; press Reset.', 'error'); return; }
+  unoRuntime.running = true;
+  unoRuntime.last = performance.now();
+  const tick = (now) => {
+    if (!unoRuntime.running) return;
+    if (!document.querySelector('[data-uno-root]')) { unoStop(); return; }
+    const config = mcuConfiguration(getState());
+    const elapsed = Math.min(0.1, (now - unoRuntime.last) / 1000);
+    unoRuntime.last = now;
+    const target = config.avrSpeed === 'max' ? Infinity : board.cpu.clock * Number(config.avrSpeed || 1) * elapsed;
+    // Run in slices but never spend more than ~14 ms of a frame simulating.
+    const started = performance.now(), cyclesBefore = board.cpu.cycles;
+    while (board.cpu.cycles - cyclesBefore < target && performance.now() - started < 14 && !board.cpu.halted) board.cpu.run(Math.min(20_000, Math.max(1, target - (board.cpu.cycles - cyclesBefore))));
+    const ran = board.cpu.cycles - cyclesBefore;
+    unoRuntime.speedHistory.push(elapsed ? ran / board.cpu.clock / elapsed : 0);
+    if (unoRuntime.speedHistory.length > 30) unoRuntime.speedHistory.shift();
+    unoDrainSerial();
+    paintUno();
+    if (board.cpu.halted) { unoStop(); paintUno(); notify(board.cpu.haltReason || 'CPU stopped', 'error'); return; }
+    unoRuntime.frame = requestAnimationFrame(tick);
+  };
+  unoRuntime.frame = requestAnimationFrame(tick);
+  paintUno();
+}
+
+function unoDrainSerial() {
+  const output = unoRuntime.board.mcu.usart.output;
+  if (!output.length) return;
+  for (const byte of output) unoRuntime.terminal += byte === 13 ? '' : byte === 10 || (byte >= 32 && byte < 127) ? String.fromCharCode(byte) : '·';
+  output.length = 0;
+  if (unoRuntime.terminal.length > 12_000) unoRuntime.terminal = unoRuntime.terminal.slice(-9000);
+}
+
+function unoBoardHtml() {
+  const { board } = unoRuntime;
+  const view = board.view();
+  const pinCell = (pin) => `<div class="uno-pin ${pin.output ? 'out' : 'in'} ${pin.level ? 'high' : 'low'}" title="${pin.label}: ${pin.output ? 'OUTPUT' : pin.pullUp ? 'INPUT_PULLUP' : 'INPUT'} · ${pin.level ? 'HIGH' : 'LOW'}"><b>${pin.label}</b><i style="--glow:${pin.output ? pin.brightness : 0}"></i><small>${pin.output ? 'OUT' : pin.pullUp ? 'PU' : 'IN'}</small></div>`;
+  const leds = view.leds.map((led) => `<div class="uno-led"><i style="--glow:${led.brightness.toFixed(3)}"></i><small>${esc(String(led.pin))}${led.brightness > 0 && led.brightness < 1 ? ` · ${Math.round(led.brightness * 100)} %` : ''}</small></div>`).join('');
+  const buttons = board.board.buttons.map((button) => `<button class="${board.pressed.has(String(button.pin)) ? 'pressed' : ''}" data-uno-button="${esc(String(button.pin))}">Button · pin ${esc(String(button.pin))} → ${button.to}</button>`).join('');
+  const pots = board.board.pots.map((pot) => `<label class="uno-pot">${esc(pot.label || `Potentiometer ${pot.pin}`)} <input type="range" min="0" max="5" step="0.01" value="${pot.volts}" data-uno-pot="${esc(pot.pin)}"><b>${fmt(pot.volts, 3)} V</b></label>`).join('');
+  return `<div class="uno-header"><span class="panel-label">ARDUINO UNO PINS</span><div class="uno-pins">${view.pins.map(pinCell).join('')}</div></div>
+    ${leds ? `<div class="mcu-part"><span class="panel-label">LEDS</span><div class="uno-leds">${leds}</div></div>` : ''}
+    ${buttons ? `<div class="mcu-part"><span class="panel-label">BUTTONS (hold to press)</span><div class="mcu-buttons">${buttons}</div></div>` : ''}
+    ${pots ? `<div class="mcu-part"><span class="panel-label">ANALOG INPUTS</span>${pots}</div>` : ''}
+    ${view.lcd ? `<div class="mcu-part"><span class="panel-label">LCD 16×2 (LiquidCrystal)</span><div class="mcu-lcd ${view.lcd.on ? 'on' : ''}">${view.lcd.lines.map((line) => `<div>${esc(line).replaceAll(' ', '&nbsp;')}</div>`).join('')}</div></div>` : ''}`;
+}
+
+function unoCpuHtml() {
+  const { cpu } = unoRuntime.board;
+  const sreg = cpu.sreg;
+  const flags = ['C', 'Z', 'N', 'V', 'S', 'H', 'T', 'I'].map((name, bit) => `<span class="${(sreg >> bit) & 1 ? 'on' : ''}">${name}</span>`).reverse().join('');
+  const regs = Array.from({ length: 32 }, (_, n) => `<div><span>R${n}</span><b>${hex2(cpu.data[n])}</b></div>`).join('');
+  const speed = unoRuntime.speedHistory.length ? unoRuntime.speedHistory.reduce((a, b) => a + b, 0) / unoRuntime.speedHistory.length : 0;
+  return `<div class="mcu-regs"><div><span>PC</span><b>${(cpu.pc * 2).toString(16).toUpperCase().padStart(4, '0')}</b></div><div><span>SP</span><b>${cpu.sp.toString(16).toUpperCase().padStart(4, '0')}</b></div>${regs}</div>
+    <div class="mcu-flags">${flags}</div>
+    <p class="mcu-status">${cpu.instructions.toLocaleString()} instructions · ${cpu.cycles.toLocaleString()} cycles · ${eng(cpu.cycles / cpu.clock, 's')} simulated${unoRuntime.running ? ` · running at ${Math.round(speed * 100)} % of real time` : ''} · UART ${Math.round(unoRuntime.board.mcu.usart.baud())} baud</p>`;
+}
+
+function paintUno() {
+  const root = document.querySelector('[data-uno-root]');
+  if (!root || !unoRuntime.board) return;
+  const set = (selector, html) => { const element = root.querySelector(selector); if (element && element.innerHTML !== html) element.innerHTML = html; };
+  set('[data-uno-board]', unoBoardHtml());
+  set('[data-uno-cpu]', unoCpuHtml());
+  const terminal = root.querySelector('[data-uno-terminal]');
+  if (terminal && terminal.textContent !== unoRuntime.terminal) { terminal.textContent = unoRuntime.terminal; terminal.scrollTop = terminal.scrollHeight; }
+  const run = root.querySelector('[data-action="uno-run"]');
+  if (run) run.textContent = unoRuntime.running ? 'Pause' : 'Run';
+}
+
+function renderUnoTab(config) {
+  unoEnsure(config);
+  const example = unoExample(config);
+  const board = config.avrBoard || example.board;
+  const pinsText = (list) => list.map((entry) => (typeof entry === 'object' ? entry.pin : entry)).join(', ');
+  return `<div data-uno-root>
+    <div class="mcu-toolbar dsp-controls">
+      ${labSelect('data-mcu-field', 'avrExampleId', 'Arduino example', config.avrExampleId, AVR_EXAMPLES.map((entry) => [entry.id, entry.name]))}
+      ${labSelect('data-mcu-field', 'avrSpeed', 'Speed', config.avrSpeed, UNO_SPEEDS)}
+      <label>Compiled sketch (.hex)<input type="file" accept=".hex,.ihx" data-uno-file></label>
+      <button class="button run" data-action="uno-run">${unoRuntime.running ? 'Pause' : 'Run'}</button><button class="button ghost" data-action="uno-reset">Reset</button>
+    </div>
+    ${unoRuntime.hex ? `<div class="diagnostic warning"><b>Your sketch</b><span>Running ${esc(unoRuntime.hex.name)} (${unoRuntime.hex.bytes} bytes). Pick an example to go back to the built-in sketches.</span></div>` : ''}
+    <div class="mcu-layout">
+      <section class="dsp-card mcu-editor"><span class="panel-label">${unoRuntime.hex ? 'YOUR SKETCH (compiled HEX loaded)' : `SKETCH · ${esc(example.id)}.ino (${example.flashBytes} bytes of flash)`}</span>
+        <textarea readonly spellcheck="false" rows="22">${esc(unoRuntime.hex ? '// Source is not available for an uploaded HEX file.' : example.source)}</textarea>
+        <p class="module-footnote">To run your own sketch: in the Arduino IDE choose Sketch → Export Compiled Binary (or run <code>arduino-cli compile --output-dir . </code>) and load the <code>.hex</code> file above — the board must be Arduino Uno. The built-in examples were compiled with the official Arduino AVR core.</p>
+      </section>
+      <section class="mcu-middle">
+        <div class="dsp-card"><div class="mcu-board" data-uno-board></div>
+          <details class="mcu-wiring"><summary>Board wiring</summary><div class="mcu-wiring-grid">
+            <label>LED pins<input data-uno-wire="leds" value="${esc(pinsText(board.leds))}" placeholder="13, 9"></label>
+            <label>Buttons to GND<input data-uno-wire="buttons" value="${esc(pinsText(board.buttons))}" placeholder="2, 3"></label>
+            <label>Potentiometers<input data-uno-wire="pots" value="${esc(pinsText(board.pots))}" placeholder="A0, A1"></label>
+            <label class="check-label"><input type="checkbox" data-uno-wire="lcd" ${board.lcd ? 'checked' : ''}> LCD on 12, 11, 5, 4, 3, 2</label>
+          </div></details></div>
+        <div class="dsp-card"><span class="panel-label">SERIAL MONITOR</span><pre class="mcu-terminal" data-uno-terminal></pre>
+          <div class="mcu-send"><input data-uno-input placeholder="Send text (newline added)"><button class="button ghost" data-action="uno-send">Send</button><button class="button ghost" data-action="uno-clear">Clear</button></div></div>
+      </section>
+      <section class="mcu-right"><div class="dsp-card"><span class="panel-label">ATMEGA328P · 16 MHz</span><div data-uno-cpu></div></div></section>
+    </div>
+    <p class="module-footnote">Instruction-level ATmega328P model (timers, PWM, USART, ADC, external and pin-change interrupts, EEPROM, SPI); register results and cycle counts match simavr on 190 test programs and interrupt timing follows the datasheet. I²C has no devices attached.</p></div>`;
+}
+
+function bindUnoEvents() {
+  const root = document.querySelector('[data-uno-root]');
+  if (!root) return;
+  paintUno();
+  root.querySelector('[data-action="uno-run"]')?.addEventListener('click', () => { if (unoRuntime.running) { unoStop(); paintUno(); } else unoStart(); });
+  root.querySelector('[data-action="uno-reset"]')?.addEventListener('click', () => { unoStop(); unoRuntime.board.reset(); unoRuntime.terminal = ''; paintUno(); });
+  root.querySelector('[data-uno-file]')?.addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.size > 200_000) { notify('That file is too large for an ATmega328P.', 'error'); return; }
+    try { const text = await file.text(); const parsed = parseIntelHex(text); if (parsed.size > 32_768) throw new RangeError('The program is larger than 32 KB of flash.'); unoRuntime.hex = { name: file.name, text, bytes: parsed.bytes }; unoRuntime.key = null; render(); notify(`Loaded ${file.name}`, 'success'); }
+    catch (error) { notify(error.message, 'error'); }
+  });
+  const input = root.querySelector('[data-uno-input]');
+  const send = () => { if (!input) return; unoRuntime.board.mcu.usart.receive([...`${input.value}\n`].map((character) => character.charCodeAt(0) & 0xff)); input.value = ''; };
+  input?.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); send(); } });
+  root.querySelector('[data-action="uno-send"]')?.addEventListener('click', send);
+  root.querySelector('[data-action="uno-clear"]')?.addEventListener('click', () => { unoRuntime.terminal = ''; paintUno(); });
+  root.addEventListener('pointerdown', (event) => { const button = event.target.closest('[data-uno-button]'); if (button) { unoRuntime.board.press(button.dataset.unoButton, true); paintUno(); } });
+  root.addEventListener('pointerup', (event) => { const button = event.target.closest('[data-uno-button]'); if (button) { unoRuntime.board.press(button.dataset.unoButton, false); paintUno(); } });
+  root.addEventListener('input', (event) => { const pot = event.target.closest('[data-uno-pot]'); if (pot) { unoRuntime.board.setPot(pot.dataset.unoPot, Number(pot.value)); paintUno(); } });
+  root.querySelectorAll('[data-uno-wire]').forEach((field) => field.addEventListener('change', () => {
+    const config = mcuConfiguration(getState());
+    const board = structuredClone(config.avrBoard || unoExample(config).board);
+    const list = field.value.split(/[\s,;]+/).filter(Boolean);
+    try {
+      list.forEach((pin) => unoPin(/^\d+$/.test(pin) ? Number(pin) : pin.toUpperCase()));
+      const kind = field.dataset.unoWire;
+      if (kind === 'leds') board.leds = list.map((pin) => (/^\d+$/.test(pin) ? Number(pin) : pin.toUpperCase()));
+      else if (kind === 'buttons') board.buttons = list.map((pin) => ({ pin: /^\d+$/.test(pin) ? Number(pin) : pin.toUpperCase(), to: 'GND' }));
+      else if (kind === 'pots') board.pots = list.map((pin) => ({ pin: pin.toUpperCase(), volts: board.pots.find((pot) => pot.pin === pin.toUpperCase())?.volts ?? 2.5 }));
+      else board.lcd = field.checked ? { rs: 12, enable: 11, d4: 5, d5: 4, d6: 3, d7: 2 } : null;
+      persistMcu({ avrBoard: board });
+    } catch (error) { notify(error.message, 'error'); }
+  }));
+  if (unoRuntime.running && !unoRuntime.frame) unoStart();
 }
 
 const CONTROL_DEFAULTS = Object.freeze({
