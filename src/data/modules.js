@@ -16,6 +16,7 @@ export const modules = [
   { id: 'vlsi', name: 'VLSI Lab', short: 'VLSI', icon: '⧈', color: '#c084fc', description: 'CMOS inverter: VTC, switching threshold, noise margins, propagation delay and power with the SPICE level-1 model.' },
   { id: 'rtos', name: 'RTOS Scheduler', short: 'RTOS', icon: '⏱', color: '#38bdf8', description: 'RM, DM, EDF, LLF, FCFS and round-robin scheduling with Gantt charts, response-time analysis and priority inversion.' },
   { id: 'logic', name: 'Digital Logic Lab', short: 'Logic', icon: '⊼', color: '#e879f9', description: 'Boolean algebra, K-maps, gate and flip-flop simulation, number codes.' },
+  { id: 'sigsys', name: 'Signals & Systems', short: 'S&S', icon: 'ℒ', color: '#fca5a5', description: 'Fourier series with Gibbs effect, Laplace and z-transform partial fractions and inverses, and the DFT step by step.' },
   { id: 'dsp', name: 'Signals & DSP', short: 'DSP', icon: '∿', color: '#fb7185', description: 'Generate, transform and inspect signals.' },
   { id: 'communication', name: 'Communication', short: 'Comms', icon: '⌁', color: '#22d3ee', description: 'Explore modulation and communication chains.' },
   { id: 'rf', name: 'RF & Antennas', short: 'RF', icon: '⌖', color: '#f97316', description: 'RF calculations, matching and antenna studies.' },

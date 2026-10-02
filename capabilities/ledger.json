@@ -310,6 +310,14 @@
       "plannedPhase": 5
     },
     {
+      "id": "sigsys.transform-explorer",
+      "surface": "Signals & Systems: Fourier series, Laplace and z-transform partial fractions, DFT and FFT butterflies",
+      "state": "built-in",
+      "evidence": ["packages/sigsys/src/index.mjs", "src/app.js#renderSigsys", "tests/sigsys.test.mjs", "tests/fixtures/sigsys/scipy-residue.json"],
+      "limitations": "Fourier series for six standard waveforms (no arbitrary expressions). Transforms take rational functions as coefficient lists; repeated poles are detected with a relative tolerance of 1e-5 and polished, so near-coincident distinct poles may merge. Partial fractions match scipy.signal.residue/residuez on the test cases. The step-by-step DFT is limited to 32 samples and the butterfly view to 16.",
+      "plannedPhase": 5
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",

@@ -595,3 +595,10 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .truth-table.matrix td { padding: 6px 10px; border: 1px solid var(--line); font: 500 11px DM Mono; white-space: nowrap; }
 .network-page label { display: flex; flex-direction: column; gap: 5px; font-size: 11px; color: var(--muted); }
 .network-page input, .network-page select, .network-page textarea { border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); padding: 7px 9px; font: 500 12px DM Mono; }
+.dft-terms { font: 500 11px DM Mono; text-align: left !important; white-space: normal !important; }
+.butterfly .bf-line { stroke: #4c94ad; fill: none; stroke-width: 1; }
+.butterfly .bf-label { fill: #dbeafe; font: 500 11px DM Mono; }
+.butterfly .bf-value { fill: #fef08a; font: 500 9px DM Mono; }
+.butterfly .bf-twiddle { fill: #f97316; font: 500 9px DM Mono; }
+.sigsys-page label { display: flex; flex-direction: column; gap: 5px; font-size: 11px; color: var(--muted); }
+.sigsys-page input[type="text"], .sigsys-page select { border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); padding: 7px 9px; font: 500 12px DM Mono; min-width: 200px; }
