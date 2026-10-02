@@ -302,6 +302,14 @@
       "plannedPhase": 5
     },
     {
+      "id": "theory.network-theorems",
+      "surface": "Network Theory: phasor MNA, Thévenin/Norton, superposition, maximum power, star–delta, two-port parameters",
+      "state": "built-in",
+      "evidence": ["packages/network/src/index.mjs", "src/app.js#renderNetworkTheory", "tests/network.test.mjs"],
+      "limitations": "Linear lumped circuits at one frequency (or DC): R, L, C, independent V/I sources and the four linear dependent sources; no mutual inductance, ideal transformers or op-amp macro-models. Phasors are RMS. Node voltages match ngspice 42 .ac to 6 significant digits.",
+      "plannedPhase": 5
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",

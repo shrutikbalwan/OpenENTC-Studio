@@ -1,4 +1,6 @@
 import { readFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { resolve } from 'node:path';
 import ts from 'typescript';
 import { listJavaScriptFiles } from './quality-files.mjs';
@@ -22,6 +24,17 @@ for (const file of files) {
   for (const diagnostic of syntax.diagnostics || []) failures.push(`${file}: ${ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')}`);
   for (const rule of forbidden) if (rule.pattern.test(source)) failures.push(`${file}: ${rule.message}`);
 }
+
+// The transpiler above does not report duplicate declarations or imports; Node's own parser
+// does, so every file also goes through `node --check` (eight at a time).
+const run = promisify(execFile);
+const queue = [...files];
+await Promise.all(Array.from({ length: 8 }, async () => {
+  for (let file = queue.shift(); file; file = queue.shift()) {
+    try { await run(process.execPath, ['--check', resolve(root, file)]); }
+    catch (error) { failures.push(`${file}: ${String(error.stderr || error.message).split('\n').filter((line) => /Error/.test(line))[0] ?? 'syntax error'}`); }
+  }
+}));
 
 if (failures.length) {
   console.error(failures.join('\n'));
