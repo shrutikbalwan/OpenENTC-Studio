@@ -342,6 +342,14 @@
       "plannedPhase": 6
     },
     {
+      "id": "network.protocol-lab",
+      "surface": "Computer Networks: IPv4 subnetting, VLSM, summarisation and IPv6 notation; Dijkstra and distance-vector routing with count-to-infinity; stop-and-wait/Go-Back-N/Selective Repeat timelines; ALOHA and CSMA throughput",
+      "state": "built-in",
+      "evidence": ["packages/netproto/src/index.mjs", "src/app.js#renderNetworkTab", "tests/netproto.test.mjs", "tests/fixtures/netproto/python-reference.json"],
+      "limitations": "Teaching models, not a packet simulator: routing graphs are undirected with symmetric costs and distance vector runs in synchronous rounds; ARQ timelines assume a fixed propagation delay, no processing time, a single sender and losses chosen by transmission number. MAC throughput curves are the classic analytic results (Poisson offered load). Subnet results match Python's ipaddress module and Dijkstra matches scipy.sparse.csgraph.",
+      "plannedPhase": 6
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",

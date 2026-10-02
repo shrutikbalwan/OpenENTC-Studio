@@ -624,3 +624,27 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .hex-map .hex-d { stroke: #f8fafc; stroke-width: 1; stroke-dasharray: 3 2; }
 .hex-map .hex-centre { fill: #f8fafc; }
 .cellular-page tr.active td { color: var(--accent, #38bdf8); font-weight: 600; }
+.ip-binary { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: center; margin: 8px 0 14px; }
+.ip-binary small { color: var(--muted); font: 500 10px DM Mono; }
+.ip-bits { font: 600 12px DM Mono; letter-spacing: 1px; }
+.ip-bits b.net { color: #38bdf8; font-weight: 600; }
+.ip-bits b.host { color: #f97316; font-weight: 600; }
+.ip-bits i { color: var(--muted); font-style: normal; }
+.graph-map { width: 100%; max-width: 360px; height: auto; display: block; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+.graph-map .graph-edge { stroke: #475569; stroke-width: 1.5; }
+.graph-map .graph-edge.on { stroke: #facc15; stroke-width: 3; }
+.graph-map .graph-cost { fill: #cbd5e1; font: 500 10px DM Mono; text-anchor: middle; }
+.graph-map .graph-node { fill: #1e293b; stroke: #38bdf8; stroke-width: 2; }
+.graph-map .graph-node.source { fill: #0369a1; }
+.graph-map .graph-label { fill: #f8fafc; font: 700 11px DM Mono; text-anchor: middle; }
+.network-page td.done { color: var(--muted); }
+.arq-timeline .arq-axis { stroke: #64748b; stroke-width: 2; }
+.arq-timeline .arq-head { fill: #e2e8f0; font: 600 11px DM Mono; text-anchor: middle; }
+.arq-timeline .arq-data { fill: none; stroke: #38bdf8; stroke-width: 1.4; }
+.arq-timeline .arq-data.re { stroke: #f59e0b; }
+.arq-timeline .arq-ack { fill: none; stroke: #4ade80; stroke-width: 1.2; stroke-dasharray: 4 2; }
+.arq-timeline .lost { stroke: #ef4444; }
+.arq-timeline .arq-x { fill: #ef4444; font: 700 12px DM Mono; text-anchor: middle; }
+.arq-timeline .arq-label { fill: #cbd5e1; font: 500 9px DM Mono; }
+.arq-timeline .arq-timeout { fill: #f87171; font: 600 9px DM Mono; }
+.arq-timeline .arq-deliver { fill: #facc15; }
