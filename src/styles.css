@@ -709,3 +709,4 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .dip-kernel td { font-size: 10px; padding: 3px 5px; }
 .dip-kernel td.zero { color: var(--muted); opacity: 0.5; }
 .dip-blocks { display: flex; flex-wrap: wrap; gap: 14px; margin: 10px 0; }
+.bio-axis { fill: #94a3b8; font: 500 9px DM Mono; }

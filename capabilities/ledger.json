@@ -382,6 +382,14 @@
       "plannedPhase": 7
     },
     {
+      "id": "biomed.ecg-eeg",
+      "surface": "Biomedical Signals: synthetic or pasted ECG with zero-phase cleaning, Pan–Tompkins QRS detection, HRV (SDNN, RMSSD, pNN50, Poincaré, LF/HF) and EEG band powers",
+      "state": "built-in",
+      "evidence": ["packages/biomed/src/index.mjs", "src/app.js#renderBio", "tests/biomed.test.mjs", "tests/fixtures/biomed/scipy-ecg-208.json", "tests/fixtures/biomed/scipy-welch.json"],
+      "limitations": "Synthetic ECG is a Gaussian-wave model, not a physiological simulator; EEG is a sum of band-limited sinusoids. Pan–Tompkins finds every beat in the synthetic tests and agrees with a consensus of three NeuroKit2 detectors on 93 % of beats (count within 2) in the first minute of MIT-BIH record 208, an arrhythmic record where the reference detectors also disagree; MIT-BIH annotations could not be downloaded here, so it has not been scored against cardiologist labels. Welch PSD matches scipy.signal.welch. For learning only, not for diagnosis.",
+      "plannedPhase": 7
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",
