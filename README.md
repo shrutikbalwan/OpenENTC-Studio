@@ -17,9 +17,10 @@ OpenENTC Studio is a free, open-source foundation for an all-in-one Electronics 
 - Built-in Communication Lab: QPSK link; AM, DSB-SC, FM and PM with spectra, Bessel sideband tables and demodulation; BPSK/QPSK/8-PSK/16-QAM constellations with measured vs theoretical BER, BER-vs-Eb/N0 curves and raised-cosine eye diagrams; sampling, aliasing, uniform/μ-law PCM with SQNR and seven line codes; Hamming, CRC and convolutional/Viterbi error-control coding
 - Built-in RF Lab: Touchstone S-parameters on a real Smith chart; reflection, VSWR, return and mismatch loss; L-network, single-stub and quarter-wave matching (Pozar method, each solution verified); lossy transmission lines with Γ trajectory and standing-wave plots; microstrip (analysis and synthesis), coax and twin-lead impedance; uniform linear antenna arrays with polar patterns, directivity, beamwidth and sidelobe level; and a Friis link budget with noise floor, SNR, margin and range
 - Engineering Calculators: resistor colour codes (3–6 bands, both directions) with E6–E96 preferred values, SMD and capacitor markings, 555 astable/monostable analysis and design, op-amp gain/bandwidth/clipping, dB and power-unit conversion (dBm, dBW, dBµV, V rms), Ohm's law, series/parallel, dividers, RLC resonance, RC filters, LED resistors and ADC resolution
+- PCB Studio: turns the Circuit Lab schematic into a board with through-hole or SMD footprints, auto-placement, drag-and-rotate editing, ratsnest, a two-layer A* autorouter with vias, a geometric design-rule check (clearance, shorts, widths, drills, annular ring, board edge, unrouted nets), an IPC-2221 trace-width calculator, and a fabrication ZIP (Gerber X2 copper/mask/silkscreen/outline, Excellon drill, BOM, pick-and-place)
 - Embedded text editor with an Arduino starter, shallow source-structure checks, read-only installed board/core/library inventory, explicit board and manual port selection, desktop compilation/upload, and a separately permissioned bounded serial terminal with baud, encoding, line-ending, timestamp, pause and export controls
 - Digital Lab with persisted SystemVerilog/VHDL examples; separately cancellable Verilator lint, GHDL simulation/VCD ingestion, Yosys synthesis/netlist and explicit nextpnr HX8K/CT256 place-route workflows when detected; plus bounded scalar/vector VCD import
-- Unavailable previews remain for PCB, FPGA, full RF/IoT/network workflows and specialist engine execution; DSP and communications now include the bounded built-in slices listed above
+- Unavailable previews remain for FPGA, full RF/IoT/network workflows and specialist engine execution; DSP and communications now include the bounded built-in slices listed above
 - Evidence-backed engine catalogue with compiled read-only desktop detection; external engines remain unavailable until explicitly configured and detected
 - Offline project import/export using a bounded manifest-only `.entcproj` package, with legacy `.entc.json` import compatibility and migration backups
 - Portable project metadata for units, provenance and content-addressed generated-artifact references
@@ -68,6 +69,7 @@ Browser projects use crash-aware localStorage writes with bounded corrupt backup
 - `src/engines/circuit-engine.js`: built-in DC, transient and AC circuit simulator
 - `packages/numerics/src/filters.mjs`, `packages/control/src/analysis.mjs`: filter design and control-systems analysis
 - `packages/rf/src/rf-tools.mjs`, `packages/calculators`: RF design tools and everyday electronics calculators
+- `packages/pcb`: footprints, board model, autorouter, DRC and Gerber/Excellon/BOM/ZIP output for PCB Studio
 - `packages/logic`: Boolean minimization, gate-level logic simulation and number codes for the Digital Logic Lab
 - `src/core/circuit-plot.js`: waveform/Bode plotting, measurements and CSV export
 - `src/data/example-circuits.js`: example circuits for the built-in simulator

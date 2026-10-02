@@ -247,10 +247,10 @@
     },
     {
       "id": "pcb.workflow",
-      "surface": "PCB Studio",
-      "state": "unavailable",
-      "evidence": ["src/app.js#moduleDetails"],
-      "limitations": "Non-executable workflow preview; no KiCad detection or exchange.",
+      "surface": "PCB Studio: board layout, autorouting, DRC and fabrication export",
+      "state": "built-in",
+      "evidence": ["packages/pcb/src/board.mjs", "packages/pcb/src/router.mjs", "packages/pcb/src/drc.mjs", "packages/pcb/src/fabrication.mjs", "packages/pcb/src/footprints.mjs", "tests/pcb.test.mjs"],
+      "limitations": "Two-layer boards with rectangular outlines and parts on the top side; a fixed footprint library for the Circuit Lab part types; grid A* autorouting without copper pours, differential pairs or length tuning; no KiCad import/export. Gerber/Excellon output parses in gerbonara but has not been fabricated.",
       "plannedPhase": 7
     },
     {
