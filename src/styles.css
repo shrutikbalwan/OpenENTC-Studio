@@ -648,3 +648,19 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .arq-timeline .arq-label { fill: #cbd5e1; font: 500 9px DM Mono; }
 .arq-timeline .arq-timeout { fill: #f87171; font: 600 9px DM Mono; }
 .arq-timeline .arq-deliver { fill: #facc15; }
+.diagnostic.error .button { margin-left: auto; }
+.aes-steps { display: flex; flex-wrap: wrap; gap: 10px; margin: 6px 0 12px; }
+.aes-state span { display: block; font: 600 10px DM Mono; color: var(--muted); margin-bottom: 3px; }
+.aes-state table, .playfair-grid, .rail-grid { border-collapse: collapse; font: 600 12px DM Mono; }
+.aes-state td, .playfair-grid td { border: 1px solid var(--line); padding: 4px 6px; text-align: center; color: var(--text); }
+.playfair-grid td { width: 26px; height: 24px; }
+.rail-grid td { width: 16px; height: 18px; text-align: center; color: #38bdf8; border-bottom: 1px dotted var(--line); }
+.hill-row { display: flex; gap: 20px; margin-bottom: 8px; }
+.aes-words { max-height: 420px; overflow-y: auto; }
+.crypto-page tr.active td { color: var(--accent, #38bdf8); font-weight: 600; }
+.hex-dump { font: 500 11px DM Mono; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; word-break: break-all; line-height: 1.6; margin: 4px 0 12px; }
+.sha-rounds td { font-size: 10px; }
+.dh-flow { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 10px; margin-bottom: 12px; }
+.dh-flow > div { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: 500 11px DM Mono; color: var(--muted); }
+.dh-flow b { color: var(--text); font-size: 13px; }
+.dh-flow .dh-wire { border-style: dashed; justify-content: center; text-align: center; color: #facc15; }

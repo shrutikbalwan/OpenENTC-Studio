@@ -350,6 +350,14 @@
       "plannedPhase": 6
     },
     {
+      "id": "crypto.step-by-step",
+      "surface": "Cryptography: Caesar/Vigenère/Playfair/Hill/rail fence with cryptanalysis, extended Euclid, square-and-multiply, Miller–Rabin, CRT, RSA, Diffie–Hellman with MITM, AES/DES/SHA-256 round by round, HMAC",
+      "state": "built-in",
+      "evidence": ["packages/cryptolab/src/index.mjs", "packages/cryptolab/src/classical.mjs", "packages/cryptolab/src/numbers.mjs", "packages/cryptolab/src/ciphers.mjs", "src/app.js#renderCrypto", "tests/cryptolab.test.mjs", "tests/fixtures/cryptolab/des-pycryptodome.json"],
+      "limitations": "For learning, not for protecting data: implementations are not constant-time, RSA is textbook (no OAEP/PSS padding) and key generation is seeded and reproducible. Miller–Rabin is deterministic below 3.3e24 and probabilistic above. Baby-step giant-step is limited to p < 1e12. AES matches FIPS 197 and node:crypto (ECB/CBC, 128/192/256), DES matches the classic worked example and PyCryptodome, SHA-256 and HMAC match node:crypto.",
+      "plannedPhase": 6
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",
