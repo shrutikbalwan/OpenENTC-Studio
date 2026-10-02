@@ -618,3 +618,9 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .rx-bars div { display: grid; grid-template-columns: 140px 1fr 80px; align-items: center; gap: 8px; font: 500 11px DM Mono; color: var(--muted); }
 .rx-bars i { display: block; height: 10px; border-radius: 3px; background: #38bdf8; min-width: 2px; }
 .rx-bars b { color: var(--text); font-weight: 500; text-align: right; }
+.hex-map { width: 100%; max-width: 560px; height: auto; display: block; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+.hex-map .hex-cell { stroke: #0f172a; stroke-width: 1; }
+.hex-map .hex-label { fill: #0f172a; font: 700 7px DM Mono; pointer-events: none; }
+.hex-map .hex-d { stroke: #f8fafc; stroke-width: 1; stroke-dasharray: 3 2; }
+.hex-map .hex-centre { fill: #f8fafc; }
+.cellular-page tr.active td { color: var(--accent, #38bdf8); font-weight: 600; }

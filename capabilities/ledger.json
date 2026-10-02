@@ -334,6 +334,14 @@
       "plannedPhase": 5
     },
     {
+      "id": "cellular.planning",
+      "surface": "Cellular Planning: Erlang-B/C traffic, hexagonal reuse with S/I and sectoring, Okumura–Hata/COST-231 path loss and cell radius, handoff with shadowing",
+      "state": "built-in",
+      "evidence": ["packages/cellular/src/index.mjs", "src/app.js#renderCellular", "tests/cellular.test.mjs"],
+      "limitations": "Classic planning models only: Erlang B/C assume Poisson arrivals and exponential holding; S/I counts the first tier of co-channel cells; Hata is a median-loss empirical model valid for 150–2000 MHz, 1–20 km, base 30–200 m. The handoff study is a single straight road between two cells with Gudmundson-correlated log-normal shadowing (seeded), no fast fading or network signalling. Erlang-B values match published tables to 1e-3 E.",
+      "plannedPhase": 6
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",
