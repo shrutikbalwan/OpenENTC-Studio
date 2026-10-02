@@ -1,0 +1,13 @@
+export declare const BOLTZMANN: number;
+export declare const T0: number;
+export declare function superhet(options: { signal: number; intermediate: number; loAbove?: boolean; q?: number }): { lo: number; image: number; rho: number; rejection: number; rejectionDb: number };
+export declare function tuningRange(options: { low: number; high: number; intermediate: number; loAbove?: boolean }): { loLow: number; loHigh: number; loRatio: number; signalRatio: number; loCapacitanceRatio: number; signalCapacitanceRatio: number };
+export interface Stage { name?: string; gainDb: number; nfDb: number; iip3Dbm?: number }
+export declare function friis(stages: Stage[]): { rows: (Stage & { noiseFactor: number; noiseTemperature: number; contribution: number; cumulativeGainDb: number; cumulativeNfDb: number; cumulativeTemperature: number })[]; noiseFactor: number; nfDb: number; gainDb: number; temperature: number };
+export declare function sensitivity(options: { nfDb: number; bandwidth: number; snrDb?: number; temperature?: number }): { kTdBmPerHz: number; noiseFloorDbm: number; sensitivityDbm: number; sensitivityMicrovolts50: number };
+export declare function cascadedIip3(stages: Stage[]): { rows: (Stage & { cumulativeIip3Dbm: number })[]; iip3Dbm: number; oip3Dbm: number };
+export declare function sfdr(iip3Dbm: number, noiseFloorDbm: number): number;
+export declare function receiverChain(options: { stages: Stage[]; bandwidth: number; snrDb: number }): { noise: ReturnType<typeof friis>; sensitivity: ReturnType<typeof sensitivity>; linearity: ReturnType<typeof cascadedIip3>; sfdrDb: number };
+export declare function fibreParameters(options: { n1: number; n2: number; coreDiameter: number; wavelength: number }): { na: number; delta: number; acceptanceAngle: number; criticalAngle: number; v: number; singleMode: boolean; modes: number; cutoffWavelength: number; maxCoreDiameterSingleMode: number };
+export declare function powerBudget(options: { txPowerDbm: number; rxSensitivityDbm: number; length: number; attenuation: number; splices?: number; spliceLoss?: number; connectors?: number; connectorLoss?: number; margin?: number }): { items: { name: string; loss: number }[]; totalLoss: number; receivedDbm: number; available: number; excess: number; feasible: boolean; maxLength: number };
+export declare function riseTimeBudget(options: { txRise: number; rxRise: number; length: number; n1: number; n2?: number | null; profile?: 'step' | 'graded'; dispersion?: number; spectralWidth?: number; singleMode?: boolean }): { modal: number; chromatic: number; system: number; maxNrzRate: number; maxRzRate: number; items: [string, number][] };

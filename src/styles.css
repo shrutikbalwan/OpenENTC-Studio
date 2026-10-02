@@ -602,3 +602,19 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .butterfly .bf-twiddle { fill: #f97316; font: 500 9px DM Mono; }
 .sigsys-page label { display: flex; flex-direction: column; gap: 5px; font-size: 11px; color: var(--muted); }
 .sigsys-page input[type="text"], .sigsys-page select { border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); padding: 7px 9px; font: 500 12px DM Mono; min-width: 200px; }
+.em-map { width: 100%; max-width: 560px; height: auto; display: block; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+.em-map .em-line { fill: none; stroke: #f8fafc; stroke-width: 1; stroke-opacity: 0.75; }
+.em-map .em-charge.pos { fill: #dc2626; stroke: #fff; stroke-width: 1.5; }
+.em-map .em-charge.neg { fill: #2563eb; stroke: #fff; stroke-width: 1.5; }
+.em-map .em-charge-label { fill: #fff; font: 700 13px DM Mono; pointer-events: none; }
+.em-map .em-probe { fill: #facc15; stroke: #000; }
+.em-map .em-gauss { fill: none; stroke: #a3e635; stroke-dasharray: 5 4; stroke-width: 1.5; }
+.em-map .em-arrow { stroke: #0f172a; stroke-width: 1.4; stroke-linecap: round; }
+.em-map .em-wall { fill: none; stroke: #94a3b8; stroke-width: 3; }
+.em-text textarea { border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); padding: 7px 9px; font: 500 12px DM Mono; min-width: 260px; resize: vertical; }
+.em-matrix { margin-top: 8px; }
+.em-page tr.active td { color: var(--accent, #38bdf8); font-weight: 600; }
+.rx-bars { display: grid; gap: 6px; margin: 8px 0 12px; }
+.rx-bars div { display: grid; grid-template-columns: 140px 1fr 80px; align-items: center; gap: 8px; font: 500 11px DM Mono; color: var(--muted); }
+.rx-bars i { display: block; height: 10px; border-radius: 3px; background: #38bdf8; min-width: 2px; }
+.rx-bars b { color: var(--text); font-weight: 500; text-align: right; }

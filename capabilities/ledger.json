@@ -318,6 +318,22 @@
       "plannedPhase": 5
     },
     {
+      "id": "em.microwave-lab",
+      "surface": "EM & Microwave: point charges and Gauss's law, plane waves and skin depth, Fresnel and polarisation, rectangular/circular waveguides, two-port S-parameter cascades, amplifier stability",
+      "state": "built-in",
+      "evidence": ["packages/em/src/index.mjs", "src/app.js#renderEm", "tests/em.test.mjs", "tests/fixtures/em/skrf-reference.json"],
+      "limitations": "Electrostatics of point charges only (no conductors, dielectrics or boundary-value solving); field map is the z = 0 plane. Plane waves are uniform and media linear, isotropic and homogeneous; Fresnel assumes non-magnetic media with real refractive indices. Waveguide modes are ideal (TE10 wall loss only, no dielectric loss); circular-guide modes use tabulated Bessel zeros up to n = 3, m = 3. Two-port networks use a single real reference impedance; stubs and lines are TEM with an optional uniform loss. Cascades, Z/ABCD conversions, TE10 loss, Rollett K and MAG match scikit-rf 2.1.",
+      "plannedPhase": 5
+    },
+    {
+      "id": "comm.receiver-fibre",
+      "surface": "Communication: superheterodyne frequency plan and image rejection, Friis cascade noise figure, sensitivity, cascaded IIP3 and SFDR; optical-fibre NA, V-number, power and rise-time budgets",
+      "state": "built-in",
+      "evidence": ["packages/commsys/src/index.mjs", "src/app.js#renderReceiverTab", "src/app.js#renderFibreTab", "tests/commsys.test.mjs"],
+      "limitations": "Planning formulas, not a signal-level receiver simulation: image rejection assumes one single-tuned preselector, noise is referred to 290 K and IIP3 cascades assume coherent worst-case addition. Fibre calculations use step or parabolic graded index, the V²/2 mode estimate and the rise-time (sum of squares) method; no PMD, nonlinear effects or optical amplifiers.",
+      "plannedPhase": 5
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",
