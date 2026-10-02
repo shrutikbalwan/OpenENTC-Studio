@@ -710,3 +710,13 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .dip-kernel td.zero { color: var(--muted); opacity: 0.5; }
 .dip-blocks { display: flex; flex-wrap: wrap; gap: 14px; margin: 10px 0; }
 .bio-axis { fill: #94a3b8; font: 500 9px DM Mono; }
+.nn-map, .nn-net { display: block; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; margin: 6px 0 12px; max-width: 100%; height: auto; }
+.nn-map .nn-point.c0 { fill: #0ea5e9; stroke: #fff; stroke-width: 0.8; }
+.nn-map .nn-point.c1 { fill: #f97316; stroke: #fff; stroke-width: 0.8; }
+.nn-map .nn-point.test { fill-opacity: 0.15; stroke-width: 1.5; }
+.nn-map .nn-point.train { fill: #38bdf8; }
+.nn-map .nn-curve { fill: none; stroke: #facc15; stroke-width: 2.5; }
+.nn-map .nn-boundary { stroke: #facc15; stroke-width: 2; stroke-dasharray: 6 3; }
+.nn-map .nn-label { fill: #e2e8f0; font: 500 10px DM Mono; }
+.nn-net .nn-node { fill: #1e293b; stroke: #e2e8f0; stroke-width: 1.2; }
+.nn-page tr.active td { color: var(--accent, #38bdf8); }

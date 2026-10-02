@@ -20,6 +20,7 @@ export const modules = [
   { id: 'dsp', name: 'Signals & DSP', short: 'DSP', icon: '∿', color: '#fb7185', description: 'Generate, transform and inspect signals.' },
   { id: 'dip', name: 'Image Processing', short: 'Image', icon: '▧', color: '#c4b5fd', description: 'Histograms, equalisation, Otsu, spatial and median filters, Sobel and Canny edges, 2-D FFT filtering, morphology with object counting and JPEG-style DCT compression.' },
   { id: 'biomed', name: 'Biomedical Signals', short: 'Bio', icon: '♥', color: '#fb7185', description: 'Synthetic or pasted ECG with filtering, Pan–Tompkins QRS detection and heart-rate variability, and EEG rhythms with Welch band powers.' },
+  { id: 'neural', name: 'Neural Networks', short: 'NN', icon: '⊛', color: '#f0abfc', description: 'Train a multilayer perceptron on 2-D datasets and watch the decision regions, loss and weights; step through the perceptron learning rule on logic gates.' },
   { id: 'communication', name: 'Communication', short: 'Comms', icon: '⌁', color: '#22d3ee', description: 'Explore modulation and communication chains.' },
   { id: 'rf', name: 'RF & Antennas', short: 'RF', icon: '⌖', color: '#f97316', description: 'RF calculations, matching and antenna studies.' },
   { id: 'em', name: 'EM & Microwave', short: 'EM', icon: '⌁', color: '#38bdf8', description: 'Charges and Gauss\'s law, plane waves and skin depth, Fresnel and polarisation, waveguide modes, S-parameter networks and amplifier stability.' },

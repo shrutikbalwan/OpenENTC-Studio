@@ -390,6 +390,14 @@
       "plannedPhase": 7
     },
     {
+      "id": "neural.playground",
+      "surface": "Neural Networks: MLP playground on six 2-D datasets (decision regions per epoch, loss/accuracy curves, weight diagram) and the perceptron learning rule on logic gates",
+      "state": "built-in",
+      "evidence": ["packages/neural/src/index.mjs", "src/app.js#renderNn", "tests/neural.test.mjs"],
+      "limitations": "Small fully connected networks only (up to four hidden layers of 32), trained synchronously in the browser on at most 400 points; no convolutional or recurrent layers, GPUs or model export. Backpropagation is verified by finite-difference gradient checks to 1e-6.",
+      "plannedPhase": 7
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",
