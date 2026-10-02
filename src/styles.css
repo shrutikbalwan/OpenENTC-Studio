@@ -664,3 +664,15 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .dh-flow > div { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: 500 11px DM Mono; color: var(--muted); }
 .dh-flow b { color: var(--text); font-size: 13px; }
 .dh-flow .dh-wire { border-style: dashed; justify-content: center; text-align: center; color: #facc15; }
+.wsn-map { width: 100%; max-width: 520px; max-height: 560px; height: auto; display: block; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+.wsn-map .wsn-field { fill: #0b1220; stroke: #334155; }
+.wsn-map .wsn-hole { fill: #ef4444; fill-opacity: 0.35; }
+.wsn-map .wsn-sense { fill: #38bdf8; fill-opacity: 0.06; stroke: #38bdf8; stroke-opacity: 0.25; stroke-width: 0.5; }
+.wsn-map .wsn-link { stroke: #64748b; stroke-width: 0.6; stroke-opacity: 0.7; }
+.wsn-map .wsn-member { stroke: #a3e635; stroke-width: 0.8; stroke-opacity: 0.8; }
+.wsn-map .wsn-uplink { stroke: #facc15; stroke-width: 1.2; stroke-dasharray: 4 3; }
+.wsn-map .wsn-node { fill: #38bdf8; stroke: #0f172a; stroke-width: 0.6; }
+.wsn-map .wsn-node.head { fill: #facc15; }
+.wsn-map .wsn-node.dead { fill: #ef4444; }
+.wsn-map .wsn-sink { fill: #f97316; stroke: #fff; }
+.wsn-map .wsn-label { fill: #f8fafc; font: 600 10px DM Mono; }

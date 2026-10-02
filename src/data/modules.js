@@ -25,6 +25,7 @@ export const modules = [
   { id: 'iot', name: 'IoT & Control', short: 'IoT', icon: '◉', color: '#4ade80', description: 'Connect sensors, controllers and data flows.' },
   { id: 'cellular', name: 'Cellular Planning', short: 'Cellular', icon: '⬡', color: '#fb7185', description: 'Erlang-B/C traffic, hexagonal frequency reuse and S/I, Okumura–Hata path loss and cell radius, and handoff with shadowing.' },
   { id: 'network', name: 'Computer Networks', short: 'Network', icon: '⌘', color: '#818cf8', description: 'IPv4/IPv6 subnetting and VLSM, link-state and distance-vector routing, sliding-window ARQ timelines, ALOHA/CSMA throughput and saved packet captures.' },
+  { id: 'wsn', name: 'Sensor Networks', short: 'WSN', icon: '⁂', color: '#a3e635', description: 'Random and grid deployments, radio connectivity and k-coverage, and network lifetime with direct, multi-hop and LEACH clustering on the first-order radio model.' },
   { id: 'crypto', name: 'Cryptography', short: 'Crypto', icon: '⚿', color: '#f472b6', description: 'Caesar, Vigenère, Playfair, Hill and rail fence; modular arithmetic, RSA and Diffie–Hellman; AES, DES and SHA-256 round by round.' },
   { id: 'record', name: 'Lab Records', short: 'Record', icon: '✎', color: '#fda4af', description: 'Write your practical journal and download it as a PDF with circuit, oscilloscope captures, graphs and programs.' },
   { id: 'learn', name: 'Learning Hub', short: 'Learn', icon: '◫', color: '#facc15', description: 'Experiments, references and progress.' }

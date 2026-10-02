@@ -358,6 +358,14 @@
       "plannedPhase": 6
     },
     {
+      "id": "wsn.lifetime",
+      "surface": "Sensor Networks: seeded deployments, radio connectivity and hop counts, 1- and k-coverage, first-order radio energy model and lifetime of direct, minimum-energy multi-hop and LEACH",
+      "state": "built-in",
+      "evidence": ["packages/wsn/src/index.mjs", "src/app.js#renderWsn", "tests/wsn.test.mjs"],
+      "limitations": "Round-based model with Heinzelman's first-order radio (no MAC collisions, retransmissions, idle listening or sleep scheduling); one packet per node per round, perfect aggregation at cluster heads, unit-disc radio and sensing ranges, coverage estimated on a grid. Results reproduce the published trends (LEACH extends first-node death several times over direct transmission with a distant sink) rather than exact figures.",
+      "plannedPhase": 6
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",
