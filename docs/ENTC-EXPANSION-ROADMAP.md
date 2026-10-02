@@ -43,3 +43,4 @@ verification suite and a push.
 - [x] Phase 4 — built-in Verilog simulator (matches Icarus Verilog), VLSI Lab (CMOS inverter, matches ngspice), RTOS Scheduler
 - [x] Phase 5 — Network Theory (phasor MNA, theorems, two-ports; matches ngspice), Signals & Systems explorer (matches SciPy), EM & Microwave lab (matches scikit-rf), receiver & noise and optical-fibre tabs in Communication
 - [x] Phase 6 — Cellular Planning, Computer Networks (subnetting, routing, ARQ, MAC), Cryptography step by step, Sensor Networks (LEACH lifetime), SDR Flowgraph editor
+- [x] Phase 7 — Image Processing (matches scipy/scikit-image), Biomedical Signals (Pan–Tompkins, HRV, EEG), Neural Networks playground, Math Console

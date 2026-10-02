@@ -720,3 +720,16 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .nn-map .nn-label { fill: #e2e8f0; font: 500 10px DM Mono; }
 .nn-net .nn-node { fill: #1e293b; stroke: #e2e8f0; stroke-width: 1.2; }
 .nn-page tr.active td { color: var(--accent, #38bdf8); }
+.console-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+@media (max-width: 1100px) { .console-layout { grid-template-columns: 1fr; } }
+.console-script { width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: 8px; background: #050b16; color: #e2e8f0; font: 500 13px DM Mono; padding: 10px; line-height: 1.5; resize: vertical; }
+.console-transcript { max-height: 460px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; background: #050b16; padding: 8px 12px; margin: 10px 0; }
+.console-block { border-bottom: 1px dashed #1e293b; padding: 6px 0; }
+.console-transcript pre { margin: 4px 0; font: 500 12px DM Mono; white-space: pre; overflow-x: auto; }
+.console-input { color: #facc15; }
+.console-value { color: #e2e8f0; }
+.console-value b { color: #38bdf8; font-weight: 600; }
+.console-error { color: #f87171; }
+.console-line { display: flex; align-items: center; gap: 8px; font: 600 13px DM Mono; color: #facc15; }
+.console-line input { flex: 1; border: 1px solid var(--line); border-radius: 6px; background: #050b16; color: #e2e8f0; padding: 8px 10px; font: 500 13px DM Mono; }
+.console-vars td { font: 500 11px DM Mono; }

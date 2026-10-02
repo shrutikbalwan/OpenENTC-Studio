@@ -24,6 +24,7 @@ export const modules = [
   { id: 'communication', name: 'Communication', short: 'Comms', icon: '⌁', color: '#22d3ee', description: 'Explore modulation and communication chains.' },
   { id: 'rf', name: 'RF & Antennas', short: 'RF', icon: '⌖', color: '#f97316', description: 'RF calculations, matching and antenna studies.' },
   { id: 'em', name: 'EM & Microwave', short: 'EM', icon: '⌁', color: '#38bdf8', description: 'Charges and Gauss\'s law, plane waves and skin depth, Fresnel and polarisation, waveguide modes, S-parameter networks and amplifier stability.' },
+  { id: 'console', name: 'Math Console', short: 'Console', icon: '≫', color: '#a5b4fc', description: 'A MATLAB-style calculator: complex numbers, matrices, A\\b, polynomials, your own functions and plots, with engineering suffixes like 4.7k and 100n.' },
   { id: 'calc', name: 'Engineering Calculators', short: 'Calc', icon: '⊞', color: '#38bdf8', description: 'Resistor and component codes, 555 timer, op-amps, decibels and circuit formulas.' },
   { id: 'iot', name: 'IoT & Control', short: 'IoT', icon: '◉', color: '#4ade80', description: 'Connect sensors, controllers and data flows.' },
   { id: 'cellular', name: 'Cellular Planning', short: 'Cellular', icon: '⬡', color: '#fb7185', description: 'Erlang-B/C traffic, hexagonal frequency reuse and S/I, Okumura–Hata path loss and cell radius, and handoff with shadowing.' },

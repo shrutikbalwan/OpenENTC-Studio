@@ -398,6 +398,14 @@
       "plannedPhase": 7
     },
     {
+      "id": "console.math",
+      "surface": "Math Console: MATLAB-style scripts and command line with complex scalars, real matrices, A\\b, ranges, user functions, engineering suffixes, maths/linear-algebra/polynomial/circuit functions and plot()",
+      "state": "built-in",
+      "evidence": ["packages/mathconsole/src/index.mjs", "src/app.js#renderConsole", "tests/mathconsole.test.mjs", "tests/fixtures/mathconsole/numpy.json"],
+      "limitations": "Its own interpreter (no eval): no loops, if/else, cell arrays, strings beyond literals, or complex-valued matrices; matrices are dense and meant for small systems. Linear algebra, statistics and polynomial results match NumPy on the test expressions.",
+      "plannedPhase": 7
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",
