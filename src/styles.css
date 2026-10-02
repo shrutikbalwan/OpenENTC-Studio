@@ -510,3 +510,24 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .bench-page .scope-measure .result-value span { font-size: 10px; }
 .bench-page .scope-measure .result-value b { margin: 0; font-size: 11px; }
 .bench-page .tool[aria-pressed="true"] { border-color: #facc15; color: #facc15; }
+
+/* Lab records */
+.record-layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); gap: 22px; align-items: start; }
+@media (max-width: 1050px) { .record-layout { grid-template-columns: 1fr; } }
+.record-page .coding-block { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 14px 16px; margin-bottom: 16px; }
+.record-page .panel-label { font: 500 10px DM Mono; letter-spacing: 1px; color: #fda4af; }
+.record-page label { display: flex; flex-direction: column; gap: 5px; font-size: 11px; color: var(--muted); }
+.record-page input[type="text"], .record-page select, .record-page textarea { border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); padding: 7px 9px; font: 400 12px/1.5 Inter, system-ui, sans-serif; width: 100%; }
+.record-page textarea { resize: vertical; }
+.record-page .dsp-controls { align-items: flex-end; gap: 10px; margin-bottom: 0; }
+.record-page .dsp-controls label { min-width: 220px; }
+.record-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.record-area { margin-top: 4px; }
+.record-check { flex-direction: row !important; gap: 10px !important; align-items: flex-start; padding: 8px 0; border-bottom: 1px dashed color-mix(in srgb, var(--line) 70%, transparent); cursor: pointer; }
+.record-check input { margin-top: 2px; }
+.record-check span { display: flex; flex-direction: column; gap: 2px; }
+.record-check b { color: var(--text); font-size: 12px; font-weight: 600; }
+.record-check small { font-size: 10px; }
+.record-check.unavailable { opacity: 0.55; cursor: default; }
+.record-preview iframe { width: 100%; height: 560px; border: 1px solid var(--line); border-radius: 8px; background: #fff; margin-top: 10px; }
+.record-preview a { font-size: 11px; display: inline-block; margin-top: 6px; color: var(--teal); }

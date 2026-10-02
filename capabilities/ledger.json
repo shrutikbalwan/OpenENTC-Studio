@@ -230,6 +230,14 @@
       "plannedPhase": 5
     },
     {
+      "id": "report.lab-record-pdf",
+      "surface": "Lab Records: practical-journal PDF with circuit, bench captures, simulations and programs",
+      "state": "built-in",
+      "evidence": ["packages/report/src/pdf.mjs", "packages/report/src/record.mjs", "src/app.js#renderRecords", "tests/report.test.mjs"],
+      "limitations": "Uses the 14 standard PDF fonts without embedding (Helvetica, Courier, Symbol), so text is limited to WinAnsi Latin characters plus Greek and common maths symbols from Symbol; other scripts (e.g. Devanagari) print as '?'. No images or circuit-diagram drawing: the circuit is listed as a component table. Output was checked with pypdf in strict mode and rendered with Ghostscript.",
+      "plannedPhase": 5
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",

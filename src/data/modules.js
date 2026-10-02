@@ -15,6 +15,7 @@ export const modules = [
   { id: 'calc', name: 'Engineering Calculators', short: 'Calc', icon: '⊞', color: '#38bdf8', description: 'Resistor and component codes, 555 timer, op-amps, decibels and circuit formulas.' },
   { id: 'iot', name: 'IoT & Control', short: 'IoT', icon: '◉', color: '#4ade80', description: 'Connect sensors, controllers and data flows.' },
   { id: 'network', name: 'Networks', short: 'Network', icon: '⌘', color: '#818cf8', description: 'Build and inspect communication networks.' },
+  { id: 'record', name: 'Lab Records', short: 'Record', icon: '✎', color: '#fda4af', description: 'Write your practical journal and download it as a PDF with circuit, oscilloscope captures, graphs and programs.' },
   { id: 'learn', name: 'Learning Hub', short: 'Learn', icon: '◫', color: '#facc15', description: 'Experiments, references and progress.' }
 ];
 
