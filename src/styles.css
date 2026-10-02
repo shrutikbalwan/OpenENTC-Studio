@@ -560,3 +560,15 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .power-grid .field-help { margin: 6px 0 14px; position: static; }
 .flash-table tr.on td { color: #34d399; }
 .adc-page .analysis-readouts { display: flex; flex-direction: column; gap: 8px; }
+
+/* Built-in Verilog simulator */
+.verilog-layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(320px, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 1000px) { .verilog-layout { grid-template-columns: 1fr; } }
+.verilog-layout textarea { width: 100%; font: 500 12px/1.45 DM Mono, monospace; }
+.verilog-console { min-height: 220px; max-height: 420px; overflow: auto; white-space: pre; }
+.verilog-error { color: #fb7185; }
+.verilog-status { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-top: 10px; }
+.verilog-card label { display: flex; flex-direction: column; gap: 5px; font-size: 11px; color: var(--muted); position: relative; }
+.verilog-card select, .verilog-card input, .verilog-card textarea { border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); padding: 7px 9px; font: 500 12px DM Mono; }
+.verilog-card .dsp-controls { align-items: flex-end; }
+.verilog-card .dsp-controls label > span { position: absolute; right: 9px; bottom: 8px; font: 500 9px DM Mono; color: var(--muted); }

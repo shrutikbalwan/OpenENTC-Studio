@@ -1,0 +1,85 @@
+$date
+	Fri Oct  2 09:18:37 2026
+$end
+$version
+	Icarus Verilog
+$end
+$timescale
+	1s
+$end
+$scope module tb $end
+$var wire 4 ! y [3:0] $end
+$var wire 4 " d [3:0] $end
+$var reg 2 # s [1:0] $end
+$var integer 32 $ i [31:0] $end
+$scope module m $end
+$var wire 4 % d0 [3:0] $end
+$var wire 4 & d1 [3:0] $end
+$var wire 4 ' d2 [3:0] $end
+$var wire 4 ( d3 [3:0] $end
+$var wire 2 ) sel [1:0] $end
+$var wire 4 * y [3:0] $end
+$var wire 4 + lo [3:0] $end
+$var wire 4 , hi [3:0] $end
+$upscope $end
+$scope module q $end
+$var wire 2 - in [1:0] $end
+$var reg 4 . out [3:0] $end
+$upscope $end
+$upscope $end
+$enddefinitions $end
+$comment Show the parameter values. $end
+$dumpall
+$end
+#0
+$dumpvars
+b1 .
+b0 -
+b100 ,
+b1 +
+b1 *
+b0 )
+b1000 (
+b100 '
+b10 &
+b1 %
+b0 $
+b0 #
+b1 "
+b1 !
+$end
+#1
+b10 !
+b10 *
+b10 +
+b1000 ,
+b10 "
+b10 .
+b1 #
+b1 )
+b1 -
+b1 $
+#2
+b1 +
+b100 ,
+b100 !
+b100 *
+b100 "
+b100 .
+b10 #
+b10 )
+b10 -
+b10 $
+#3
+b1000 !
+b1000 *
+b10 +
+b1000 ,
+b1000 "
+b1000 .
+b11 #
+b11 )
+b11 -
+b11 $
+#4
+b100 $

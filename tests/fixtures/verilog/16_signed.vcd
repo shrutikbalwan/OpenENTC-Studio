@@ -1,0 +1,34 @@
+$date
+	Fri Oct  2 09:18:37 2026
+$end
+$version
+	Icarus Verilog
+$end
+$timescale
+	1s
+$end
+$scope module tb $end
+$var wire 9 ! s [8:0] $end
+$var reg 8 " a [7:0] $end
+$var reg 8 # b [7:0] $end
+$var reg 16 $ p [15:0] $end
+$var reg 8 % u [7:0] $end
+$upscope $end
+$enddefinitions $end
+$comment Show the parameter values. $end
+$dumpall
+$end
+#0
+$dumpvars
+bx %
+bx $
+b110010 #
+b10011100 "
+b111001110 !
+$end
+#1
+b11111101 #
+b11110000 %
+b101111101 !
+b10000000 "
+b1110110001111000 $

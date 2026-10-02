@@ -1,0 +1,9 @@
+op=000 a=c8 b=64 y=2c carry=1 zero=0
+op=001 a=c8 b=64 y=64 carry=0 zero=0
+op=010 a=c8 b=64 y=40 carry=0 zero=0
+op=011 a=c8 b=64 y=ec carry=0 zero=0
+op=100 a=c8 b=64 y=ac carry=0 zero=0
+op=101 a=c8 b=64 y=37 carry=0 zero=0
+op=110 a=c8 b=64 y=90 carry=0 zero=0
+op=111 a=c8 b=64 y=64 carry=0 zero=0
+sub equal: y=00 zero=1 carry=0

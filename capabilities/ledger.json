@@ -278,6 +278,14 @@
       "plannedPhase": 5
     },
     {
+      "id": "hdl.builtin-verilog-simulator",
+      "surface": "FPGA & Digital: built-in Verilog simulator with console and waveforms",
+      "state": "built-in",
+      "evidence": ["packages/verilog/src/parser.mjs", "packages/verilog/src/simulator.mjs", "packages/verilog/src/values.mjs", "src/app.js#renderVerilogSimulator", "tests/verilog.test.mjs", "tests/fixtures/verilog/REFERENCE.txt"],
+      "limitations": "A Verilog-2001 subset for teaching: no SystemVerilog, generate blocks, gate primitives, UDPs, inout/tri-state resolution of multiple drivers, real numbers, $readmemh/file I/O, specify blocks or `define macros (compiler directives are ignored). One time unit = 1 ns regardless of `timescale. $display output and all waveforms match Icarus Verilog 12 on 21 test designs, including its time-zero ordering.",
+      "plannedPhase": 5
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",

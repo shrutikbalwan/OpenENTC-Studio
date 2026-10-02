@@ -1,0 +1,198 @@
+$date
+	Fri Oct  2 09:18:37 2026
+$end
+$version
+	Icarus Verilog
+$end
+$timescale
+	1s
+$end
+$scope module tb $end
+$var wire 3 ! ns [2:0] $end
+$var wire 3 " ew [2:0] $end
+$var reg 1 # clk $end
+$var reg 1 $ rst $end
+$scope module t $end
+$var wire 1 # clk $end
+$var wire 1 $ rst $end
+$var parameter 3 % GREEN $end
+$var parameter 3 & RED $end
+$var parameter 3 ' YELLOW $end
+$var reg 3 ( ew [2:0] $end
+$var reg 3 ) ns [2:0] $end
+$var reg 2 * state [1:0] $end
+$var reg 4 + timer [3:0] $end
+$upscope $end
+$upscope $end
+$enddefinitions $end
+$comment Show the parameter values. $end
+$dumpall
+b10 '
+b100 &
+b1 %
+$end
+#0
+$dumpvars
+bx +
+bx *
+bx )
+bx (
+1$
+0#
+bx "
+bx !
+$end
+#5
+b100 "
+b100 (
+b1 !
+b1 )
+b0 +
+b0 *
+1#
+#10
+0#
+#12
+0$
+#15
+b1 +
+1#
+#20
+0#
+#25
+b10 +
+1#
+#30
+0#
+#35
+b11 +
+1#
+#40
+0#
+#45
+b100 +
+1#
+#50
+0#
+#55
+b101 +
+1#
+#60
+0#
+#65
+b110 +
+1#
+#70
+0#
+#75
+b111 +
+1#
+#80
+0#
+#85
+b10 !
+b10 )
+b0 +
+b1 *
+1#
+#90
+0#
+#95
+b1 +
+1#
+#100
+0#
+#105
+b10 +
+1#
+#110
+0#
+#115
+b1 "
+b1 (
+b100 !
+b100 )
+b0 +
+b10 *
+1#
+#120
+0#
+#125
+b1 +
+1#
+#130
+0#
+#135
+b10 +
+1#
+#140
+0#
+#145
+b11 +
+1#
+#150
+0#
+#155
+b100 +
+1#
+#160
+0#
+#165
+b101 +
+1#
+#170
+0#
+#175
+b110 +
+1#
+#180
+0#
+#185
+b111 +
+1#
+#190
+0#
+#195
+b10 "
+b10 (
+b0 +
+b11 *
+1#
+#200
+0#
+#205
+b1 +
+1#
+#210
+0#
+#215
+b10 +
+1#
+#220
+0#
+#225
+b100 "
+b100 (
+b1 !
+b1 )
+b0 +
+b0 *
+1#
+#230
+0#
+#235
+b1 +
+1#
+#240
+0#
+#245
+b10 +
+1#
+#250
+0#
+#255
+b11 +
+1#
+#260
+0#
+#262

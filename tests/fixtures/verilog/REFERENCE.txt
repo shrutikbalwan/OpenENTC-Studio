@@ -1,0 +1,2 @@
+Icarus Verilog version 12.0 (stable) ()
+Expected outputs (.out) and waveforms (.vcd) were produced by the above with: iverilog -o a.out X.v && vvp -n a.out (the .vcd runs add $dumpvars(0, tb)).
