@@ -5,6 +5,7 @@ import { createPackagedProjectExport, importProjectFile } from './core/project-f
 import { getState, setState, updateProject, recordExperiment, subscribe, notify, replaceProject, synchronizeOpenProject, undoProject, redoProject, canUndoProject, canRedoProject, recordLearningAttempt, saveProject } from './core/store.js';
 import { simulateDC, simulateTransient, simulateAC, sampleWaveform } from './engines/circuit-engine.js';
 import { exampleCircuits } from './data/example-circuits.js';
+import { circuitNodes, createCoSimulation } from './engines/cosim.js';
 import { circuitTraces, decimate, niceRange, decadeTicks, linePath, stepMetrics, waveformMetrics, bodeMetrics, circuitResultCsv } from './core/circuit-plot.js';
 import { checkElectricalRules, locateElectricalRuleDiagnostic } from '../packages/schematic/src/erc.mjs';
 import { normalizeNode } from '../packages/schematic/src/index.mjs';
@@ -2500,12 +2501,19 @@ function unoExample(config) { return AVR_EXAMPLES.find((entry) => entry.id === c
 function unoEnsure(config) {
   const example = unoExample(config);
   const hex = unoRuntime.hex?.text || example.hex;
-  const key = JSON.stringify([hex.length, unoRuntime.hex?.name, example.id, config.avrBoard]);
+  const cosim = cosimConfiguration(config);
+  const circuit = getState().project.circuit;
+  const key = JSON.stringify([hex.length, unoRuntime.hex?.name, example.id, config.avrBoard, cosim.enabled ? [cosim.connections, cosim.probes, cosim.maxStep, circuit.components, circuit.wires, circuit.netLabels] : null]);
   if (unoRuntime.key === key && unoRuntime.board) return;
   unoStop();
   unoRuntime.key = key;
   unoRuntime.terminal = '';
   unoRuntime.board = new UnoBoard(hex, config.avrBoard || example.board);
+  unoRuntime.cosim = null; unoRuntime.cosimError = null;
+  if (cosim.enabled) {
+    try { unoRuntime.cosim = createCoSimulation(unoRuntime.board, { components: circuit.components, wires: circuit.wires, netLabels: circuit.netLabels, connections: cosim.connections, probes: cosim.probes, maxStep: cosim.maxStep, historyLimit: 40_000 }); }
+    catch (error) { unoRuntime.cosimError = error.message; }
+  }
 }
 
 function unoStop() { unoRuntime.running = false; if (unoRuntime.frame) cancelAnimationFrame(unoRuntime.frame); unoRuntime.frame = 0; }
@@ -2525,7 +2533,11 @@ function unoStart() {
     const target = config.avrSpeed === 'max' ? Infinity : board.cpu.clock * Number(config.avrSpeed || 1) * elapsed;
     // Run in slices but never spend more than ~14 ms of a frame simulating.
     const started = performance.now(), cyclesBefore = board.cpu.cycles;
-    while (board.cpu.cycles - cyclesBefore < target && performance.now() - started < 14 && !board.cpu.halted) board.cpu.run(Math.min(20_000, Math.max(1, target - (board.cpu.cycles - cyclesBefore))));
+    const cosim = unoRuntime.cosim;
+    while (board.cpu.cycles - cyclesBefore < target && performance.now() - started < 14 && !board.cpu.halted) {
+      const chunk = Math.min(20_000, Math.max(1, target - (board.cpu.cycles - cyclesBefore)));
+      if (cosim) cosim.advance(chunk / board.cpu.clock); else board.cpu.run(chunk);
+    }
     const ran = board.cpu.cycles - cyclesBefore;
     unoRuntime.speedHistory.push(elapsed ? ran / board.cpu.clock / elapsed : 0);
     if (unoRuntime.speedHistory.length > 30) unoRuntime.speedHistory.shift();
@@ -2571,6 +2583,97 @@ function unoCpuHtml() {
     <p class="mcu-status">${cpu.instructions.toLocaleString()} instructions · ${cpu.cycles.toLocaleString()} cycles · ${eng(cpu.cycles / cpu.clock, 's')} simulated${unoRuntime.running ? ` · running at ${Math.round(speed * 100)} % of real time` : ''} · UART ${Math.round(unoRuntime.board.mcu.usart.baud())} baud</p>`;
 }
 
+// Arduino + circuit co-simulation panel.
+const cosimPart = (id, type, value, unit, n1, n2, x, y, rotation = 0) => ({ id, type, label: id, value, unit, n1, n2, x, y, rotation });
+const COSIM_EXAMPLES = Object.freeze([
+  { id: 'pwm-dac', name: 'PWM DAC: D9 → RC filter → A0', sketch: 'pwm_dac', maxStep: 50e-6, window: 0.01, connections: [{ pin: 'D9', node: 'pwm' }, { pin: 'A0', node: 'out' }], probes: [],
+    components: [cosimPart('R1', 'resistor', 10_000, 'Ω', 'pwm', 'out', 300, 120), cosimPart('C1', 'capacitor', 10e-6, 'F', 'out', '0', 460, 200), cosimPart('GND', 'ground', 0, 'V', '0', '0', 460, 300)] },
+  { id: 'rc-timer', name: 'RC time constant: D8 charges C, A0 times it', sketch: 'rc_timer', maxStep: 50e-6, window: 0.5, connections: [{ pin: 'D8', node: 'drive' }, { pin: 'A0', node: 'cap' }], probes: [],
+    components: [cosimPart('R1', 'resistor', 10_000, 'Ω', 'drive', 'cap', 300, 120), cosimPart('C1', 'capacitor', 10e-6, 'F', 'cap', '0', 460, 200), cosimPart('GND', 'ground', 0, 'V', '0', '0', 460, 300)] },
+  { id: 'divider', name: 'Voltage divider into A0 (analogRead)', sketch: 'analog_read', maxStep: 200e-6, window: 0.05, connections: [{ pin: 'A0', node: 'a0' }], probes: ['vcc'],
+    components: [cosimPart('V1', 'voltage', 5, 'V', 'vcc', '0', 120, 200), cosimPart('R1', 'resistor', 10_000, 'Ω', 'vcc', 'a0', 300, 120), cosimPart('R2', 'resistor', 4700, 'Ω', 'a0', '0', 460, 200), cosimPart('GND', 'ground', 0, 'V', '0', '0', 300, 300)] },
+  { id: 'transistor-led', name: 'Transistor switch: D13 → NPN drives an LED', sketch: 'blink', maxStep: 200e-6, window: 2, connections: [{ pin: 'D13', node: 'd13' }], probes: ['b', 'c'],
+    components: [cosimPart('V1', 'voltage', 5, 'V', 'vcc', '0', 120, 200), cosimPart('RL', 'resistor', 220, 'Ω', 'vcc', 'a', 300, 80), cosimPart('D1', 'led', 2, 'Vf', 'a', 'c', 460, 80), { id: 'Q1', type: 'npn', label: 'Q1', value: 100, unit: 'β', n1: 'c', n2: 'b', n3: '0', x: 600, y: 200, rotation: 0 }, cosimPart('RB', 'resistor', 1000, 'Ω', 'd13', 'b', 460, 260), cosimPart('GND', 'ground', 0, 'V', '0', '0', 600, 320)] },
+]);
+const COSIM_STEPS = [[10e-6, '10 µs'], [20e-6, '20 µs'], [50e-6, '50 µs'], [100e-6, '100 µs'], [200e-6, '200 µs']];
+const COSIM_WINDOWS = [[0.005, '5 ms'], [0.01, '10 ms'], [0.05, '50 ms'], [0.2, '200 ms'], [0.5, '500 ms'], [2, '2 s']];
+const COSIM_DEFAULTS = Object.freeze({ enabled: false, connections: [{ pin: 'D9', node: '' }], probes: [], maxStep: 50e-6, window: 0.01 });
+
+function cosimConfiguration(config) { return { ...structuredClone(COSIM_DEFAULTS), ...(config.avrCosim || {}) }; }
+function persistCosim(patch) { const config = mcuConfiguration(getState()); persistMcu({ avrCosim: { ...cosimConfiguration(config), ...patch } }); }
+
+function loadCosimExample(id) {
+  const example = COSIM_EXAMPLES.find((entry) => entry.id === id);
+  const sketch = AVR_EXAMPLES.find((entry) => entry.id === example?.sketch);
+  if (!example || !sketch) return;
+  updateProject((project) => { project.circuit.components = structuredClone(example.components); project.circuit.wires = []; project.circuit.junctions = []; project.circuit.netLabels = []; });
+  unoRuntime.hex = null;
+  persistMcu({ avrExampleId: sketch.id, avrBoard: structuredClone(sketch.board), avrCosim: { enabled: true, connections: structuredClone(example.connections), probes: [...example.probes], maxStep: example.maxStep, window: example.window } });
+  notify(`${example.name}: circuit loaded into Circuit Lab. Press Run.`, 'success');
+}
+
+function cosimPlotHtml() {
+  const cosim = unoRuntime.cosim;
+  if (!cosim) return '';
+  const config = cosimConfiguration(mcuConfiguration(getState()));
+  const { time, nodes } = cosim.history;
+  if (time.length < 2) return '<p class="field-help">Press Run to start both simulators.</p>';
+  const end = time.at(-1), start = Math.max(0, end - config.window);
+  let first = time.length - 1;
+  while (first > 0 && time[first - 1] >= start) first -= 1;
+  const xs = time.slice(first);
+  const series = Object.entries(nodes).map(([node, values], index) => ({ ...decimate(xs, values.slice(first)), color: PLOT_COLORS[index % PLOT_COLORS.length], primary: index === 0, node }));
+  const all = series.flatMap((entry) => entry.ys);
+  const range = niceRange(Math.min(0, ...all), Math.max(5, ...all));
+  const span = Math.max(config.window, end - start);
+  const xTicks = Array.from({ length: 6 }, (_, k) => ({ position: k / 5, text: eng(start + span * k / 5, 's') }));
+  return `${renderPlotFrame({ title: 'Circuit node voltages', series, xMin: start, xMax: start + span, xTicks, yRange: range, formatY: (value) => eng(value, 'V') })}<div class="plot-legend">${series.map((entry) => `<span class="legend-chip" style="--chip:${entry.color}">V(${esc(entry.node)})</span>`).join('')}</div>`;
+}
+
+function cosimReadoutHtml() {
+  const cosim = unoRuntime.cosim;
+  if (!cosim) return '';
+  const D = unoRuntime.board.cpu.data;
+  return cosim.pins.map((pin) => {
+    const output = (D[pin.port.ddr] >> pin.bit) & 1, pull = (D[pin.port.port] >> pin.bit) & 1;
+    const mode = output ? `OUTPUT ${(pin.port.levels() >> pin.bit) & 1 ? 'HIGH' : 'LOW'}${pin.port.override[pin.bit] !== null ? ' (PWM)' : ''}` : pull ? 'INPUT_PULLUP' : 'INPUT';
+    return readout(`${pin.label} ↔ ${pin.node} · ${mode}`, eng(Math.abs(pin.volts ?? 0) < 1e-4 ? 0 : pin.volts, 'V'));
+  }).join('');
+}
+
+function renderCosimPanel(config) {
+  const cosim = cosimConfiguration(config);
+  const { components, wires, netLabels } = getState().project.circuit;
+  let nodes = [];
+  try { nodes = circuitNodes(components, wires, netLabels); } catch { nodes = []; }
+  const nodeOptions = [['', '— not connected —'], ...nodes.map((node) => [node, node === '0' ? '0 (ground)' : node])];
+  const rows = cosim.connections.map((connection, index) => `<div class="cosim-row">${labSelect('data-cosim-pin', index, 'Arduino pin', connection.pin, PIN_LABELS.map((label) => [label, label]))}${labSelect('data-cosim-node', index, 'Circuit node', connection.node, nodeOptions)}<button class="tool" data-cosim-remove="${index}" aria-label="Remove connection">Remove</button></div>`).join('');
+  const probes = nodes.filter((node) => node !== '0').map((node) => `<label class="check-label"><input type="checkbox" data-cosim-probe="${esc(node)}" ${cosim.probes.includes(node) ? 'checked' : ''}> ${esc(node)}</label>`).join('');
+  return `<div class="dsp-card cosim-card"><span class="panel-label">CIRCUIT CO-SIMULATION · ARDUINO PINS ↔ CIRCUIT LAB</span>
+    <div class="dsp-controls"><label class="check-label"><input type="checkbox" data-cosim-enabled ${cosim.enabled ? 'checked' : ''}> Connect the board to the Circuit Lab circuit</label>
+      <label>Ready experiment<select data-cosim-example><option value="">Choose…</option>${COSIM_EXAMPLES.map((example) => `<option value="${example.id}">${esc(example.name)}</option>`).join('')}</select></label>
+      ${labSelect('data-cosim-field', 'maxStep', 'Circuit time step', cosim.maxStep, COSIM_STEPS)}${labSelect('data-cosim-field', 'window', 'Plot window', cosim.window, COSIM_WINDOWS)}<button class="button ghost" data-module="circuit">Edit circuit</button></div>
+    ${cosim.enabled ? `${unoRuntime.cosimError ? `<div class="diagnostic error"><b>Co-simulation</b><span>${esc(unoRuntime.cosimError)}</span></div>` : ''}
+    <div class="cosim-layout"><div><span class="panel-label">CONNECTIONS</span>${rows}<button class="tool" data-action="cosim-add">+ Connect another pin</button>${probes ? `<div class="cosim-probes"><span class="panel-label">ALSO PLOT</span>${probes}</div>` : ''}<div class="cosim-readout" data-uno-cosim-readout></div></div>
+    <div data-uno-cosim-plot></div></div>
+    <p class="field-help">The CPU runs until a connected pin changes, then the circuit solver catches up to that instant, so PWM and digital edges reach the circuit at their exact time. Outputs drive through 25 Ω, INPUT_PULLUP is 35 kΩ to 5 V, and inputs switch at 1.5 V / 3.0 V (Schmitt trigger). Analog pins feed the ADC.</p>` : '<p class="field-help">Wire Arduino pins to nodes of the Circuit Lab circuit (for example a PWM pin into an RC filter read back on A0) and run both simulators together.</p>'}</div>`;
+}
+
+function bindCosimEvents() {
+  const root = document.querySelector('[data-uno-root]');
+  if (!root) return;
+  const config = () => cosimConfiguration(mcuConfiguration(getState()));
+  root.querySelector('[data-cosim-enabled]')?.addEventListener('change', (event) => persistCosim({ enabled: event.target.checked }));
+  root.querySelector('[data-cosim-example]')?.addEventListener('change', (event) => { if (event.target.value) loadCosimExample(event.target.value); });
+  root.querySelectorAll('[data-cosim-field]').forEach((select) => select.addEventListener('change', () => persistCosim({ [select.dataset.cosimField]: Number(select.value) })));
+  const editConnection = (index, patch) => { const connections = config().connections.map((entry, k) => (k === index ? { ...entry, ...patch } : entry)); persistCosim({ connections }); };
+  root.querySelectorAll('[data-cosim-pin]').forEach((select) => select.addEventListener('change', () => editConnection(Number(select.dataset.cosimPin), { pin: select.value })));
+  root.querySelectorAll('[data-cosim-node]').forEach((select) => select.addEventListener('change', () => editConnection(Number(select.dataset.cosimNode), { node: select.value })));
+  root.querySelectorAll('[data-cosim-remove]').forEach((button) => button.addEventListener('click', () => persistCosim({ connections: config().connections.filter((_, k) => k !== Number(button.dataset.cosimRemove)) })));
+  root.querySelector('[data-action="cosim-add"]')?.addEventListener('click', () => { const used = new Set(config().connections.map((entry) => entry.pin)); persistCosim({ connections: [...config().connections, { pin: PIN_LABELS.find((label) => !used.has(label)) ?? 'D2', node: '' }] }); });
+  root.querySelectorAll('[data-cosim-probe]').forEach((input) => input.addEventListener('change', () => { const probes = new Set(config().probes); if (input.checked) probes.add(input.dataset.cosimProbe); else probes.delete(input.dataset.cosimProbe); persistCosim({ probes: [...probes] }); }));
+}
+
 function paintUno() {
   const root = document.querySelector('[data-uno-root]');
   if (!root || !unoRuntime.board) return;
@@ -2582,6 +2685,11 @@ function paintUno() {
   const run = root.querySelector('[data-action="uno-run"]');
   if (run) run.textContent = unoRuntime.running ? 'Pause' : 'Run';
   paintAnalyzer('uno', !unoRuntime.running);
+  if (unoRuntime.cosim) {
+    set('[data-uno-cosim-readout]', cosimReadoutHtml());
+    const now = performance.now();
+    if (!unoRuntime.running || now - (unoRuntime.cosimPainted || 0) > 150) { unoRuntime.cosimPainted = now; set('[data-uno-cosim-plot]', cosimPlotHtml()); }
+  }
 }
 
 function renderUnoTab(config) {
@@ -2615,8 +2723,9 @@ function renderUnoTab(config) {
       </section>
       <section class="mcu-right"><div class="dsp-card"><span class="panel-label">ATMEGA328P · 16 MHz</span><div data-uno-cpu></div></div></section>
     </div>
+    ${renderCosimPanel(config)}
     ${renderAnalyzerPanel('uno')}
-    <p class="module-footnote">Instruction-level ATmega328P model (timers, PWM, USART, ADC, external and pin-change interrupts, EEPROM, SPI); register results and cycle counts match simavr on 190 test programs and interrupt timing follows the datasheet. I²C has no devices attached.</p></div>`;
+    <p class="module-footnote">Instruction-level ATmega328P model (timers with PWM on the OCnx pins, USART, ADC, external and pin-change interrupts, EEPROM, SPI, TWI with an I²C LCD backpack and DS1307 RTC); register results and cycle counts match simavr on 190 test programs, and interrupt and PWM timing follow the datasheet.</p></div>`;
 }
 
 function bindUnoEvents() {
@@ -2625,7 +2734,8 @@ function bindUnoEvents() {
   bindAnalyzerEvents('uno');
   paintUno();
   root.querySelector('[data-action="uno-run"]')?.addEventListener('click', () => { if (unoRuntime.running) { unoStop(); paintUno(); } else unoStart(); });
-  root.querySelector('[data-action="uno-reset"]')?.addEventListener('click', () => { unoStop(); unoRuntime.board.reset(); unoRuntime.terminal = ''; paintUno(); });
+  root.querySelector('[data-action="uno-reset"]')?.addEventListener('click', () => { unoStop(); if (unoRuntime.cosim) { unoRuntime.key = null; render(); return; } unoRuntime.board.reset(); unoRuntime.terminal = ''; paintUno(); });
+  bindCosimEvents();
   root.querySelector('[data-uno-file]')?.addEventListener('change', async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;

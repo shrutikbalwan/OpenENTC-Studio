@@ -210,7 +210,7 @@
       "surface": "Microcontroller Lab: Arduino Uno (ATmega328P) simulator",
       "state": "built-in",
       "evidence": ["packages/mcu/src/avr/cpu.mjs", "packages/mcu/src/avr/peripherals.mjs", "packages/mcu/src/avr/board.mjs", "packages/mcu/src/avr/examples.mjs", "scripts/build-avr-examples.mjs", "tests/mcu-avr.test.mjs"],
-      "limitations": "Runs compiled Intel HEX only (sketches are compiled in the Arduino IDE/CLI, not in the browser). Instruction results and cycle counts match simavr; interrupt entry follows the datasheet. Timer input capture, watchdog reset, analog comparator, sleep-mode power behaviour and self-programming are not modelled; SPI slaves other than a 74HC595 read 0xFF; the I²C bus models a PCF8574 LCD backpack and a DS1307 RTC only. Browser speed is roughly half of real time.",
+      "limitations": "Runs compiled Intel HEX only (sketches are compiled in the Arduino IDE/CLI, not in the browser). Instruction results and cycle counts match simavr; interrupt entry follows the datasheet. Timer output-compare pins (PWM, CTC toggle) drive D3/D5/D6/D9/D10/D11 with datasheet timing. Timer input capture, watchdog reset, analog comparator, sleep-mode power behaviour and self-programming are not modelled; SPI slaves other than a 74HC595 read 0xFF; the I²C bus models a PCF8574 LCD backpack and a DS1307 RTC only. Browser speed is roughly half of real time.",
       "plannedPhase": 5
     },
     {
@@ -235,6 +235,14 @@
       "state": "built-in",
       "evidence": ["packages/report/src/pdf.mjs", "packages/report/src/record.mjs", "src/app.js#renderRecords", "tests/report.test.mjs"],
       "limitations": "Uses the 14 standard PDF fonts without embedding (Helvetica, Courier, Symbol), so text is limited to WinAnsi Latin characters plus Greek and common maths symbols from Symbol; other scripts (e.g. Devanagari) print as '?'. No images or circuit-diagram drawing: the circuit is listed as a component table. Output was checked with pypdf in strict mode and rendered with Ghostscript.",
+      "plannedPhase": 5
+    },
+    {
+      "id": "mcu.circuit-cosimulation",
+      "surface": "Microcontroller Lab: Arduino Uno co-simulated with the Circuit Lab circuit",
+      "state": "built-in",
+      "evidence": ["src/engines/cosim.js", "src/engines/circuit-engine.js#createTransientSession", "src/app.js#renderCosimPanel", "tests/cosim.test.mjs", "tests/mcu-avr.test.mjs", "tests/circuit.test.mjs"],
+      "limitations": "Arduino Uno only (not the 8051). Pins are modelled as a 25 Ω driver, a 35 kΩ pull-up or a 1 GΩ input with fixed 1.5 V / 3.0 V Schmitt thresholds; there is no supply-rail loading, clamp diodes or pin current limit. The circuit is advanced at every connected-pin edge and at least every chosen time step (10–200 µs), so circuit dynamics faster than that step are smoothed. Combined speed is roughly 0.4–0.5× real time in a browser.",
       "plannedPhase": 5
     },
     {

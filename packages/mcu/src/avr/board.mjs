@@ -5,9 +5,9 @@ import { Ds1307, Pcf8574, createAtmega328p } from './peripherals.mjs';
 import { Hd44780, parseIntelHex } from '../i8051/peripherals.mjs';
 import { Recorder } from '../analyzer.mjs';
 
-/** Arduino pin number (0–19, or 'A0'–'A5') → { port, bit }. */
+/** Arduino pin number (0–19, 'D0'–'D13' or 'A0'–'A5') → { port, bit }. */
 export function unoPin(pin) {
-  const number = typeof pin === 'string' && /^A[0-5]$/i.test(pin) ? 14 + Number(pin.slice(1)) : Number(pin);
+  const number = typeof pin === 'string' && /^A[0-5]$/i.test(pin) ? 14 + Number(pin.slice(1)) : typeof pin === 'string' && /^D\d{1,2}$/i.test(pin) ? Number(pin.slice(1)) : Number(pin);
   if (!Number.isInteger(number) || number < 0 || number > 19) throw new RangeError(`Arduino pin must be 0–13 or A0–A5, not "${pin}".`);
   if (number < 8) return { port: 'D', bit: number, number };
   if (number < 14) return { port: 'B', bit: number - 8, number };

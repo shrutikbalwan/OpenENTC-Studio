@@ -85,8 +85,8 @@ export declare class AvrCpu {
   step(): number;
   run(maxCycles: number, breakpoints?: Set<number>): { reason: 'breakpoint' | 'halted' | 'cycles'; pc: number };
 }
-export declare class GpioPort { name: string; pin: number; ddr: number; port: number; drive: (number | null)[]; listeners: ((port: GpioPort) => void)[]; levels(): number; setDrive(bit: number, level: number | null): void; changed(): void }
-export declare class Timer { name: string; bits: number; counter: number; ocrA: number; ocrB: number; duty(channel: 'A' | 'B'): number | null }
+export declare class GpioPort { name: string; pin: number; ddr: number; port: number; drive: (number | null)[]; override: (number | null)[]; listeners: ((port: GpioPort) => void)[]; levels(): number; setDrive(bit: number, level: number | null): void; changed(): void }
+export declare class Timer { name: string; bits: number; counter: number; ocrA: number; ocrB: number; outputPins?: { A: [GpioPort, number]; B: [GpioPort, number] }; duty(channel: 'A' | 'B'): number | null; updateOutputs(matchA: boolean, matchB: boolean): void }
 export interface UsartFrameEvent { enable?: boolean; value?: number; startCycle: number; baud?: number; dataBits?: number; parity?: 'none' | 'even' | 'odd'; stopBits?: number }
 export declare class Usart { output: number[]; input: number[]; listeners: ((event: UsartFrameEvent) => void)[]; receive(bytes: ArrayLike<number>): void; baud(): number; frameFormat(): { dataBits: number; parity: 'none' | 'even' | 'odd'; stopBits: number } }
 export declare class Adc { inputs: number[]; aref: number; vcc: number }

@@ -52,6 +52,8 @@ const META = {
   i2c_lcd: { name: 'I²C LCD (PCF8574 backpack, Wire)', board: { leds: [], buttons: [], pots: [], lcd: null, i2cLcd: { address: 0x27 } } },
   rtc_clock: { name: 'DS1307 real-time clock (Wire)', board: { leds: [], buttons: [], pots: [], lcd: null, rtc: true } },
   shift_register: { name: '74HC595 shift register (SPI)', board: { leds: [], buttons: [], pots: [], lcd: null, shift595: { latch: 10 } } },
+  pwm_dac: { name: 'PWM DAC with RC filter (co-simulation)', board: { leds: [], buttons: [], pots: [], lcd: null } },
+  rc_timer: { name: 'RC time-constant meter (co-simulation)', board: { leds: [], buttons: [], pots: [], lcd: null } },
 };
 
 const examples = [];

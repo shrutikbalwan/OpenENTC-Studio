@@ -498,6 +498,73 @@ export function stimulusWaveform(stimulus = {}, nominal = 0) {
   return (time) => { const f = (time * frequency) % 1; const u = f < 0 ? f + 1 : f; return offset + amplitude * (2 * u - 1); };
 }
 
+/** Reactive-element history at the start of a transient run (DC operating point `x`). */
+function initialTransientState(circuit, x) {
+  const capacitors = new Map(circuit.parts.filter((part) => part.type === 'capacitor').map((part) => { const [a, b] = circuit.terminals.get(part.id); return [part.id, { voltage: voltageAcross(x, a, b), current: 0 }]; }));
+  const inductors = new Map(circuit.parts.filter((part) => part.type === 'inductor').map((part) => [part.id, { current: x[circuit.branchIndex.get(part.id)], voltage: 0 }]));
+  const charges = new Map([...circuit.devices].filter(([, device]) => device.reactive).map(([id, device]) => [id, device.reactive(device.initial(x, false)).map((branch) => ({ q: branch.q, i: 0 }))]));
+  return { x, capacitors, inductors, charges };
+}
+
+/** Advance the solution by `dt` with backward Euler or trapezoidal integration; updates `state` in place. */
+function advanceTransient(circuit, state, dt, method, sourceValue) {
+  const { capacitors, inductors, charges } = state;
+  const step = { h: dt, method, capacitors, inductors, charges };
+  const x = solveNonlinear(circuit, { guess: state.x, sourceValue, step });
+  state.x = x;
+  const deviceCurrents = new Map();
+  for (const [id, history] of charges) {
+    const { next, extra } = advanceCharges(circuit.devices.get(id), x, step, history);
+    charges.set(id, next);
+    deviceCurrents.set(id, extra);
+  }
+  const capacitorCurrents = new Map();
+  for (const part of circuit.parts) {
+    if (part.type !== 'capacitor' && part.type !== 'inductor') continue;
+    const [a, b] = circuit.terminals.get(part.id);
+    const voltage = voltageAcross(x, a, b);
+    if (part.type === 'capacitor') {
+      const previous = capacitors.get(part.id);
+      const conductance = method === 'euler' ? Number(part.value) / dt : 2 * Number(part.value) / dt;
+      const current = method === 'euler' ? conductance * (voltage - previous.voltage) : conductance * (voltage - previous.voltage) - previous.current;
+      capacitors.set(part.id, { voltage, current });
+      capacitorCurrents.set(part.id, current);
+    } else if (part.type === 'inductor') inductors.set(part.id, { current: x[circuit.branchIndex.get(part.id)], voltage });
+  }
+  return { capacitorCurrents, deviceCurrents };
+}
+
+/**
+ * Transient analysis advanced one step at a time, for co-simulation with a microcontroller:
+ * starts from the DC operating point; source and resistor values may change between steps
+ * (the two steps after a change use backward Euler, like a SPICE breakpoint).
+ */
+export function createTransientSession(components, wires = [], netLabels = []) {
+  const circuit = buildCircuit(components.map((part) => ({ ...part })), wires, netLabels);
+  const byId = new Map(circuit.parts.map((part) => [part.id, part]));
+  const sourceValue = (part) => Number(part.value);
+  const state = initialTransientState(circuit, operatingPoint(circuit, sourceValue));
+  const lookup = new Map(circuit.nodeNames.map((name, index) => [name, index]));
+  let time = 0, eulerSteps = 2;
+  return {
+    get time() { return time; },
+    nodeNames: ['0', ...visibleNodes(circuit).map(([name]) => name)],
+    /** Change a source's or resistor's value before the next step. */
+    setValue(id, value) {
+      const part = byId.get(id);
+      if (!part) throw new Error(`${id} is not part of this circuit.`);
+      if (Number(part.value) !== value) { part.value = value; eulerSteps = 2; }
+    },
+    voltage(node) { const name = circuit.node(node); if (name === '0') return 0; const index = lookup.get(name); return index === undefined ? Number.NaN : state.x[index]; },
+    step(dt) {
+      if (!(dt > 0)) throw new RangeError('Time step must be positive.');
+      advanceTransient(circuit, state, dt, eulerSteps > 0 ? 'euler' : 'trapezoidal', sourceValue);
+      eulerSteps -= 1;
+      time += dt;
+    },
+  };
+}
+
 /**
  * Transient analysis with trapezoidal integration (backward Euler on the first step
  * and after source discontinuities are absorbed by the fixed output grid).
@@ -515,44 +582,28 @@ export function simulateTransient(components, wires = [], netLabels = [], { stop
   const waveform = stimulusWaveform(stimulus, Number(driven.value));
   const sourceAt = (time) => (part) => part.id === driven.id ? waveform(time) : Number(part.value);
 
-  let x = operatingPoint(circuit, sourceAt(0));
-  const capacitors = new Map(circuit.parts.filter((part) => part.type === 'capacitor').map((part) => { const [a, b] = circuit.terminals.get(part.id); return [part.id, { voltage: voltageAcross(x, a, b), current: 0 }]; }));
-  const inductors = new Map(circuit.parts.filter((part) => part.type === 'inductor').map((part) => [part.id, { current: x[circuit.branchIndex.get(part.id)], voltage: 0 }]));
-  const charges = new Map([...circuit.devices].filter(([, device]) => device.reactive).map(([id, device]) => [id, device.reactive(device.initial(x, false)).map((branch) => ({ q: branch.q, i: 0 }))]));
+  const state = initialTransientState(circuit, operatingPoint(circuit, sourceAt(0)));
   const time = [0];
   const visible = visibleNodes(circuit);
-  const nodes = Object.fromEntries(visible.map(([name, index]) => [name, [x[index]]]));
-  const initialCurrents = partCurrents(circuit, x, sourceAt(0));
+  const nodes = Object.fromEntries(visible.map(([name, index]) => [name, [state.x[index]]]));
+  const initialCurrents = partCurrents(circuit, state.x, sourceAt(0));
   const currents = Object.fromEntries(Object.entries(initialCurrents).map(([id, value]) => [id, [value]]));
 
+  // Like a SPICE breakpoint, a jump in the stimulus restarts integration with backward Euler
+  // for two steps; trapezoidal integration straight across an edge rings on stiff nodes.
+  const jumps = ['step', 'pulse', 'square', 'sawtooth'].includes(stimulus.shape ?? 'step');
+  const edge = Math.abs(Number(stimulus.amplitude ?? driven.value)) || 1;
+  let eulerSteps = 2;
   for (let index = 1; index <= steps; index += 1) {
     const t = Math.min(index * h, stop);
     const dt = t - time[time.length - 1];
-    const method = index === 1 ? 'euler' : 'trapezoidal';
-    const step = { h: dt, method, capacitors, inductors, charges };
-    x = solveNonlinear(circuit, { guess: x, sourceValue: sourceAt(t), step });
-    const deviceCurrents = new Map();
-    for (const [id, history] of charges) {
-      const { next, extra } = advanceCharges(circuit.devices.get(id), x, step, history);
-      charges.set(id, next);
-      deviceCurrents.set(id, extra);
-    }
-    const capacitorCurrents = new Map();
-    for (const part of circuit.parts) {
-      if (part.type !== 'capacitor' && part.type !== 'inductor') continue;
-      const [a, b] = circuit.terminals.get(part.id);
-      const voltage = voltageAcross(x, a, b);
-      if (part.type === 'capacitor') {
-        const previous = capacitors.get(part.id);
-        const conductance = method === 'euler' ? Number(part.value) / dt : 2 * Number(part.value) / dt;
-        const current = method === 'euler' ? conductance * (voltage - previous.voltage) : conductance * (voltage - previous.voltage) - previous.current;
-        capacitors.set(part.id, { voltage, current });
-        capacitorCurrents.set(part.id, current);
-      } else if (part.type === 'inductor') inductors.set(part.id, { current: x[circuit.branchIndex.get(part.id)], voltage });
-    }
+    if (jumps && index > 1 && Math.abs(waveform(t) - waveform(time[time.length - 1])) > 0.5 * edge) eulerSteps = 2;
+    const method = eulerSteps > 0 ? 'euler' : 'trapezoidal';
+    eulerSteps -= 1;
+    const { capacitorCurrents, deviceCurrents } = advanceTransient(circuit, state, dt, method, sourceAt(t));
     time.push(t);
-    for (const [name, nodeIndex] of visible) nodes[name].push(x[nodeIndex]);
-    const stepCurrents = partCurrents(circuit, x, sourceAt(t), capacitorCurrents, deviceCurrents);
+    for (const [name, nodeIndex] of visible) nodes[name].push(state.x[nodeIndex]);
+    const stepCurrents = partCurrents(circuit, state.x, sourceAt(t), capacitorCurrents, deviceCurrents);
     for (const [id, value] of Object.entries(stepCurrents)) currents[id].push(value);
   }
   return { kind: 'circuit-transient', time, nodes: { 0: time.map(() => 0), ...nodes }, currents, stimulus: { sourceId: driven.id, shape: stimulus.shape ?? 'step' }, warnings: circuit.warnings };

@@ -1,6 +1,6 @@
-// ATmega328P peripherals: GPIO ports, timers 0/1/2 (all waveform modes, PWM outputs),
-// USART0, ADC, external and pin-change interrupts, EEPROM, SPI master and a TWI master
-// that sees an empty bus (so I²C code reports "no device" instead of hanging).
+// ATmega328P peripherals: GPIO ports, timers 0/1/2 (all waveform modes, PWM on the OCnx pins),
+// USART0, ADC, external and pin-change interrupts, EEPROM, SPI master and a TWI master with
+// simulated I²C devices (an empty address reports "no device" instead of hanging).
 
 const bit = (value, n) => (value >> n) & 1;
 
@@ -9,6 +9,7 @@ export class GpioPort {
   constructor(name, pinAddress) {
     this.name = name; this.pin = pinAddress; this.ddr = pinAddress + 1; this.port = pinAddress + 2;
     this.drive = new Array(8).fill(null); // null = not driven externally
+    this.override = new Array(8).fill(null); // timer output-compare level replacing PORTx on an output pin
     this.listeners = [];
   }
   attach(cpu) {
@@ -24,7 +25,7 @@ export class GpioPort {
     const ddr = this.cpu.data[this.ddr], port = this.cpu.data[this.port];
     let value = 0;
     for (let n = 0; n < 8; n += 1) {
-      const level = bit(ddr, n) ? bit(port, n) : this.drive[n] !== null ? this.drive[n] : bit(port, n);
+      const level = bit(ddr, n) ? (this.override[n] ?? bit(port, n)) : this.drive[n] !== null ? this.drive[n] : bit(port, n);
       value |= level << n;
     }
     return value;
@@ -38,7 +39,11 @@ const PRESCALE_2 = [0, 1, 8, 32, 64, 128, 256, 1024];
 /** Timer/Counter 0, 1 or 2. */
 export class Timer {
   constructor(spec) { Object.assign(this, spec); this.vectors = [spec.vectorCompA, spec.vectorCompB, spec.vectorOvf, spec.vectorCapt].filter(Boolean); }
-  reset() { this.lastDivider = 0; this.phase = 0; this.counter = 0; this.down = false; this.ocrA = 0; this.ocrB = 0; this.icr = 0; this.bufferA = 0; this.bufferB = 0; this.temp = 0; this.elapsed = 0; }
+  reset() {
+    this.lastDivider = 0; this.phase = 0; this.counter = 0; this.down = false; this.ocrA = 0; this.ocrB = 0; this.icr = 0; this.bufferA = 0; this.bufferB = 0; this.temp = 0; this.elapsed = 0;
+    this.ocState = { A: 0, B: 0 }; // the OCnx output-compare registers
+    if (this.outputPins) for (const channel of ['A', 'B']) this.setOutput(channel, null);
+  }
   attach(cpu) {
     this.cpu = cpu; this.reset();
     const D = cpu.data;
@@ -62,6 +67,45 @@ export class Timer {
       pair(this.icrAddress, () => this.icr, (value) => { this.icr = value; });
     }
     cpu.onWrite(this.tifr, (value) => { D[this.tifr] &= ~value; }); // write 1 to clear
+    cpu.onWrite(this.tccra, (value) => { D[this.tccra] = value; this.updateOutputs(false, false); });
+  }
+  /**
+   * Output-compare units: the level the OCnA/OCnB pins carry (null when the compare output is
+   * disconnected and the pin is ordinary GPIO). Fast PWM sets at BOTTOM and clears on match
+   * (high for OCR+1 of TOP+1 counts), phase-correct PWM clears on the up-count match and sets on
+   * the down-count match, and non-PWM modes toggle/clear/set on each compare match.
+   */
+  updateOutputs(matchA, matchB) {
+    if (!this.outputPins) return;
+    const D = this.cpu.data;
+    const pwm = this.isPwm();
+    const { top, dual } = pwm ? this.shape() : { top: 0, dual: false };
+    const ocrIsTop = this.bits === 16 ? [9, 11, 15].includes(this.wgm) : [5, 7].includes(this.wgm);
+    for (const channel of ['A', 'B']) {
+      const com = (D[this.tccra] >> (channel === 'A' ? 6 : 4)) & 3;
+      const match = channel === 'A' ? matchA : matchB;
+      let level = null;
+      if (!com) level = null;
+      else if (!pwm || (com === 1 && channel === 'A' && ocrIsTop)) {
+        if (match) this.ocState[channel] = com === 1 ? this.ocState[channel] ^ 1 : com === 2 ? 0 : 1;
+        level = this.ocState[channel];
+      } else if (com === 1) level = null; // PWM modes: COM = 1 leaves OCnB (and OCnA unless OCRA is TOP) disconnected
+      else {
+        const ocr = channel === 'A' ? this.ocrA : this.ocrB;
+        // Phase correct: the match clears while counting up and sets while counting down, so
+        // state OCR itself is low going up and high coming down; OCR = 0 stays low.
+        const high = ocr >= top ? 1 : dual ? (ocr === 0 ? 0 : Number(this.down ? this.counter <= ocr : this.counter < ocr)) : Number(this.counter <= ocr);
+        level = com === 2 ? high : high ^ 1;
+        this.ocState[channel] = level;
+      }
+      this.setOutput(channel, level);
+    }
+  }
+  setOutput(channel, level) {
+    const [port, n] = this.outputPins[channel];
+    if (port.override[n] === level) return;
+    port.override[n] = level;
+    port.changed();
   }
   get wgm() {
     const D = this.cpu.data;
@@ -122,9 +166,11 @@ export class Timer {
       if (wrapped && tovAt === 'max') tov = true;
     }
     const before = D[this.tifr];
+    const matchA = this.counter === this.ocrA, matchB = this.counter === this.ocrB;
     if (tov) D[this.tifr] |= 1;
-    if (this.counter === this.ocrA) D[this.tifr] |= 2;
-    if (this.counter === this.ocrB) D[this.tifr] |= 4;
+    if (matchA) D[this.tifr] |= 2;
+    if (matchB) D[this.tifr] |= 4;
+    if (D[this.tccra] & 0xf0) this.updateOutputs(matchA, matchB);
     if (D[this.tifr] !== before) this.cpu.irqDirty = true;
   }
   pendingInterrupt() {
@@ -478,6 +524,10 @@ export function createAtmega328p(AvrCpu, options = {}) {
   const timer2 = cpu.attach(new Timer({ name: 'Timer2', bits: 8, timer2: true, tccra: 0xb0, tccrb: 0xb1, tcnt: 0xb2, ocra: 0xb3, ocrb: 0xb4, timsk: 0x70, tifr: 0x37, vectorCompA: 7, vectorCompB: 8, vectorOvf: 9 }));
   const usart = cpu.attach(new Usart());
   const adc = cpu.attach(new Adc());
+  // Output-compare pins: OC0A/B = PD6/PD5, OC1A/B = PB1/PB2, OC2A/B = PB3/PD3.
+  timer0.outputPins = { A: [portD, 6], B: [portD, 5] };
+  timer1.outputPins = { A: [portB, 1], B: [portB, 2] };
+  timer2.outputPins = { A: [portB, 3], B: [portD, 3] };
   const interrupts = cpu.attach(new ExternalInterrupts([portB, portC, portD]));
   const eeprom = cpu.attach(new Eeprom());
   const spi = cpu.attach(new Spi());

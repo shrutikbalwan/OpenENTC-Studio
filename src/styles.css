@@ -531,3 +531,17 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .record-check.unavailable { opacity: 0.55; cursor: default; }
 .record-preview iframe { width: 100%; height: 560px; border: 1px solid var(--line); border-radius: 8px; background: #fff; margin-top: 10px; }
 .record-preview a { font-size: 11px; display: inline-block; margin-top: 6px; color: var(--teal); }
+
+/* Arduino + circuit co-simulation */
+.cosim-card { margin-top: 16px; }
+.cosim-layout { display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 980px) { .cosim-layout { grid-template-columns: 1fr; } }
+.cosim-row { display: flex; gap: 8px; align-items: flex-end; margin: 6px 0; }
+.cosim-row label { flex: 1; }
+.cosim-probes { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; align-items: center; }
+.cosim-probes .panel-label { width: 100%; }
+.cosim-readout { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.cosim-readout .result-value { flex-direction: row; justify-content: space-between; align-items: baseline; }
+.cosim-card .check-label { flex-direction: row !important; align-items: center; gap: 8px !important; }
+.cosim-card .cosim-layout { margin-bottom: 14px; }
+.cosim-card .cosim-readout .result-value { display: flex; gap: 12px; min-height: 0; height: auto; }

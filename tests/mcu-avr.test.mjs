@@ -82,3 +82,21 @@ test('pin mapping and board inputs', () => {
   assert.equal(view.pins[2].pullUp, true);
   assert.equal(view.pins[13].output, true);
 });
+
+// t4.c: hardware PWM/compare outputs. Expected frequencies and duties are the datasheet formulas:
+// fast PWM f = clk/(N·256), duty (OCR+1)/256; phase correct f = clk/(2·N·TOP), duty from the
+// up-count clear / down-count set; CTC toggle f = clk/(2·N·(1+OCR)).
+test('timer output-compare pins: fast PWM, phase-correct PWM and CTC toggle', () => {
+  const board = new UnoBoard(fixture('t4.hex'), { leds: [], buttons: [], pots: [], lcd: null });
+  board.cpu.run(16e6 * 0.02);
+  const expected = { D6: [976.5625, 64 / 256], D5: [976.5625, 1 - 192 / 256], D9: [16e6 / (2 * 8 * 999), 500 / 1998], D10: [16e6 / (2 * 8 * 999), 498 / 1998], D11: [10_000, 0.5], D3: [10_000, 0.5] };
+  for (const [pin, [frequency, duty]] of Object.entries(expected)) {
+    const edges = board.recorder.channels.get(pin).edges.filter((edge) => edge.t > 0.002);
+    const rises = edges.filter((edge) => edge.v === 1).map((edge) => edge.t), falls = edges.filter((edge) => edge.v === 0).map((edge) => edge.t);
+    const period = (rises.at(-1) - rises[0]) / (rises.length - 1);
+    const highs = rises.slice(0, -1).map((rise) => falls.find((fall) => fall > rise) - rise);
+    assert.ok(Math.abs(1 / period - frequency) < frequency * 1e-6, `${pin} frequency ${1 / period}`);
+    assert.ok(Math.abs(highs.reduce((sum, h) => sum + h, 0) / highs.length / period - duty) < 1e-6, `${pin} duty`);
+  }
+  assert.equal(board.level(9), board.mcu.ports.B.levels() >> 1 & 1); // PINx reads the OC level
+});
