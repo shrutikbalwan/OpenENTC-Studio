@@ -6,6 +6,7 @@ export const modules = [
   { id: 'bench', name: 'Lab Bench', short: 'Bench', icon: '◔', color: '#facc15', description: 'Oscilloscope, function generator, bench power supply and multimeter connected to your Circuit Lab circuit.' },
   { id: 'embedded', name: 'Embedded Lab', short: 'Embedded', icon: '▣', color: '#f59e0b', description: 'Write firmware and prepare MCU projects.' },
   { id: 'power', name: 'Power Electronics', short: 'Power', icon: 'ϟ', color: '#f87171', description: 'Controlled rectifiers, DC-DC converters, inverters and AC controllers with waveforms, harmonics and textbook formulas.' },
+  { id: 'adc', name: 'ADC & DAC Lab', short: 'ADC', icon: '⊿', color: '#2dd4bf', description: 'Quantisation, DNL/INL, SNR and ENOB; SAR, flash, dual-slope and sigma-delta conversion step by step; R-2R and weighted DACs.' },
   { id: 'mcu', name: 'Microcontroller Lab', short: 'MCU', icon: '⌗', color: '#fbbf24', description: '8051 and Arduino Uno (ATmega328P) simulators with virtual boards, serial terminals and debugging.' },
   { id: 'pcb', name: 'PCB Studio', short: 'PCB', icon: '▤', color: '#34d399', description: 'Schematic-to-board design workflow.' },
   { id: 'fpga', name: 'FPGA & Digital', short: 'FPGA', icon: '◇', color: '#a78bfa', description: 'Design, synthesize and verify digital logic.' },

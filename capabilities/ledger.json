@@ -254,6 +254,14 @@
       "plannedPhase": 5
     },
     {
+      "id": "converters.adc-dac-lab",
+      "surface": "ADC & DAC Lab: transfer function, DNL/INL, SNR/ENOB, SAR, flash, dual-slope, sigma-delta and R-2R / weighted DACs",
+      "state": "built-in",
+      "evidence": ["packages/converters/src/index.mjs", "src/app.js#renderAdcLab", "tests/converters.test.mjs"],
+      "limitations": "Behavioural models: comparators are ideal apart from the chosen offset/mismatch, there is no aperture jitter, settling, kickback or reference loading, and DACs have ideal switches and an ideal op-amp (only resistor tolerance is modelled). Sigma-delta modulators are 1-bit, 1st/2nd order without integrator scaling or limits; their SQNR is a few dB below the linear-model formula, as for real 1-bit loops.",
+      "plannedPhase": 5
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",

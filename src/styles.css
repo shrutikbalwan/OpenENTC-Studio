@@ -558,3 +558,5 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .power-table { width: 100%; margin-bottom: 8px; }
 .power-table td:first-child, .power-table th:first-child { text-align: left; }
 .power-grid .field-help { margin: 6px 0 14px; position: static; }
+.flash-table tr.on td { color: #34d399; }
+.adc-page .analysis-readouts { display: flex; flex-direction: column; gap: 8px; }
