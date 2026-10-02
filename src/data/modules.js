@@ -10,6 +10,7 @@ export const modules = [
   { id: 'dsp', name: 'Signals & DSP', short: 'DSP', icon: '∿', color: '#fb7185', description: 'Generate, transform and inspect signals.' },
   { id: 'communication', name: 'Communication', short: 'Comms', icon: '⌁', color: '#22d3ee', description: 'Explore modulation and communication chains.' },
   { id: 'rf', name: 'RF & Antennas', short: 'RF', icon: '⌖', color: '#f97316', description: 'RF calculations, matching and antenna studies.' },
+  { id: 'calc', name: 'Engineering Calculators', short: 'Calc', icon: '⊞', color: '#38bdf8', description: 'Resistor and component codes, 555 timer, op-amps, decibels and circuit formulas.' },
   { id: 'iot', name: 'IoT & Control', short: 'IoT', icon: '◉', color: '#4ade80', description: 'Connect sensors, controllers and data flows.' },
   { id: 'network', name: 'Networks', short: 'Network', icon: '⌘', color: '#818cf8', description: 'Build and inspect communication networks.' },
   { id: 'learn', name: 'Learning Hub', short: 'Learn', icon: '◫', color: '#facc15', description: 'Experiments, references and progress.' }

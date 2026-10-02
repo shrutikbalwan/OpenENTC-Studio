@@ -292,3 +292,31 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .routh-table { width: auto; min-width: 320px; }
 .routh-table td, .routh-table th { padding: 4px 18px; text-align: right; }
 .comm-side > .button { align-self: flex-start; }
+
+/* RF lab and engineering calculators */
+.rf-page .dsp-card label, .calc-page .dsp-card label { display: flex; flex-direction: column; gap: 5px; font-size: 11px; color: var(--muted); position: relative; }
+.rf-page .dsp-card input, .rf-page .dsp-card select, .calc-page .dsp-card input, .calc-page .dsp-card select { border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); padding: 8px 10px; font: 500 12px DM Mono; min-width: 110px; }
+.rf-page .dsp-card label > span, .calc-page .dsp-card label > span { font: 500 9px DM Mono; color: var(--muted); }
+.rf-page .dsp-controls, .calc-page .dsp-controls { align-items: flex-start; }
+.smith-plot { display: block; width: 100%; max-width: 380px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; margin-top: 8px; }
+.smith-grid circle, .smith-grid line { fill: none; stroke: var(--line); stroke-width: 1; }
+.smith-outline { fill: none; stroke: #94a3b8; stroke-width: 1.4; }
+.smith-labels text, .smith-point-label { fill: var(--muted); font: 500 8px DM Mono; }
+.smith-point-label { fill: var(--text); font-weight: 700; }
+.smith-trace { fill: none; stroke-width: 2; }
+.smith-point { stroke: var(--bg); stroke-width: 1.5; }
+.polar-grid circle, .polar-grid line { fill: none; stroke: var(--line); stroke-width: 1; }
+.polar-grid text { fill: var(--muted); font: 500 8px DM Mono; }
+.polar-trace { fill: color-mix(in srgb, #5eead4 18%, transparent); stroke: #5eead4; stroke-width: 1.8; }
+.array-axis { stroke: #f59e0b; stroke-width: 1.5; stroke-dasharray: 4 3; }
+.calc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 0 26px; margin-top: 16px; }
+.calc-page .coding-card .calc-grid { margin-top: 0; }
+.band-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.band-pair small { display: block; font: 500 10px DM Mono; color: var(--muted); margin-top: 4px; }
+.resistor-svg { width: 100%; max-width: 360px; display: block; }
+.resistor-lead { stroke: #9ca3af; stroke-width: 4; }
+.resistor-body { fill: #d6c29a; stroke: #8a7650; stroke-width: 1.5; }
+.budget-table td:last-child { text-align: right; font-family: DM Mono; }
+.budget-table tr.budget-total td { font-weight: 700; color: var(--text); border-top: 1px solid var(--muted); }
+[data-theme="light"] .polar-trace { stroke: #0f766e; }
+@media (max-width: 980px) { .calc-grid { grid-template-columns: 1fr; } }
