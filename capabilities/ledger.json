@@ -422,6 +422,14 @@
       "plannedPhase": 9
     },
     {
+      "id": "info.coding-spread-spectrum",
+      "surface": "Information & Coding: entropy, Huffman and Shannon–Fano codes with reduction tables, LZW, mutual information and channel capacity (Blahut–Arimoto, Shannon–Hartley), m-sequences and Gold codes, DSSS with a tone jammer, FHSS hop patterns and an OFDM link with cyclic prefix and multipath",
+      "state": "built-in",
+      "evidence": ["packages/infotheory/src/index.mjs", "src/app.js#renderInfo", "tests/infotheory.test.mjs"],
+      "limitations": "Binary codes only (no ternary Huffman, arithmetic or adaptive coding); LZW uses fixed-width codes with an unbounded dictionary seeded from the message's own alphabet. Channel capacity is for discrete memoryless channels and the band-limited AWGN formula. DSSS and FHSS are baseband BPSK models with ideal chip and hop synchronisation; the jammer is a single tone. OFDM uses real channel taps, perfect channel knowledge and a zero-forcing one-tap equaliser, without coding, pilots, synchronisation or PAPR handling. Huffman optimality, PN run/autocorrelation properties, Gold three-valued cross-correlation and BPSK BER are checked against closed-form results in the tests.",
+      "plannedPhase": 9
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",
