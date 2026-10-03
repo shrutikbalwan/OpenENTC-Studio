@@ -860,3 +860,5 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .fh-score b { font: 600 40px 'DM Mono', monospace; color: #facc15; }
 .fh-score small { color: var(--muted); }
 .fh-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.twin-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; align-items: center; }
+.twin-status { margin: 0 0 8px; }
