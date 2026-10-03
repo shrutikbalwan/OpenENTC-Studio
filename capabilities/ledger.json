@@ -486,6 +486,14 @@
       "plannedPhase": 9
     },
     {
+      "id": "faulthunt.troubleshooting",
+      "surface": "Fault Hunt: five practice boards (resistor network, LED transistor switch, CE bias, inverting op-amp, shunt reference) each given one hidden fault (open, short, drifted value, dead or shorted transistor, leaky capacitor, dead op-amp); a virtual multimeter measures DC volts with power on and ohms with power off; diagnosis, scoring, good-board comparison and a node-by-node debrief",
+      "state": "built-in",
+      "evidence": ["packages/faulthunt/src/index.mjs", "src/app.js#renderFaultHunt", "tests/faulthunt.test.mjs"],
+      "limitations": "DC faults only (no waveform, frequency-response or intermittent faults); one fault per board. Faults are modelled as resistances (open = 1 GΩ, short = 1 mΩ) or removed device paths, solved with the built-in MNA engine; the ohmmeter drives 1 mA with every source disconnected and a 100 MΩ meter input on each net. Faults are chosen only if they move a node voltage by more than 50 mV.",
+      "plannedPhase": 10
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",

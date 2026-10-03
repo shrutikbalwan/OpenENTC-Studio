@@ -843,3 +843,20 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .timing-svg { width: 100%; height: auto; }
 .timing-trace { fill: none; stroke: var(--teal); stroke-width: 2; }
 .timing-grid { stroke: var(--line); stroke-width: 1; }
+.fh-layout { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); gap: 18px; }
+@media (max-width: 900px) { .fh-layout { grid-template-columns: 1fr; } }
+.fh-board { width: 100%; height: auto; max-height: 360px; }
+.fh-pcb { fill: #0b3d2e; stroke: #14532d; stroke-width: 2; }
+.fh-part rect { fill: #0f172a; stroke: #34d399; stroke-width: 1.5; }
+.fh-part.source rect { stroke: #f59e0b; }
+.fh-id { fill: #e2e8f0; font: 600 11px 'DM Mono', monospace; }
+.fh-glyph { fill: #94a3b8; font-weight: 400; }
+.fh-value { fill: #5eead4; font: 500 10px 'DM Mono', monospace; }
+.fh-nets { fill: #fbbf24; font: 500 9px 'DM Mono', monospace; }
+.fh-meter { margin: 10px 0; }
+.fh-side { display: flex; flex-direction: column; gap: 12px; }
+.fh-score { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; justify-items: center; background: var(--panel-2); }
+.fh-score span { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; }
+.fh-score b { font: 600 40px 'DM Mono', monospace; color: #facc15; }
+.fh-score small { color: var(--muted); }
+.fh-actions { display: flex; flex-wrap: wrap; gap: 8px; }
