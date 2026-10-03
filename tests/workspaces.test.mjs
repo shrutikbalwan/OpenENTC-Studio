@@ -45,6 +45,7 @@ export const WORKSPACES = [
   { module: 'neural', path: '../src/workspaces/learning/neural.js', render: 'renderNn', bind: 'bindNnEvents', expect: [] },
   { module: 'console', path: '../src/workspaces/learning/console.js', render: 'renderConsole', bind: 'bindConsoleEvents', expect: [] },
   { module: 'learn', path: '../src/workspaces/learning/learning-hub.js', render: 'renderLearningHub', bind: 'bindLearningHubEvents', expect: [] },
+  { module: 'mcu', path: '../src/workspaces/embedded/mcu.js', render: 'renderMcu', bind: 'bindMcuEvents', expect: [] },
 ];
 
 for (const workspace of WORKSPACES) {
