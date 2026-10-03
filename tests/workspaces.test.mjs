@@ -35,6 +35,7 @@ export const WORKSPACES = [
   { module: 'cellular', path: '../src/workspaces/communication/cellular.js', render: 'renderCellular', bind: 'bindCellularEvents', expect: [] },
   { module: 'wsn', path: '../src/workspaces/communication/wsn.js', render: 'renderWsn', bind: 'bindWsnEvents', expect: [] },
   { module: 'sdr', path: '../src/workspaces/communication/sdr.js', render: 'renderSdr', bind: 'bindSdrEvents', expect: [] },
+  { module: 'crypto', path: '../src/workspaces/communication/crypto.js', render: 'renderCrypto', bind: 'bindCryptoEvents', expect: [] },
 ];
 
 for (const workspace of WORKSPACES) {
