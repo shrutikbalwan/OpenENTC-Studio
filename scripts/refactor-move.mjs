@@ -209,7 +209,7 @@ export function move({ from, to, names, doc = '', exportAlso = [] }) {
   }
   const importBlock = [...needed.entries()].map(([key, set]) => importLine(set, key.startsWith('pkg:') ? key.slice(4) : relativeSpec(to, key))).sort((a, b) => (a.includes("'../../packages") === b.includes("'../../packages") ? 0 : a.includes("'../../packages") ? -1 : 1));
   mkdirSync(path.dirname(to), { recursive: true });
-  writeFileSync(to, `${doc.trim() ? `${doc.trim()}\n` : ''}${importBlock.join('\n')}\n\n${targetText ? `${targetText}\n\n` : ''}${movedText}\n`);
+  writeFileSync(to, `${doc.trim() ? `${doc.trim()}\n` : ''}${importBlock.length ? `${importBlock.join('\n')}\n` : ''}\n${targetText ? `${targetText}\n\n` : ''}${movedText}\n`);
 
   // Rewrite the source: drop moved blocks, import back what is still used (merging with an
   // existing import of the target), prune unused imports.

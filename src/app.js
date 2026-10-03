@@ -90,18 +90,14 @@ import { bindCalculatorEvents, renderCalculators } from './workspaces/tools/calc
 import { bindNnEvents, renderNn } from './workspaces/learning/neural.js';
 import { bindConsoleEvents, renderConsole } from './workspaces/learning/console.js';
 import { bindLearningHubEvents, renderLearningHub } from './workspaces/learning/learning-hub.js';
+import { circuitEditor } from './state/circuit-editor.js';
+import { nativeSessions } from './state/native-sessions.js';
+import { isDcResult } from './shared/simulation.js';
+import { showModal } from './components/dialogs.js';
+import { EXPERIMENT_MODULES } from './shared/experiments.js';
 
 const app = document.querySelector('#app');
 const importInput = document.querySelector('#project-import');
-let wireSource = null;
-let selectedWire = null;
-let clipboardParts = [];
-let clipboardWires = [];
-let activeSerialSession = null;
-let activeSerialNative = null;
-let serialPollTimer = null;
-let activeArduinoUpload = null;
-let activeHdlJob = null;
 const browserDevicePolicy = createDevicePermissionPolicy({ environment: 'browser' });
 
 function render() {
@@ -252,7 +248,7 @@ function renderWires(parts, wires = [], netLabels = [], junctions = []) {
     }
   }
   for (const segment of buildWireSegments(parts, wires)) {
-    const selected = selectedWire?.from === segment.fromNode && selectedWire?.to === segment.toNode;
+    const selected = circuitEditor.selectedWire?.from === segment.fromNode && circuitEditor.selectedWire?.to === segment.toNode;
     const route = segment.route || defaultWireRoute(segment.from, segment.to);
     lines.push(`<path class="authored-wire${selected ? ' selected' : ''}" data-wire-route-from="${esc(segment.fromNode)}" data-wire-route-to="${esc(segment.toNode)}" role="button" tabindex="0" aria-label="Wire ${esc(segment.fromNode)} to ${esc(segment.toNode)}" aria-keyshortcuts="Enter Space Insert + R 0 Delete" d="${orthogonalPath(segment.from, segment.to, route)}"/><circle cx="${segment.to.x}" cy="${segment.to.y}" r="3"/>`);
     if (selected) {
@@ -366,7 +362,7 @@ function renderInspector(part) {
     ${nodeFields(part).length === 3
     ? `<div class="field-pair three">${nodeFields(part).map((field) => `<label>${esc(capitalize(componentPinName(part, field)))}<input data-part-field="${field}" value="${esc(part[field] || '')}"></label>`).join('')}</div>${['nmos', 'pmos'].includes(part.type) ? `<label>Transconductance K<input type="text" inputmode="decimal" data-part-field="kp" value="${fmt(part.kp ?? 0.02, 8)}"><span>A/V²</span></label>` : ''}<small class="field-help">${esc(DEVICE_HELP[part.type] || '')}</small>`
     : `<div class="field-pair"><label>Positive node<input data-part-field="n1" value="${esc(part.n1)}"></label><label>Negative node<input data-part-field="n2" value="${esc(part.n2)}"></label></div>`}
-    <div class="wire-connect"><span class="panel-label">WIRE ALIASES</span><p>${wireSource ? `Source selected: <code>${esc(wireSource.node)}</code>. Choose another terminal.` : 'Choose a terminal, then another terminal to connect their node names.'}</p><div class="wire-endpoints">${nodeFields(part).length === 3 ? nodeFields(part).map((field) => `<button class="tool ${wireSource?.partId === part.id && wireSource?.field === field ? 'active' : ''}" data-wire-node="${esc(part.id)}:${field}">${esc(componentPinName(part, field).slice(0, 3))} ${esc(part[field] || '')}</button>`).join('') : `<button class="tool ${wireSource?.partId === part.id && wireSource?.field === 'n1' ? 'active' : ''}" data-wire-node="${esc(part.id)}:n1">+ ${esc(part.n1)}</button><button class="tool ${wireSource?.partId === part.id && wireSource?.field === 'n2' ? 'active' : ''}" data-wire-node="${esc(part.id)}:n2">− ${esc(part.n2)}</button>`}</div>${connectedWires.length ? `<div class="wire-list" aria-label="Connected wires">${connectedWires.map((wire) => `<div class="wire-row"><code>${esc(wire.from)} ↔ ${esc(wire.to)}</code><button class="tool" data-wire-remove-from="${esc(wire.from)}" data-wire-remove-to="${esc(wire.to)}" aria-label="Disconnect ${esc(wire.from)} from ${esc(wire.to)}">Remove</button></div>`).join('')}</div>` : ''}<div class="wire-endpoints"><button class="tool" data-action="add-net-label">Add net label</button><button class="tool" data-action="add-junction">Add junction</button></div></div>
+    <div class="wire-connect"><span class="panel-label">WIRE ALIASES</span><p>${circuitEditor.wireSource ? `Source selected: <code>${esc(circuitEditor.wireSource.node)}</code>. Choose another terminal.` : 'Choose a terminal, then another terminal to connect their node names.'}</p><div class="wire-endpoints">${nodeFields(part).length === 3 ? nodeFields(part).map((field) => `<button class="tool ${circuitEditor.wireSource?.partId === part.id && circuitEditor.wireSource?.field === field ? 'active' : ''}" data-wire-node="${esc(part.id)}:${field}">${esc(componentPinName(part, field).slice(0, 3))} ${esc(part[field] || '')}</button>`).join('') : `<button class="tool ${circuitEditor.wireSource?.partId === part.id && circuitEditor.wireSource?.field === 'n1' ? 'active' : ''}" data-wire-node="${esc(part.id)}:n1">+ ${esc(part.n1)}</button><button class="tool ${circuitEditor.wireSource?.partId === part.id && circuitEditor.wireSource?.field === 'n2' ? 'active' : ''}" data-wire-node="${esc(part.id)}:n2">− ${esc(part.n2)}</button>`}</div>${connectedWires.length ? `<div class="wire-list" aria-label="Connected wires">${connectedWires.map((wire) => `<div class="wire-row"><code>${esc(wire.from)} ↔ ${esc(wire.to)}</code><button class="tool" data-wire-remove-from="${esc(wire.from)}" data-wire-remove-to="${esc(wire.to)}" aria-label="Disconnect ${esc(wire.from)} from ${esc(wire.to)}">Remove</button></div>`).join('')}</div>` : ''}<div class="wire-endpoints"><button class="tool" data-action="add-net-label">Add net label</button><button class="tool" data-action="add-junction">Add junction</button></div></div>
     <div class="inspector-tip"><b>Node convention</b><p>Use <code>0</code> for ground. Components sharing a node name are electrically connected.</p></div>
     <div class="inspector-actions"><button class="button ghost" data-action="rotate-component">Rotate 90°</button><button class="button danger" data-action="delete-component">Delete component</button></div>`;
 }
@@ -418,7 +414,6 @@ const BUILTIN_ANALYSES = Object.freeze({
   ac: { label: 'AC sweep', button: 'AC sweep' },
 });
 const BUILTIN_STIMULI = Object.freeze({ step: 'Step', sine: 'Sine', pulse: 'Square pulse', dc: 'Constant (DC)' });
-const isDcResult = (simulation) => Boolean(simulation?.nodes && simulation?.currents && !simulation.kind);
 
 function builtinConfiguration(state) {
   const saved = state.project.experiments.find((experiment) => experiment?.id === 'circuit-builtin-analysis')?.inputs || {};
@@ -1512,7 +1507,7 @@ function bindAnalogEvents() {
 
 /** Put a generated circuit into Circuit Lab and open it. */
 function loadDesignedCircuit(components, analysis, trace, name) {
-  wireSource = null; selectedWire = null;
+  circuitEditor.wireSource = null; circuitEditor.selectedWire = null;
   updateProject((project) => { project.circuit.components = structuredClone(components); project.circuit.wires = []; project.circuit.junctions = []; project.circuit.netLabels = []; });
   recordExperiment({ id: 'circuit-builtin-analysis', kind: 'circuit', operation: 'builtin-analysis', inputs: { ...builtinConfiguration(getState()), source: 'V1', ...analysis } });
   setState({ simulation: null, selectedComponentId: null, selectedComponentIds: [], circuitPlotTrace: trace, activeModule: 'circuit' });
@@ -1553,7 +1548,6 @@ function loadDesignedCircuit(components, analysis, trace, name) {
 // kept in memory, or in sessionStorage for this tab only if the user asks (src/core/credentials.js).
 // Neither is ever written to the project file.
 
-const EXPERIMENT_MODULES = { 'signals-fft': 'dsp', 'dsp-lab': 'dsp', 'control-step': 'iot', 'control-lab': 'iot', 'comm-lab': 'communication', 'qpsk-ber': 'communication', 'rx-lab': 'communication', 'rf-touchstone': 'rf', 'rf-lab': 'rf', 'calc-lab': 'calc', 'pcb-board': 'pcb', 'mcu-lab': 'mcu', 'bench-lab': 'bench', 'lab-record': 'record', 'power-lab': 'power', 'adc-lab': 'adc', 'sensor-lab': 'sensors', 'ev-lab': 'ev', 'vlsi-lab': 'vlsi', 'rtos-lab': 'rtos', 'network-lab': 'theory', 'sigsys-lab': 'sigsys', 'em-lab': 'em', 'cell-lab': 'cellular', 'netproto-lab': 'network', 'crypto-lab': 'crypto', 'wsn-lab': 'wsn', 'sdr-lab': 'sdr', 'dip-lab': 'dip', 'bio-lab': 'biomed', 'nn-lab': 'neural', 'console-lab': 'console', 'learn-lab': 'learn', 'info-lab': 'info', 'analog-lab': 'analog', 'meas-lab': 'measure', 'radar-lab': 'radar', 'speech-lab': 'speech', 'plc-lab': 'plc', 'mach-lab': 'machines', 'product-lab': 'product', 'fault-lab': 'faulthunt', 'twin-lab': 'twin', 'topology-metrics': 'network', 'vcd-import': 'fpga' };
 const assistant = { open: false, view: 'chat', draft: '', history: [], shown: [], busy: false, status: '', error: '', controller: null, focus: false };
 const assistantStartup = (() => { try { return loadAssistantSettings(localStorage, sessionStorage); } catch { return { removedLegacyKey: false }; } })();
 function assistantSettings() {
@@ -2271,7 +2265,7 @@ function renderToolchains(state) {
 }
 
 function bindEvents() {
-  document.querySelectorAll('[data-module]').forEach((button) => button.addEventListener('click', () => { wireSource = null; selectedWire = null; setState({ activeModule: button.dataset.module, selectedComponentId: null }); }));
+  document.querySelectorAll('[data-module]').forEach((button) => button.addEventListener('click', () => { circuitEditor.wireSource = null; circuitEditor.selectedWire = null; setState({ activeModule: button.dataset.module, selectedComponentId: null }); }));
   document.querySelector('[data-action="home"]')?.addEventListener('click', () => setState({ activeModule: 'home' }));
   document.querySelector('[data-field="project-name"]')?.addEventListener('change', (event) => updateProject((project) => { project.name = event.target.value.trim() || 'Untitled ENTC project'; }));
   document.querySelector('[data-action="theme"]')?.addEventListener('click', () => updateProject((project) => { project.settings.theme = project.settings.theme === 'dark' ? 'light' : 'dark'; }));
@@ -2415,20 +2409,20 @@ async function openDesktopProject() {
   if (!desktopBridge.available) { notify('Desktop project access is unavailable in the browser preview', 'error'); return; }
   let nativeOpened = false;
   try {
-    if (activeArduinoUpload) await cancelArduinoUpload(true);
-    if (activeHdlJob) await cancelHdlJob(true);
+    if (nativeSessions.activeArduinoUpload) await cancelArduinoUpload(true);
+    if (nativeSessions.activeHdlJob) await cancelHdlJob(true);
     const root = await desktopBridge.pickProjectDirectory();
     if (!root) return;
     const summary = await desktopBridge.openProject(root);
     nativeOpened = true;
     const project = await desktopBridge.readOpenProject();
     replaceProject(project);
-    activeSerialSession = null; activeSerialNative = null; if (serialPollTimer) clearTimeout(serialPollTimer); serialPollTimer = null;
+    nativeSessions.activeSerialSession = null; nativeSessions.activeSerialNative = null; if (nativeSessions.serialPollTimer) clearTimeout(nativeSessions.serialPollTimer); nativeSessions.serialPollTimer = null;
     setState({ desktopProject: summary, desktopJobs: [], desktopEvents: [], arduinoInventory: null, arduinoDeviceGrant: null, arduinoSerialGrant: null, arduinoSerial: null, arduinoUpload: null, hdlJob: null, hdlResults: null, digitalView: null, processPermissionGranted: false, artifactPermissionGranted: false });
     notify('Desktop project opened and validated', 'success');
   } catch (error) {
     if (nativeOpened) await desktopBridge.closeProject().catch(() => {});
-    activeSerialSession = null; activeSerialNative = null; if (serialPollTimer) clearTimeout(serialPollTimer); serialPollTimer = null;
+    nativeSessions.activeSerialSession = null; nativeSessions.activeSerialNative = null; if (nativeSessions.serialPollTimer) clearTimeout(nativeSessions.serialPollTimer); nativeSessions.serialPollTimer = null;
     setState({ desktopProject: null, desktopJobs: [], desktopEvents: [], arduinoInventory: null, arduinoDeviceGrant: null, arduinoSerialGrant: null, arduinoSerial: null, arduinoUpload: null, hdlJob: null, hdlResults: null, digitalView: null, processPermissionGranted: false, artifactPermissionGranted: false });
     notify(error?.message || 'Desktop project could not be opened', 'error');
   }
@@ -2437,10 +2431,10 @@ async function openDesktopProject() {
 async function closeNativeSessionForBrowserProject() {
   if (!desktopBridge.available || !getState().desktopProject) return true;
   try {
-    if (activeArduinoUpload) await cancelArduinoUpload(true);
-    if (activeHdlJob) await cancelHdlJob(true);
+    if (nativeSessions.activeArduinoUpload) await cancelArduinoUpload(true);
+    if (nativeSessions.activeHdlJob) await cancelHdlJob(true);
     await desktopBridge.closeProject();
-    activeSerialSession = null; activeSerialNative = null; if (serialPollTimer) clearTimeout(serialPollTimer); serialPollTimer = null;
+    nativeSessions.activeSerialSession = null; nativeSessions.activeSerialNative = null; if (nativeSessions.serialPollTimer) clearTimeout(nativeSessions.serialPollTimer); nativeSessions.serialPollTimer = null;
     return true;
   } catch (error) {
     notify(error?.message || 'The native project session could not be closed', 'error');
@@ -2644,7 +2638,7 @@ async function runNativeVerilatorLint() {
   const state = getState(); const project = state.desktopProject; const detection = state.toolchainDetection?.verilator;
   if (!desktopBridge.available || !project?.project_id || detection?.state !== 'detected' || !detection.path) { notify('Detect Verilator and open a desktop project before linting', 'error'); return; }
   if (!state.processPermissionGranted || !state.artifactPermissionGranted) { notify('Grant process and artifact permissions in Toolchains before linting', 'error'); return; }
-  if (activeHdlJob) { notify('An HDL job is already active', 'error'); return; }
+  if (nativeSessions.activeHdlJob) { notify('An HDL job is already active', 'error'); return; }
   const runId = `verilator-lint-${Date.now().toString(36)}`;
   const sourcePath = joinDesktopProjectPath(project.root, 'runs', runId, 'src', 'counter.sv');
   const artifacts = []; let adapter = null;
@@ -2655,7 +2649,7 @@ async function runNativeVerilatorLint() {
       executable: detection.path,
       runner: createDesktopProcessAdapterRunner({ bridge: desktopBridge, project, runId, onStarted: async () => setState({ desktopJobs: await desktopBridge.listJobs(project.project_id) }), onArtifact: (artifact) => artifacts.push(artifact) })
     });
-    activeHdlJob = { runId, adapter, engine: 'verilator', operation: 'lint' };
+    nativeSessions.activeHdlJob = { runId, adapter, engine: 'verilator', operation: 'lint' };
     setState({ hdlJob: { runId, engine: 'verilator', operation: 'lint', phase: 'running' } });
     const job = { operation: 'lint', sources: [sourcePath], topUnit };
     await adapter.prepare(job); await adapter.run(job); const report = await adapter.parse(job);
@@ -2669,7 +2663,7 @@ async function runNativeVerilatorLint() {
     const report = parseVerilatorDiagnostics(error?.message || '');
     try { setState({ hdlResults: { ...getState().hdlResults, lint: { report, runId, engine: 'verilator', state: error?.code === 'PROCESS_CANCELLED' ? 'cancelled' : 'failed' } }, desktopJobs: await desktopBridge.listJobs(project.project_id), desktopEvents: await desktopBridge.drainEvents(project.project_id) }); } catch { /* retain the engine error */ }
     notify(error?.code === 'PROCESS_CANCELLED' ? 'Verilator lint cancelled' : error?.message || 'Verilator lint failed', error?.code === 'PROCESS_CANCELLED' ? 'success' : 'error');
-  } finally { activeHdlJob = null; setState({ hdlJob: null }); await adapter?.clean().catch(() => {}); }
+  } finally { nativeSessions.activeHdlJob = null; setState({ hdlJob: null }); await adapter?.clean().catch(() => {}); }
 }
 
 async function runNativeGhdlSimulation() {
@@ -2683,7 +2677,7 @@ async function runNativeGhdlSimulation() {
   const state = getState(); const project = state.desktopProject; const detection = state.toolchainDetection?.ghdl;
   if (!desktopBridge.available || !project?.project_id || detection?.state !== 'detected' || !detection.path) { notify('Detect GHDL and open a desktop project before simulation', 'error'); return; }
   if (!state.processPermissionGranted || !state.artifactPermissionGranted) { notify('Grant process and artifact permissions in Toolchains before simulation', 'error'); return; }
-  if (activeHdlJob) { notify('An HDL job is already active', 'error'); return; }
+  if (nativeSessions.activeHdlJob) { notify('An HDL job is already active', 'error'); return; }
   recordExperiment({ id: 'hdl-vhdl-counter', kind: 'hdl', operation: 'author-source', inputs: { language: 'vhdl', path: 'src/counter_tb.vhd', topUnit: topEntity, stopTimeNs, source } });
   const baseId = `ghdl-simulation-${Date.now().toString(36)}`;
   const sourceRelative = `runs/${baseId}/vhdl/counter_tb.vhd`;
@@ -2702,7 +2696,7 @@ async function runNativeGhdlSimulation() {
         executable: detection.path,
         runner: createDesktopProcessAdapterRunner({ bridge: desktopBridge, project: { ...project, root: workingDirectory }, runId, onStarted: async () => setState({ desktopJobs: await desktopBridge.listJobs(project.project_id) }), onArtifact: (artifact) => artifacts.push(artifact) })
       });
-      adapters.push(adapter); activeHdlJob = { runId, adapter, engine: 'ghdl', operation };
+      adapters.push(adapter); nativeSessions.activeHdlJob = { runId, adapter, engine: 'ghdl', operation };
       setState({ hdlJob: { runId, engine: 'ghdl', operation, phase: 'running' } });
       const job = { operation, sources: [sourcePath], topEntity, ...(operation === 'simulate' ? { waveformPath, stopTimeNs } : {}) };
       await adapter.prepare(job); await adapter.run(job); reports.push(await adapter.parse(job)); await adapter.clean();
@@ -2722,7 +2716,7 @@ async function runNativeGhdlSimulation() {
     const report = parseGhdlDiagnostics(error?.message || '');
     try { setState({ hdlResults: { ...getState().hdlResults, simulation: { report, runId: baseId, engine: 'ghdl', state: error?.code === 'PROCESS_CANCELLED' ? 'cancelled' : 'failed', error: error?.message || 'GHDL simulation failed' } }, desktopJobs: await desktopBridge.listJobs(project.project_id), desktopEvents: await desktopBridge.drainEvents(project.project_id) }); } catch { /* retain the engine error */ }
     notify(error?.code === 'PROCESS_CANCELLED' ? 'GHDL simulation cancelled' : error?.message || 'GHDL simulation failed', error?.code === 'PROCESS_CANCELLED' ? 'success' : 'error');
-  } finally { activeHdlJob = null; setState({ hdlJob: null }); for (const adapter of adapters) await adapter.clean().catch(() => {}); }
+  } finally { nativeSessions.activeHdlJob = null; setState({ hdlJob: null }); for (const adapter of adapters) await adapter.clean().catch(() => {}); }
 }
 
 async function runNativeYosysSynthesis() {
@@ -2735,7 +2729,7 @@ async function runNativeYosysSynthesis() {
   const state = getState(); const project = state.desktopProject; const detection = state.toolchainDetection?.yosys;
   if (!desktopBridge.available || !project?.project_id || detection?.state !== 'detected' || !detection.path) { notify('Detect Yosys and open a desktop project before synthesis', 'error'); return; }
   if (!state.processPermissionGranted || !state.artifactPermissionGranted) { notify('Grant process and artifact permissions in Toolchains before synthesis', 'error'); return; }
-  if (activeHdlJob) { notify('An HDL job is already active', 'error'); return; }
+  if (nativeSessions.activeHdlJob) { notify('An HDL job is already active', 'error'); return; }
   const runId = `yosys-synthesis-${Date.now().toString(36)}`;
   const sourcePath = joinDesktopProjectPath(project.root, 'runs', runId, 'src', 'counter.sv');
   const netlistRelative = `runs/${runId}/src/counter.json`;
@@ -2748,7 +2742,7 @@ async function runNativeYosysSynthesis() {
       executable: detection.path,
       runner: createDesktopProcessAdapterRunner({ bridge: desktopBridge, project, runId, onStarted: async () => setState({ desktopJobs: await desktopBridge.listJobs(project.project_id) }), onArtifact: (artifact) => artifacts.push(artifact) })
     });
-    activeHdlJob = { runId, adapter, engine: 'yosys', operation: 'synthesis' };
+    nativeSessions.activeHdlJob = { runId, adapter, engine: 'yosys', operation: 'synthesis' };
     setState({ hdlJob: { runId, engine: 'yosys', operation: 'synthesis', phase: 'running' } });
     const job = { operation: 'synthesis', sources: [sourcePath], topModule: topUnit, netlistPath };
     await adapter.prepare(job); await adapter.run(job); const report = await adapter.parse(job);
@@ -2762,7 +2756,7 @@ async function runNativeYosysSynthesis() {
   } catch (error) {
     try { setState({ hdlResults: { ...getState().hdlResults, synthesis: { runId, engine: 'yosys', state: error?.code === 'PROCESS_CANCELLED' ? 'cancelled' : 'failed', error: error?.message || 'Yosys synthesis failed' } }, desktopJobs: await desktopBridge.listJobs(project.project_id), desktopEvents: await desktopBridge.drainEvents(project.project_id) }); } catch { /* retain the engine error */ }
     notify(error?.code === 'PROCESS_CANCELLED' ? 'Yosys synthesis cancelled' : error?.message || 'Yosys synthesis failed', error?.code === 'PROCESS_CANCELLED' ? 'success' : 'error');
-  } finally { activeHdlJob = null; setState({ hdlJob: null }); await adapter?.clean().catch(() => {}); }
+  } finally { nativeSessions.activeHdlJob = null; setState({ hdlJob: null }); await adapter?.clean().catch(() => {}); }
 }
 
 async function runNativeNextpnrPlaceRoute() {
@@ -2774,7 +2768,7 @@ async function runNativeNextpnrPlaceRoute() {
   if (typeof netlistRelative !== 'string' || !/^runs\/[A-Za-z0-9_-]+\/src\/counter\.json$/.test(netlistRelative)) { notify('Run Yosys synthesis to produce a registered JSON netlist first', 'error'); return; }
   if (!desktopBridge.available || !project?.project_id || detection?.state !== 'detected' || !detection.path) { notify('Detect nextpnr-ice40 and open a desktop project before place/route', 'error'); return; }
   if (!state.processPermissionGranted || !state.artifactPermissionGranted) { notify('Grant process and artifact permissions in Toolchains before place/route', 'error'); return; }
-  if (activeHdlJob) { notify('An HDL job is already active', 'error'); return; }
+  if (nativeSessions.activeHdlJob) { notify('An HDL job is already active', 'error'); return; }
   recordExperiment({ id: 'hdl-ice40-hx8k-ct256', kind: 'hdl', operation: 'target-constraints', inputs: { target: 'ice40-hx8k-ct256', family: 'ice40', device: 'hx8k', package: 'ct256', constraintsFormat: 'pcf', constraints } });
   const runId = `nextpnr-ice40-${Date.now().toString(36)}`;
   const constraintsRelative = `runs/${runId}/implementation/design.pcf`;
@@ -2790,7 +2784,7 @@ async function runNativeNextpnrPlaceRoute() {
       executable: detection.path,
       runner: createDesktopProcessAdapterRunner({ bridge: desktopBridge, project, runId, onStarted: async () => setState({ desktopJobs: await desktopBridge.listJobs(project.project_id) }), onArtifact: (artifact) => artifacts.push(artifact) })
     });
-    activeHdlJob = { runId, adapter, engine: 'nextpnr-ice40', operation: 'place-route' };
+    nativeSessions.activeHdlJob = { runId, adapter, engine: 'nextpnr-ice40', operation: 'place-route' };
     setState({ hdlJob: { runId, engine: 'nextpnr-ice40', operation: 'place-route', phase: 'running' } });
     const job = { operation: 'place-route', target: 'ice40', package: 'ct256', netlistPath, constraintsPath, outputPath };
     await adapter.prepare(job); await adapter.run(job); const report = await adapter.parse(job);
@@ -2804,11 +2798,11 @@ async function runNativeNextpnrPlaceRoute() {
   } catch (error) {
     try { setState({ hdlResults: { ...getState().hdlResults, placeRoute: { runId, engine: 'nextpnr-ice40', state: error?.code === 'PROCESS_CANCELLED' ? 'cancelled' : 'failed', error: error?.message || 'nextpnr place/route failed' } }, desktopJobs: await desktopBridge.listJobs(project.project_id), desktopEvents: await desktopBridge.drainEvents(project.project_id) }); } catch { /* retain the engine error */ }
     notify(error?.code === 'PROCESS_CANCELLED' ? 'nextpnr place/route cancelled' : error?.message || 'nextpnr place/route failed', error?.code === 'PROCESS_CANCELLED' ? 'success' : 'error');
-  } finally { activeHdlJob = null; setState({ hdlJob: null }); await adapter?.clean().catch(() => {}); }
+  } finally { nativeSessions.activeHdlJob = null; setState({ hdlJob: null }); await adapter?.clean().catch(() => {}); }
 }
 
 async function cancelHdlJob(silent = false) {
-  const active = activeHdlJob;
+  const active = nativeSessions.activeHdlJob;
   if (!active) return;
   setState({ hdlJob: { runId: active.runId, engine: active.engine, operation: active.operation, phase: 'cancelling' } });
   try { await active.adapter.cancel(); if (!silent) notify(`Cancelling ${active.engine} ${active.operation}`, 'success'); }
@@ -2893,7 +2887,7 @@ function bindCircuitEvents() {
   });
   bindCanvasSelection();
   document.querySelectorAll('[data-part-field]').forEach((input) => input.addEventListener('change', () => {
-    wireSource = null;
+    circuitEditor.wireSource = null;
     if (input.dataset.partField === 'kp') {
       try {
         const kp = parseEngineeringValue(input.value);
@@ -2960,7 +2954,7 @@ function bindCircuitEvents() {
   document.querySelector('[data-action="toggle-grid"]')?.addEventListener('click', () => updateProject((project) => { const sizes = [10, 20, 40]; if (!project.settings.grid) project.settings.grid = true; else { const index = sizes.indexOf(project.settings.gridSize); if (index === sizes.length - 1) project.settings.grid = false; else project.settings.gridSize = sizes[index < 0 ? 1 : index + 1]; } }));
   document.querySelector('[data-action="undo"]')?.addEventListener('click', () => { if (undoProject()) notify('Project change undone', 'info'); });
   document.querySelector('[data-action="redo"]')?.addEventListener('click', () => { if (redoProject()) notify('Project change redone', 'info'); });
-  document.querySelector('[data-action="clear-circuit"]')?.addEventListener('click', () => { wireSource = null; selectedWire = null; updateProject((project) => { project.circuit.components = []; project.circuit.wires = []; project.circuit.junctions = []; project.circuit.netLabels = []; }); setState({ selectedComponentId: null, simulation: null }); });
+  document.querySelector('[data-action="clear-circuit"]')?.addEventListener('click', () => { circuitEditor.wireSource = null; circuitEditor.selectedWire = null; updateProject((project) => { project.circuit.components = []; project.circuit.wires = []; project.circuit.junctions = []; project.circuit.netLabels = []; }); setState({ selectedComponentId: null, simulation: null }); });
   document.querySelector('[data-action="annotate-components"]')?.addEventListener('click', annotateCircuitComponents);
   document.querySelector('[data-field="component-search"]')?.addEventListener('input', (event) => {
     document.querySelectorAll('.component-list button').forEach((button) => { button.hidden = !button.textContent.toLowerCase().includes(event.target.value.toLowerCase()); });
@@ -2983,7 +2977,7 @@ function bindEmbeddedEvents() {
     const before = getState(); const previous = before.arduinoDeviceGrant; const previousSerial = before.arduinoSerialGrant;
     const port = String(event.target.value || '').trim();
     if (/[\u0000-\u001f\u007f]/.test(port)) { notify('Port identifier contains invalid control characters', 'error'); return; }
-    if (activeSerialNative) await disconnectArduinoSerial();
+    if (nativeSessions.activeSerialNative) await disconnectArduinoSerial();
     if (previous && before.desktopProject?.project_id) await desktopBridge.revokeDeviceTarget(before.desktopProject.project_id, previous.permission, previous.target).catch(() => {});
     if (previousSerial && before.desktopProject?.project_id) await desktopBridge.revokeDeviceTarget(before.desktopProject.project_id, previousSerial.permission, previousSerial.target).catch(() => {});
     recordExperiment({ id: 'firmware-arduino-port', kind: 'firmware', operation: 'arduino-port', inputs: port ? { port } : {} });
@@ -3157,7 +3151,7 @@ function beginDrag(event) {
 function deleteSelected() {
   const id = getState().selectedComponentId;
   const selectedIds = getState().selectedComponentIds?.length ? getState().selectedComponentIds : (id ? [id] : []);
-  wireSource = null;
+  circuitEditor.wireSource = null;
   if (!selectedIds.length) return;
   updateProject((project) => {
     project.circuit.components = project.circuit.components.filter((part) => !selectedIds.includes(part.id));
@@ -3190,22 +3184,22 @@ function moveSelected(dx, dy) {
 function copySelected() {
   const state = getState();
   const ids = state.selectedComponentIds?.length ? state.selectedComponentIds : (state.selectedComponentId ? [state.selectedComponentId] : []);
-  clipboardParts = state.project.circuit.components.filter((part) => ids.includes(part.id)).map((part) => structuredClone(part));
-  const nodes = new Set(clipboardParts.flatMap((part) => nodeFields(part).map((field) => part[field])).filter((node) => typeof node === 'string'));
-  clipboardWires = state.project.circuit.wires.filter((wire) => nodes.has(wire.from) && nodes.has(wire.to)).map((wire) => structuredClone(wire));
-  if (!clipboardParts.length) return false;
-  notify(`${clipboardParts.length} component${clipboardParts.length === 1 ? '' : 's'} copied`, 'info');
+  circuitEditor.clipboardParts = state.project.circuit.components.filter((part) => ids.includes(part.id)).map((part) => structuredClone(part));
+  const nodes = new Set(circuitEditor.clipboardParts.flatMap((part) => nodeFields(part).map((field) => part[field])).filter((node) => typeof node === 'string'));
+  circuitEditor.clipboardWires = state.project.circuit.wires.filter((wire) => nodes.has(wire.from) && nodes.has(wire.to)).map((wire) => structuredClone(wire));
+  if (!circuitEditor.clipboardParts.length) return false;
+  notify(`${circuitEditor.clipboardParts.length} component${circuitEditor.clipboardParts.length === 1 ? '' : 's'} copied`, 'info');
   return true;
 }
 
 function pasteCopied() {
-  if (!clipboardParts.length) return false;
+  if (!circuitEditor.clipboardParts.length) return false;
   let nextIds = [];
   updateProject((project) => {
     const pasteOffset = { x: 28, y: 28 };
-    const result = pasteComponents(project.circuit.components, clipboardParts, pasteOffset);
+    const result = pasteComponents(project.circuit.components, circuitEditor.clipboardParts, pasteOffset);
     project.circuit.components = result.components;
-    project.circuit.wires = clipboardWires.reduce((wires, wire) => {
+    project.circuit.wires = circuitEditor.clipboardWires.reduce((wires, wire) => {
       const from = result.nodeMap[wire.from] || wire.from;
       const to = result.nodeMap[wire.to] || wire.to;
       const connected = connectNodes(wires, from, to);
@@ -3227,20 +3221,20 @@ function chooseWireNode(endpoint) {
   const part = getState().project.circuit.components.find((item) => item.id === partId);
   if (!part || !nodeFields(part).includes(field)) return;
   const node = part[field];
-  if (!wireSource) {
-    wireSource = { partId, field, node };
+  if (!circuitEditor.wireSource) {
+    circuitEditor.wireSource = { partId, field, node };
   setState({ selectedComponentId: partId, selectedComponentIds: [partId] });
     notify(`Wire source selected: ${node}`, 'info');
     return;
   }
-  if (wireSource.partId === partId && wireSource.field === field) {
-    wireSource = null;
+  if (circuitEditor.wireSource.partId === partId && circuitEditor.wireSource.field === field) {
+    circuitEditor.wireSource = null;
     notify('Wire source cleared', 'info');
     setState({ selectedComponentId: partId, selectedComponentIds: [partId] });
     return;
   }
-  const source = wireSource;
-  wireSource = null;
+  const source = circuitEditor.wireSource;
+  circuitEditor.wireSource = null;
   updateProject((project) => { project.circuit.wires = connectNodes(project.circuit.wires, source.node, node); });
   setState({ selectedComponentId: partId, simulation: null });
   notify(`Connected ${source.node} to ${node}`, 'success');
@@ -3302,7 +3296,7 @@ function addWireRoutePoint(from, to, point) {
 function bindWireRouteEvents() {
   document.querySelectorAll('[data-wire-route-from]').forEach((path) => {
     const select = () => {
-      selectedWire = { from: path.dataset.wireRouteFrom, to: path.dataset.wireRouteTo };
+      circuitEditor.selectedWire = { from: path.dataset.wireRouteFrom, to: path.dataset.wireRouteTo };
       setState({ selectedComponentId: null, selectedComponentIds: [] });
     };
     path.addEventListener('click', (event) => { event.stopPropagation(); select(); });
@@ -3318,7 +3312,7 @@ function bindWireRouteEvents() {
       if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); select(); return; }
       const from = path.dataset.wireRouteFrom; const to = path.dataset.wireRouteTo;
       if (event.key === 'Delete' || event.key === 'Backspace') {
-        event.preventDefault(); selectedWire = null;
+        event.preventDefault(); circuitEditor.selectedWire = null;
         updateProject((project) => { project.circuit.wires = disconnectNodes(project.circuit.wires, from, to); });
         notify(`Disconnected ${from} from ${to}`, 'success');
       } else if (event.key === 'Insert' || event.key === '+') {
@@ -3561,7 +3555,7 @@ function persistBuiltinConfiguration(field, rawValue) {
 function loadExampleCircuit(id) {
   const example = exampleCircuits.find((candidate) => candidate.id === id);
   if (!example) return;
-  wireSource = null; selectedWire = null;
+  circuitEditor.wireSource = null; circuitEditor.selectedWire = null;
   updateProject((project) => { project.circuit.components = structuredClone(example.components); project.circuit.wires = []; project.circuit.junctions = []; project.circuit.netLabels = []; });
   recordExperiment({ id: 'circuit-builtin-analysis', kind: 'circuit', operation: 'builtin-analysis', inputs: { ...builtinConfiguration(getState()), source: 'V1', ...example.analysis } });
   setState({ simulation: null, selectedComponentId: null, selectedComponentIds: [], circuitPlotTrace: example.trace });
@@ -3719,8 +3713,8 @@ function serialConfiguration(state = getState()) {
 }
 
 function publishArduinoSerial(nativeError = null) {
-  if (!activeSerialSession) return;
-  setState({ arduinoSerial: { ...activeSerialSession.inspect(), text: activeSerialSession.exportText(), nativeError } });
+  if (!nativeSessions.activeSerialSession) return;
+  setState({ arduinoSerial: { ...nativeSessions.activeSerialSession.inspect(), text: nativeSessions.activeSerialSession.exportText(), nativeError } });
 }
 
 function decodeSerialBytes(bytes, encoding, decoder) {
@@ -3729,26 +3723,26 @@ function decodeSerialBytes(bytes, encoding, decoder) {
 }
 
 async function pollArduinoSerial() {
-  const native = activeSerialNative;
-  if (!native || !activeSerialSession) return;
+  const native = nativeSessions.activeSerialNative;
+  if (!native || !nativeSessions.activeSerialSession) return;
   try {
     const result = await desktopBridge.pollSerial(native.projectId, native.id, 8192);
-    if (activeSerialNative !== native) return;
-    if (result.bytes.length) activeSerialSession.ingest(decodeSerialBytes(result.bytes, native.encoding, native.decoder));
-    if (!activeSerialSession.inspect().paused) publishArduinoSerial(result.error);
+    if (nativeSessions.activeSerialNative !== native) return;
+    if (result.bytes.length) nativeSessions.activeSerialSession.ingest(decodeSerialBytes(result.bytes, native.encoding, native.decoder));
+    if (!nativeSessions.activeSerialSession.inspect().paused) publishArduinoSerial(result.error);
     if (!result.open || result.error) {
-      activeSerialSession.disconnect({ unexpected: true });
+      nativeSessions.activeSerialSession.disconnect({ unexpected: true });
       await desktopBridge.closeSerial(native.projectId, native.id).catch(() => {});
       publishArduinoSerial(result.error || 'Serial port closed unexpectedly.');
-      serialPollTimer = null;
+      nativeSessions.serialPollTimer = null;
       return;
     }
-    serialPollTimer = setTimeout(pollArduinoSerial, 150);
+    nativeSessions.serialPollTimer = setTimeout(pollArduinoSerial, 150);
   } catch (error) {
-    if (activeSerialNative !== native || !activeSerialSession) return;
-    activeSerialSession.disconnect({ unexpected: true });
+    if (nativeSessions.activeSerialNative !== native || !nativeSessions.activeSerialSession) return;
+    nativeSessions.activeSerialSession.disconnect({ unexpected: true });
     publishArduinoSerial(error?.message || 'Serial polling failed.');
-    serialPollTimer = null;
+    nativeSessions.serialPollTimer = null;
   }
 }
 
@@ -3771,7 +3765,7 @@ async function revokeArduinoSerialGrant() {
   const state = getState(); const grant = state.arduinoSerialGrant; const projectId = state.desktopProject?.project_id;
   if (!grant || !projectId) return;
   try {
-    if (activeSerialNative) await disconnectArduinoSerial();
+    if (nativeSessions.activeSerialNative) await disconnectArduinoSerial();
     await desktopBridge.revokeDeviceTarget(projectId, grant.permission, grant.target);
     setState({ arduinoSerialGrant: null, arduinoSerial: null });
     notify(`Serial access revoked for ${grant.target}`, 'success');
@@ -3786,53 +3780,53 @@ async function connectArduinoSerial() {
   try {
     await desktopBridge.startSerial(project.project_id, id, port, config.baud, 64 * 1024);
     const policy = createDevicePermissionPolicy({ environment: 'desktop', allowed: ['serial'] }); policy.selectTarget('serial', port);
-    activeSerialSession = createSerialSession({ permissionPolicy: policy, target: port, ...config, maxBufferBytes: 64 * 1024, maxReconnectAttempts: 3 });
-    activeSerialSession.connect();
-    activeSerialNative = { projectId: project.project_id, id, target: port, baud: config.baud, encoding: config.encoding, decoder: new TextDecoder('utf-8') };
-    publishArduinoSerial(); serialPollTimer = setTimeout(pollArduinoSerial, 0); notify(`Serial terminal connected to ${port}`, 'success');
+    nativeSessions.activeSerialSession = createSerialSession({ permissionPolicy: policy, target: port, ...config, maxBufferBytes: 64 * 1024, maxReconnectAttempts: 3 });
+    nativeSessions.activeSerialSession.connect();
+    nativeSessions.activeSerialNative = { projectId: project.project_id, id, target: port, baud: config.baud, encoding: config.encoding, decoder: new TextDecoder('utf-8') };
+    publishArduinoSerial(); nativeSessions.serialPollTimer = setTimeout(pollArduinoSerial, 0); notify(`Serial terminal connected to ${port}`, 'success');
   } catch (error) { notify(error?.message || 'Serial port could not be opened', 'error'); }
 }
 
 async function reconnectArduinoSerial() {
-  const native = activeSerialNative;
-  if (!native || !activeSerialSession || activeSerialSession.inspect().state !== 'reconnecting') { notify('No interrupted serial session is available to reconnect', 'error'); return; }
+  const native = nativeSessions.activeSerialNative;
+  if (!native || !nativeSessions.activeSerialSession || nativeSessions.activeSerialSession.inspect().state !== 'reconnecting') { notify('No interrupted serial session is available to reconnect', 'error'); return; }
   try {
     await desktopBridge.startSerial(native.projectId, native.id, native.target, native.baud, 64 * 1024);
-    activeSerialSession.reconnect(); native.decoder = new TextDecoder('utf-8'); publishArduinoSerial(); serialPollTimer = setTimeout(pollArduinoSerial, 0); notify(`Serial terminal reconnected to ${native.target}`, 'success');
+    nativeSessions.activeSerialSession.reconnect(); native.decoder = new TextDecoder('utf-8'); publishArduinoSerial(); nativeSessions.serialPollTimer = setTimeout(pollArduinoSerial, 0); notify(`Serial terminal reconnected to ${native.target}`, 'success');
   } catch (error) {
-    try { activeSerialSession.reconnect(); activeSerialSession.markReconnectFailed(); } catch { /* state already exhausted */ }
+    try { nativeSessions.activeSerialSession.reconnect(); nativeSessions.activeSerialSession.markReconnectFailed(); } catch { /* state already exhausted */ }
     publishArduinoSerial(error?.message || 'Serial reconnect failed'); notify(error?.message || 'Serial reconnect failed', 'error');
   }
 }
 
 async function disconnectArduinoSerial() {
-  if (serialPollTimer) clearTimeout(serialPollTimer); serialPollTimer = null;
-  const native = activeSerialNative; const session = activeSerialSession;
-  activeSerialNative = null; activeSerialSession = null;
+  if (nativeSessions.serialPollTimer) clearTimeout(nativeSessions.serialPollTimer); nativeSessions.serialPollTimer = null;
+  const native = nativeSessions.activeSerialNative; const session = nativeSessions.activeSerialSession;
+  nativeSessions.activeSerialNative = null; nativeSessions.activeSerialSession = null;
   if (native) await desktopBridge.closeSerial(native.projectId, native.id).catch(() => {});
   if (session) { session.close(); setState({ arduinoSerial: { ...session.inspect(), text: session.exportText(), nativeError: null } }); }
 }
 
 function toggleArduinoSerialPause() {
-  if (!activeSerialSession) return; activeSerialSession.setPaused(!activeSerialSession.inspect().paused); publishArduinoSerial();
+  if (!nativeSessions.activeSerialSession) return; nativeSessions.activeSerialSession.setPaused(!nativeSessions.activeSerialSession.inspect().paused); publishArduinoSerial();
 }
 
 function clearArduinoSerial() {
-  if (activeSerialSession) { activeSerialSession.clear(); publishArduinoSerial(); } else setState({ arduinoSerial: null });
+  if (nativeSessions.activeSerialSession) { nativeSessions.activeSerialSession.clear(); publishArduinoSerial(); } else setState({ arduinoSerial: null });
 }
 
 function exportArduinoSerial() {
-  const text = activeSerialSession?.exportText() || getState().arduinoSerial?.text || '';
+  const text = nativeSessions.activeSerialSession?.exportText() || getState().arduinoSerial?.text || '';
   if (!text) return;
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' }); const link = document.createElement('a');
   link.href = URL.createObjectURL(blob); link.download = `openentc-serial-${Date.now()}.txt`; link.click(); URL.revokeObjectURL(link.href); notify('Serial transcript exported', 'success');
 }
 
 async function sendArduinoSerial() {
-  const input = document.querySelector('[data-field="serial-transmit"]'); const native = activeSerialNative;
-  if (!input || !native || !activeSerialSession) return;
+  const input = document.querySelector('[data-field="serial-transmit"]'); const native = nativeSessions.activeSerialNative;
+  if (!input || !native || !nativeSessions.activeSerialSession) return;
   try {
-    const text = activeSerialSession.formatTransmit(input.value); await desktopBridge.writeSerial(native.projectId, native.id, new TextEncoder().encode(text)); input.value = '';
+    const text = nativeSessions.activeSerialSession.formatTransmit(input.value); await desktopBridge.writeSerial(native.projectId, native.id, new TextEncoder().encode(text)); input.value = '';
   } catch (error) { notify(error?.message || 'Serial write failed', 'error'); }
 }
 
@@ -3847,7 +3841,7 @@ async function revokeArduinoProgrammerGrant() {
 }
 
 async function cancelArduinoUpload(silent = false) {
-  const upload = activeArduinoUpload;
+  const upload = nativeSessions.activeArduinoUpload;
   if (!upload) return;
   setState({ arduinoUpload: { runId: upload.runId, phase: 'cancelling', port: upload.port } });
   try {
@@ -3866,7 +3860,7 @@ async function runNativeArduinoUpload() {
   if (!state.processPermissionGranted || !state.artifactPermissionGranted) { notify('Grant process and artifact permissions before uploading', 'error'); return; }
   if (!target || !port) { notify('Select an installed board and enter the exact port before uploading', 'error'); return; }
   if (!granted) { notify(`Review and grant programmer access for ${port} before uploading`, 'error'); return; }
-  if (activeArduinoUpload) { notify('An Arduino upload is already active', 'error'); return; }
+  if (nativeSessions.activeArduinoUpload) { notify('An Arduino upload is already active', 'error'); return; }
   const structure = analyzeSketchSource(state.project.embedded.code);
   if (structure.diagnostics.some((diagnostic) => diagnostic.severity === 'error')) { setState({ simulation: { kind: 'firmware', report: structure } }); notify('Fix source structure errors before uploading', 'error'); return; }
   const baseId = `arduino-upload-${Date.now().toString(36)}`;
@@ -3875,17 +3869,17 @@ async function runNativeArduinoUpload() {
   const sketchBytes = new TextEncoder().encode(state.project.embedded.code); const artifacts = []; let compileAdapter = null; let uploadAdapter = null;
   const runnerOptions = { bridge: desktopBridge, project: desktopProject, onStarted: async () => setState({ desktopJobs: await desktopBridge.listJobs(desktopProject.project_id) }), onArtifact: (artifact) => { artifacts.push(artifact); } };
   try {
-    activeArduinoUpload = { runId: baseId, port, adapter: null };
+    nativeSessions.activeArduinoUpload = { runId: baseId, port, adapter: null };
     setState({ arduinoUpload: { runId: baseId, phase: 'compiling', port } });
     await desktopBridge.saveOpenProject(state.project);
     artifacts.push(await desktopBridge.storeArtifact(desktopProject.project_id, `runs/${baseId}/sketch/sketch.ino`, sketchBytes, 'text/x-arduino'));
     compileAdapter = createArduinoCliAdapter({ executable: detection.path, runner: createDesktopProcessAdapterRunner({ ...runnerOptions, runId: `${baseId}-compile` }) });
-    activeArduinoUpload.adapter = compileAdapter;
+    nativeSessions.activeArduinoUpload.adapter = compileAdapter;
     const compileJob = { operation: 'compile', board: target.fqbn, sketchPath, buildPath };
     await compileAdapter.prepare(compileJob); await compileAdapter.run(compileJob); const report = await compileAdapter.parse(compileJob);
     const permissionPolicy = createDevicePermissionPolicy({ environment: 'desktop', allowed: ['programmer'] }); permissionPolicy.selectTarget('programmer', port);
     uploadAdapter = createArduinoCliAdapter({ executable: detection.path, permissionPolicy, runner: createDesktopProcessAdapterRunner({ ...runnerOptions, runId: `${baseId}-device`, deviceAuthorization: { permission: 'device-programmer', target: port } }) });
-    activeArduinoUpload.adapter = uploadAdapter;
+    nativeSessions.activeArduinoUpload.adapter = uploadAdapter;
     setState({ arduinoUpload: { runId: baseId, phase: 'uploading', port } });
     const uploadJob = { operation: 'upload', board: target.fqbn, port, sketchPath, buildPath };
     await uploadAdapter.prepare(uploadJob); await uploadAdapter.run(uploadJob); await uploadAdapter.parse(uploadJob);
@@ -3899,7 +3893,7 @@ async function runNativeArduinoUpload() {
     try { setState({ desktopJobs: await desktopBridge.listJobs(desktopProject.project_id), desktopEvents: await desktopBridge.drainEvents(desktopProject.project_id) }); } catch { /* retain the original engine error */ }
     notify(error?.code === 'PROCESS_CANCELLED' ? 'Arduino upload cancelled' : error?.message || 'Arduino upload failed', error?.code === 'PROCESS_CANCELLED' ? 'success' : 'error');
   } finally {
-    activeArduinoUpload = null;
+    nativeSessions.activeArduinoUpload = null;
     setState({ arduinoUpload: null });
     await compileAdapter?.clean().catch(() => {}); await uploadAdapter?.clean().catch(() => {});
   }
@@ -3978,28 +3972,6 @@ importInput.addEventListener('change', async () => {
   catch (error) { notify(error.message || 'Could not import project', 'error'); }
   importInput.value = '';
 });
-
-function showModal(title, content) {
-  const layer = document.querySelector('.modal-layer');
-  const previousFocus = document.activeElement;
-  layer.hidden = false;
-  layer.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button class="modal-close" aria-label="Close">×</button><span class="eyebrow">OPENENTC STUDIO</span><h2 id="modal-title">${title}</h2>${content}<button class="button primary wide modal-done">Got it</button></div>`;
-  const modal = layer.querySelector('.modal');
-  const focusable = () => [...modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter((element) => !element.disabled && element.offsetParent !== null);
-  const close = () => { layer.hidden = true; layer.innerHTML = ''; layer.removeEventListener('click', onBackdrop); layer.removeEventListener('keydown', onKeyDown); if (previousFocus && typeof previousFocus.focus === 'function') previousFocus.focus(); };
-  const onBackdrop = (event) => { if (event.target === layer) close(); };
-  const onKeyDown = (event) => {
-    if (event.key === 'Escape') { event.preventDefault(); close(); return; }
-    if (event.key !== 'Tab') return;
-    const elements = focusable(); if (!elements.length) return;
-    const first = elements[0]; const last = elements.at(-1);
-    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-  };
-  layer.addEventListener('click', onBackdrop); layer.addEventListener('keydown', onKeyDown);
-  layer.querySelector('.modal-close').addEventListener('click', close); layer.querySelector('.modal-done').addEventListener('click', close);
-  layer.querySelector('.modal-close').focus();
-}
 
 function showHelp() { showModal('A unified ENTC workspace', '<p>OpenENTC Studio keeps circuit, firmware, board and communication work in one local project.</p><div class="shortcut-list"><span>Command palette</span><kbd>Ctrl K</kbd><span>Run circuit analysis</span><kbd>Circuit → Run</kbd><span>Move component</span><kbd>Drag</kbd><span>Edit component</span><kbd>Select</kbd></div>'); }
 function showEngineInfo() { showModal('How engine connectors work', '<p>OpenENTC owns the project experience and limited built-in circuit tools. Specialist open-source applications remain independent processes with their own licences.</p><p>The planned desktop bridge will detect installed tools, translate project data, execute them safely and return results to this interface.</p>'); }

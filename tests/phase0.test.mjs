@@ -362,7 +362,7 @@ test('Circuit Lab exposes explicit reference annotation and collision-safe inser
 
 test('Circuit Lab copy/paste carries only internal wires with remapped nodes', async () => {
   const source = readUiSource();
-  assert.match(source, /let clipboardWires = \[\]/);
+  assert.match(source, /clipboardWires: \[\],/, 'the clipboard starts empty (src/state/circuit-editor.js)');
   assert.match(source, /clipboardWires = state\.project\.circuit\.wires\.filter/);
   assert.match(source, /result\.nodeMap\[wire\.from\]/);
   assert.match(source, /setWireRoute\(connected, from, to/);
