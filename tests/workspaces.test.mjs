@@ -10,6 +10,7 @@ const store = await import('../src/core/store.js');
 
 export const WORKSPACES = [
   { module: 'logic', path: '../src/workspaces/digital/logic.js', render: 'renderLogic', bind: 'bindLogicEvents', expect: [/data-logic-tab="boolean"/, /data-logic-tab="simulator"/, /data-logic-field=/] },
+  { module: 'power', path: '../src/workspaces/electrical/power.js', render: 'renderPower', bind: 'bindPowerEvents', expect: [] },
 ];
 
 for (const workspace of WORKSPACES) {
