@@ -40,6 +40,7 @@ export const WORKSPACES = [
   { module: 'em', path: '../src/workspaces/rf/em.js', render: 'renderEm', bind: 'bindEmEvents', expect: [] },
   { module: 'radar', path: '../src/workspaces/rf/radar.js', render: 'renderRadar', bind: 'bindRadarEvents', expect: [] },
   { module: 'twin', path: '../src/workspaces/embedded/twin.js', render: 'renderTwin', bind: 'bindTwinEvents', expect: [] },
+  { module: 'pcb', path: '../src/workspaces/pcb/pcb.js', render: 'renderPcb', bind: 'bindPcbEvents', expect: [] },
 ];
 
 for (const workspace of WORKSPACES) {
