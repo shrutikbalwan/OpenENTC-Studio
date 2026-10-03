@@ -9,6 +9,7 @@ import { annotateReferences } from '../packages/schematic/src/annotation.mjs';
 import { BJT_CJC, BJT_CJE, BJT_TF, MOSFET_CGD, MOSFET_CGS } from '../packages/schematic/src/device-models.mjs';
 import { pasteComponents } from '../src/core/circuit-editing.js';
 import { createProject, validateProject } from '../src/core/project.js';
+import { readUiSource } from './helpers/ui-source.mjs';
 
 const part = (id, type, value, n1, n2, n3, extra = {}) => ({ id, type, label: id, value, unit: '', n1, n2, ...(n3 === undefined ? {} : { n3 }), ...extra });
 const near = (actual, expected, tolerance, message) => assert.ok(Math.abs(actual - expected) <= tolerance, `${message}: ${actual} vs ${expected}`);
@@ -123,7 +124,7 @@ test('SPICE export writes transistor, MOSFET, op-amp and per-part diode models',
 
 test('Circuit Lab renders three-pin symbols, pins and device parameters', async () => {
   const { readFile } = await import('node:fs/promises');
-  const app = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  const app = readUiSource();
   for (const type of ['npn', 'pnp', 'nmos', 'opamp']) assert.match(app, new RegExp(`part\\.type === '${type}'`));
   assert.match(app, /pins-transistor/);
   assert.match(app, /data-part-field="kp"/);

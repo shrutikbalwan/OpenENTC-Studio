@@ -9,6 +9,7 @@ import { createProject, serializeProject, validateProject } from '../src/core/pr
 import { simulateDC } from '../src/engines/circuit-engine.js';
 import { runVerification } from '../scripts/verify-lib.mjs';
 import { rootFromModuleUrl } from '../scripts/server-path.mjs';
+import { readUiSource } from './helpers/ui-source.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const ledger = JSON.parse(await readFile(resolve(root, 'capabilities/ledger.json'), 'utf8'));
@@ -59,7 +60,7 @@ test('no external engine is represented as installed without detection evidence'
 });
 
 test('toolchain UI distinguishes disabled and incompatible detection states', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   const registry = await readFile(resolve(root, 'src/core/engine-registry.js'), 'utf8');
   assert.match(source, /state === 'invalid' \? 'Incompatible'/);
   assert.match(source, /engine\.disabled \? 'Disabled'/);
@@ -68,7 +69,7 @@ test('toolchain UI distinguishes disabled and incompatible detection states', as
 });
 
 test('unimplemented primary workflows are disabled instead of reporting fake success', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.doesNotMatch(source, /data-action="run-module"/);
   assert.doesNotMatch(source, /data-action="build-code"/);
   assert.doesNotMatch(source, /data-action="connect-device"/);
@@ -79,7 +80,7 @@ test('unimplemented primary workflows are disabled instead of reporting fake suc
 });
 
 test('every literal data-action control has a corresponding DOM binding', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   const rendered = new Set([...source.matchAll(/data-action="([a-z0-9-]+)"/g)].map((match) => match[1]));
   const bound = new Set([...source.matchAll(/querySelector(?:All)?\('\[data-action="([a-z0-9-]+)"\]/g)].map((match) => match[1]));
   const unbound = [...rendered].filter((action) => !bound.has(action));
@@ -152,7 +153,7 @@ test('engine SDK runtime and declaration exports stay aligned', async () => {
 });
 
 test('Circuit Lab wires keyboard movement to the immutable editing command', async () => {
-  const source = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  const source = readUiSource();
   assert.match(source, /moveComponents/);
   assert.match(source, /arrowleft.*arrowright.*arrowup.*arrowdown/);
   assert.match(source, /moveSelected\(/);
@@ -273,13 +274,13 @@ test('browser styles preserve visible keyboard focus for styled controls', async
 });
 
 test('browser icon controls expose explicit accessible names', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /data-action="command"[^>]+aria-label="Open command palette"/);
   assert.match(source, /data-action="theme"[^>]+aria-label="Change color theme"/);
 });
 
 test('shared modal helper traps focus and restores the invoking control', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /aria-modal="true" aria-labelledby="modal-title"/);
   assert.match(source, /previousFocus = document\.activeElement/);
   assert.match(source, /event\.key === 'Escape'/);
@@ -288,7 +289,7 @@ test('shared modal helper traps focus and restores the invoking control', async 
 });
 
 test('toast notifications expose explicit status roles and live politeness', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /role="\$\{state\.toast\.tone === 'error' \? 'alert' : 'status'\}"/);
   assert.match(source, /aria-live="\$\{state\.toast\.tone === 'error' \? 'assertive' : 'polite'\}"/);
 });
@@ -306,7 +307,7 @@ test('browser build emits conventional SHA256SUMS derived from its manifest', as
 });
 
 test('Circuit Lab exposes keyboard-focusable canvas terminals for real wire editing', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /data-canvas-node/);
   assert.match(source, /chooseWireNode\(pin\.dataset\.canvasNode\)/);
 });
@@ -314,11 +315,11 @@ test('Circuit Lab exposes keyboard-focusable canvas terminals for real wire edit
 test('Circuit Lab renders persisted component rotation on the canvas', async () => {
   const source = await readFile(resolve(root, 'src/styles.css'), 'utf8');
   assert.match(source, /\.circuit-part\s*\{[^}]*rotate\(var\(--part-rotation/);
-  assert.match(await readFile(resolve(root, 'src/app.js'), 'utf8'), /--part-rotation/);
+  assert.match(readUiSource(), /--part-rotation/);
 });
 
 test('Circuit Lab authors bounded net labels and junction markers through the project model', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /data-action="add-net-label"/);
   assert.match(source, /data-action="add-junction"/);
   assert.match(source, /project\.circuit\.netLabels\.push/);
@@ -331,7 +332,7 @@ test('Circuit Lab authors bounded net labels and junction markers through the pr
 });
 
 test('Circuit Lab renders ERC source and fix context beside diagnostics', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /Source: \$\{esc\(location\)\}/);
   assert.match(source, /Fix: \$\{esc\(diagnostic\.fix\)\}/);
   assert.match(source, /data-diagnostic-component/);
@@ -345,7 +346,7 @@ test('Circuit Lab palette exposes the Phase 3 source and switch component types'
   // The palette is built from the schematic package's component definitions (src/data/modules.js).
   assert.match(await readFile(resolve(root, 'src/data/modules.js'), 'utf8'), /componentPalette = COMPONENT_DEFINITIONS\.map/);
   const source = await readFile(resolve(root, 'packages/schematic/src/components.mjs'), 'utf8');
-  const app = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const app = readUiSource();
   assert.match(source, /type: 'current'/);
   assert.match(source, /type: 'switch'/);
   assert.match(app, /part\.type === 'current'/);
@@ -353,14 +354,14 @@ test('Circuit Lab palette exposes the Phase 3 source and switch component types'
 });
 
 test('Circuit Lab exposes explicit reference annotation and collision-safe insertion', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /data-action="annotate-components"/);
   assert.match(source, /annotateCircuitComponents/);
   assert.match(source, /while \(used\.has\(`\$\{prefix\}\$\{count\}`\)\)/);
 });
 
 test('Circuit Lab copy/paste carries only internal wires with remapped nodes', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /let clipboardWires = \[\]/);
   assert.match(source, /clipboardWires = state\.project\.circuit\.wires\.filter/);
   assert.match(source, /result\.nodeMap\[wire\.from\]/);
@@ -369,7 +370,7 @@ test('Circuit Lab copy/paste carries only internal wires with remapped nodes', a
 });
 
 test('Circuit Lab exposes persistent orthogonal route and marker editing', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /data-wire-route-from/);
   assert.match(source, /data-wire-handle-from/);
   assert.match(source, /beginWireRouteDrag/);
@@ -383,13 +384,13 @@ test('Circuit Lab exposes persistent orthogonal route and marker editing', async
 });
 
 test('Circuit Lab exposes an actionable wire disconnect control', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /data-wire-remove-from/);
   assert.match(source, /disconnectNodes\(project\.circuit\.wires, from, to\)/);
 });
 
 test('Circuit Lab exposes native ngspice only behind detected desktop grants', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /data-action="run-ngspice"/);
   assert.match(source, /ngspice\?\.state === 'detected'/);
   assert.match(source, /processPermissionGranted && state\.artifactPermissionGranted/);
@@ -400,7 +401,7 @@ test('Circuit Lab exposes native ngspice only behind detected desktop grants', a
 });
 
 test('Circuit Lab exposes persisted ngspice job configuration and real table instruments', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /NGSPICE_OPERATIONS = \['operating-point', 'dc-sweep', 'ac-analysis', 'transient'\]/);
   assert.match(source, /data-ngspice-field="operation"/);
   assert.match(source, /circuit-ngspice-analysis/);
@@ -417,7 +418,7 @@ test('Circuit Lab exposes persisted ngspice job configuration and real table ins
 });
 
 test('Embedded Lab exposes project-scoped Arduino CLI compile only behind desktop grants', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /data-action="build-arduino"/);
   assert.match(source, /arduino\?\.state === 'detected'/);
   assert.match(source, /processPermissionGranted && state\.artifactPermissionGranted/);
@@ -438,7 +439,7 @@ test('Embedded Lab exposes project-scoped Arduino CLI compile only behind deskto
 });
 
 test('Embedded Lab inventories local Arduino packages without device discovery or installation', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   const adapter = await readFile(resolve(root, 'packages/engine-sdk/src/arduino-cli.mjs'), 'utf8');
   assert.match(source, /data-action="refresh-arduino-inventory"/);
   assert.match(source, /data-field="arduino-board"/);
@@ -452,7 +453,7 @@ test('Embedded Lab inventories local Arduino packages without device discovery o
 });
 
 test('Embedded Lab exposes a bounded native serial terminal only after an exact target grant', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /data-action="grant-arduino-serial"/);
   assert.match(source, /grantDeviceTarget\(project\.project_id, 'device-serial', port, true\)/);
   assert.match(source, /data-serial-config="baud"/);
@@ -467,14 +468,14 @@ test('Embedded Lab exposes a bounded native serial terminal only after an exact 
 });
 
 test('toolchain catalog is an honest browser-preview surface', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /renderToolchains/);
   assert.match(source, /Native tools are never assumed installed/);
   assert.match(source, /open-toolchains/);
 });
 
 test('toolchain detection changes the rendered status class as well as its label', async () => {
-  const source = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  const source = readUiSource();
   assert.match(source, /const statusClass = \(engine\) =>/);
   assert.match(source, /detection\[engine\.id\]\?\.state === 'detected' \? 'ready'/);
   assert.match(source, /engine-status \$\{statusClass\(engine\)\}/);
@@ -491,14 +492,14 @@ test('replacing a project clears stale desktop identity and process permission s
 });
 
 test('browser project replacement closes an open native session first', async () => {
-  const source = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  const source = readUiSource();
   assert.match(source, /async function closeNativeSessionForBrowserProject\(\)/);
   assert.match(source, /await desktopBridge\.closeProject\(\)/);
   assert.match(source, /closeNativeSessionForBrowserProject\(\)/);
 });
 
 test('desktop open cleans up a native session if post-open browser validation fails', async () => {
-  const source = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  const source = readUiSource();
   assert.match(source, /let nativeOpened = false/);
   assert.match(source, /nativeOpened = true/);
   assert.match(source, /if \(nativeOpened\) await desktopBridge\.closeProject\(\)\.catch/);
@@ -543,7 +544,7 @@ test('native manifest validation bounds registry IDs and experiment definitions'
 });
 
 test('Toolchains exposes separate browser-denied device permission scopes', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /createDevicePermissionPolicy/);
   assert.match(source, /DEVICE, PROCESS AND ARTIFACT PERMISSIONS/);
   assert.match(source, /Serial, USB, debug, capture, SDR, programmer, process execution and generated-artifact writes are separate permissions/);
@@ -562,21 +563,21 @@ test('Toolchains exposes separate browser-denied device permission scopes', asyn
 });
 
 test('canvas zoom controls are exposed as built-in actions', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /data-action="zoom-out"/);
   assert.match(source, /data-action="zoom-in"/);
   assert.doesNotMatch(source, /canvas zoom is planned for Phase 3/);
 });
 
 test('Circuit Lab inspector uses bounded SI engineering-value parsing', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /parseEngineeringValue\(input\.value/);
   assert.match(source, /Use SI suffixes/);
   assert.doesNotMatch(source, /data-part-field="value" value=.*type="number"/);
 });
 
 test('Signals workspace uses real local numerical primitives', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /function renderDsp/);
   assert.match(source, /generateSine\(/);
   assert.match(source, /fft\(windowed\)/);
@@ -584,13 +585,13 @@ test('Signals workspace uses real local numerical primitives', async () => {
 });
 
 test('Signals workspace exposes bounded windowing through the numerical kernel', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /applyWindow/);
   assert.match(source, /data-dsp-field="window"/);
 });
 
 test('Signals workspace exposes bounded FIR filtering through the numerical kernel', async () => {
-  const source = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  const source = readUiSource();
   const numerics = await readFile(new URL('../packages/numerics/src/index.mjs', import.meta.url), 'utf8');
   assert.match(source, /filterFir/);
   assert.match(source, /data-dsp-field="taps"/);
@@ -598,21 +599,21 @@ test('Signals workspace exposes bounded FIR filtering through the numerical kern
 });
 
 test('Signals workspace exports only real bounded result samples', async () => {
-  const source = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  const source = readUiSource();
   assert.match(source, /data-action="export-dsp"/);
   assert.match(source, /result\?\.kind !== 'dsp'/);
   assert.match(source, /time_s,value/);
 });
 
 test('Signals workspace exports real FFT columns only after a spectrum exists', async () => {
-  const source = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  const source = readUiSource();
   assert.match(source, /data-action="export-spectrum"/);
   assert.match(source, /result\.spectrum\?\.real/);
   assert.match(source, /frequency_hz,real,imaginary,magnitude/);
 });
 
 test('Signals workspace renders an FFT magnitude trace from computed bins', async () => {
-  const source = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  const source = readUiSource();
   assert.match(source, /const magnitudes = result \? Array\.from\(result\.spectrum\.real,/);
   assert.match(source, /FFT MAGNITUDE/);
   assert.match(source, /spectrumPath/);
@@ -628,7 +629,7 @@ test('Python numerical worker allow-lists the FIR filter operation', async () =>
 });
 
 test('Communication workspace uses real QPSK and BER primitives', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /function renderCommunication/);
   assert.match(source, /qpskModulate\(bits\)/);
   assert.match(source, /bitErrorRate\(bits/);
@@ -636,7 +637,7 @@ test('Communication workspace uses real QPSK and BER primitives', async () => {
 });
 
 test('Control workspace uses the bounded first-order control kernel', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /function renderControl/);
   assert.match(source, /firstOrderStep/);
   assert.match(source, /firstOrderStability/);
@@ -646,7 +647,7 @@ test('Control workspace uses the bounded first-order control kernel', async () =
 });
 
 test('experiment runs persist authored configurations separately from generated results', async () => {
-  const app = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  const app = readUiSource();
   const store = await readFile(new URL('../src/core/store.js', import.meta.url), 'utf8');
   const experiments = await readFile(new URL('../packages/project-model/src/experiments.mjs', import.meta.url), 'utf8');
   assert.match(store, /export function recordExperiment/);
@@ -670,14 +671,14 @@ test('experiment runs persist authored configurations separately from generated 
 });
 
 test('embedded editor writes authored firmware source through the project store', async () => {
-  const source = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  const source = readUiSource();
   assert.match(source, /data-field="embedded-code"/);
   assert.match(source, /project\.embedded\.code = editor\.value/);
   assert.match(source, /updateProject/);
 });
 
 test('Project Hub exposes persisted authored experiment configurations without generated results', async () => {
-  const source = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  const source = readUiSource();
   assert.match(source, /AUTHORED EXPERIMENTS/);
   assert.match(source, /state\.project\.experiments\.slice\(-6\)/);
   assert.match(source, /Project manifest/);
@@ -689,7 +690,7 @@ test('Project Hub exposes persisted authored experiment configurations without g
 });
 
 test('Packet workspace exposes bounded saved-PCAP parsing without live capture', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /function renderNetwork/);
   assert.match(source, /parsePcap/);
   assert.match(source, /parsePcapNg/);
@@ -698,14 +699,14 @@ test('Packet workspace exposes bounded saved-PCAP parsing without live capture',
 });
 
 test('Packet workspace exposes deterministic topology metrics without live network access', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /topologyMetrics/);
   assert.match(source, /run-topology/);
   assert.match(source, /no broker or live network access/);
 });
 
 test('Circuit Lab ignores non-DC shared results instead of dereferencing incompatible shapes', async () => {
-  const source = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  const source = readUiSource();
   assert.match(source, /const isDcResult = \(simulation\) => Boolean\(simulation\?\.nodes && simulation\?\.currents && !simulation\.kind\)/);
   assert.match(source, /const circuitCompatible = isDcResult\(state\.simulation\) \|\| \['ngspice', 'ngspice-error', 'circuit-transient', 'circuit-ac'\]\.includes\(state\.simulation\?\.kind\)/);
   assert.match(source, /const circuitState = circuitCompatible \? state/);
@@ -714,7 +715,7 @@ test('Circuit Lab ignores non-DC shared results instead of dereferencing incompa
 
 test('project persistence failures are surfaced instead of claiming a local save', async () => {
   const store = await readFile(new URL('../src/core/store.js', import.meta.url), 'utf8');
-  const app = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  const app = readUiSource();
   assert.match(store, /persistence: \{ status: 'error'/);
   assert.match(store, /Project could not be saved/);
   assert.match(store, /initialStoragePresent/);
@@ -728,7 +729,7 @@ test('project persistence failures are surfaced instead of claiming a local save
 });
 
 test('Digital workspace exposes bounded VCD import and explicitly gated native Verilator lint', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /function renderDigital/);
   assert.match(source, /parseVcd/);
   assert.match(source, /data-action="lint-verilator"/);
@@ -755,35 +756,35 @@ test('Digital workspace exposes bounded VCD import and explicitly gated native V
 });
 
 test('Embedded structure checks expose source-linked firmware diagnostics', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /analyzeSketchSource/);
   assert.match(source, /diagnostic\.code/);
   assert.match(source, /line \$\{diagnostic\.line\}/);
 });
 
 test('RF workspace uses the bounded Touchstone parser', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /function renderRf/);
   assert.match(source, /parseTouchstone\(text/);
   assert.match(source, /parse-rf/);
 });
 
 test('RF workspace derives a Smith-view trace from parsed S11 data', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /const s11 = result/);
   assert.match(source, /S11 SMITH VIEW/);
   assert.match(source, /Math\.atan2\(first\.imaginary/);
 });
 
 test('Learning workspace evaluates a real DC result checkpoint', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /function renderVerifiedLearning/);
   assert.match(source, /evaluateLesson\(lesson/);
   assert.match(source, /Run the voltage-divider DC analysis first/);
 });
 
 test('Learning workspace adds real DSP and BER checkpoints', async () => {
-  const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
+  const source = readUiSource();
   assert.match(source, /dsp-window/);
   assert.match(source, /qpsk-ber/);
   assert.match(source, /check-dsp-lesson/);

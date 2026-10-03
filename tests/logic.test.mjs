@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { analyzeFunction, evaluateExpression, karnaughLayout, minimize, parseExpression, patternCovers, primeImplicants, truthTable } from '../packages/logic/src/boolean.mjs';
+import { readUiSource } from './helpers/ui-source.mjs';
 
 const sopValue = (implicants, term) => implicants.some((pattern) => patternCovers(pattern, term)) ? 1 : 0;
 
@@ -188,7 +189,7 @@ test('logic lab view parses minterm notation and renders K-map, gates and timing
   const svg = renderTimingDiagram(trace, ['CLK', 'Q0', 'Q1', 'Q2']);
   assert.equal((svg.match(/class="timing-wave"/g) || []).length, 4);
   assert.match(svg, />CLK</);
-  const app = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  const app = readUiSource();
   assert.match(app, /if \(active\.id === 'logic'\) return renderLogic\(state\)/);
   assert.match(app, /data-logic-tab=/);
   assert.match(app, /data-action="logic-analyze"/);

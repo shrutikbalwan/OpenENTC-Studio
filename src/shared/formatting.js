@@ -10,3 +10,5 @@ export const complexText = (value) => (Math.abs(value.im) < 1e-12 ? fmt(value.re
 export const numericText = (value) => String(Number(Number(value).toPrecision(6)));
 export const lines = (text) => String(text || '').split('\n').map((line) => line.trim()).filter(Boolean);
 export const rect = (value, unit) => (Math.abs(value[1]) < 1e-12 * Math.max(1, C.abs(value)) ? eng(value[0], unit) : `${eng(value[0], unit)} ${value[1] >= 0 ? '+' : '−'} j${eng(Math.abs(value[1]), unit)}`);
+
+export const binary = (value, bits) => value.toString(2).padStart(bits, '0');

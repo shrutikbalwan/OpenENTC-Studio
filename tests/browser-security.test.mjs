@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { esc, formatAssistantText, safeUrl } from '../src/core/html.js';
 import { ASSISTANT_DEFAULTS, forgetApiKey, loadAssistantSettings, redactSecrets, resetCredentialMemory, saveAssistantSettings, SESSION_KEY, SETTINGS_KEY } from '../src/core/credentials.js';
 import { chat, validateBaseUrl } from '../packages/assistant/src/index.mjs';
+import { readUiSource } from './helpers/ui-source.mjs';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const memoryStorage = () => { const map = new Map(); return { getItem: (k) => (map.has(k) ? map.get(k) : null), setItem: (k, v) => map.set(k, String(v)), removeItem: (k) => map.delete(k), map }; };
@@ -63,7 +64,7 @@ test('the API key is never persisted and an old saved key is deleted on load', (
 
 test('credentials never reach the project model, export code or logs', () => {
   for (const path of ['src/core/project.js', 'src/core/project-file.js', 'src/core/project-storage.js', 'packages/project-model/src/index.mjs', 'packages/project-model/src/archive.mjs']) assert.doesNotMatch(read(path), /apiKey|openentc\.assistant/, path);
-  assert.doesNotMatch(read('src/app.js'), /console\.(log|info|debug|warn|error)\([^)]*apiKey/);
+  assert.doesNotMatch(readUiSource(), /console\.(log|info|debug|warn|error)\([^)]*apiKey/);
   assert.equal(redactSecrets(`Incorrect API key provided: ${KEY}`, [KEY]), 'Incorrect API key provided: [redacted]');
   assert.equal(redactSecrets('Authorization: Bearer abcdefghijklmnop'), 'Authorization: Bearer [redacted]');
   assert.equal(redactSecrets('key AIzaSyA1234567890abcdefghijklmn'), 'key [redacted]');
@@ -114,5 +115,5 @@ test('Content Security Policy blocks inline and remote scripts in the browser an
     for (const host of ['http://localhost:*', 'http://127.0.0.1:*', 'https:']) assert.ok(policy['connect-src'].includes(host), host);
   }
   assert.doesNotMatch(read('src/styles.css'), /@import|https?:\/\//, 'no remote stylesheet or font');
-  assert.doesNotMatch(read('src/app.js'), /<[a-z][^>]*\son[a-z]+=["'{$]/i, 'no inline event-handler attributes in templates');
+  assert.doesNotMatch(readUiSource(), /<[a-z][^>]*\son[a-z]+=["'{$]/i, 'no inline event-handler attributes in templates');
 });
