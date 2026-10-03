@@ -430,6 +430,14 @@
       "plannedPhase": 9
     },
     {
+      "id": "analog.design-studio",
+      "surface": "Analog Design: design-to-specification for voltage-divider BJT bias and CE amplifiers (with one-click open in Circuit Lab), Wien/RC phase-shift/Colpitts/Hartley/crystal oscillators, Butterworth Sallen–Key low/high-pass filters of order 1–10, MFB band-pass, Zener and LM317 regulators, Schmitt triggers and the 565 PLL",
+      "state": "built-in",
+      "evidence": ["packages/analogdesign/src/index.mjs", "src/app.js#renderAnalog", "tests/analogdesign.test.mjs"],
+      "limitations": "Hand-analysis models: BJT bias uses a fixed VBE (0.7 V) and β, small-signal figures ignore ro and the Early effect; the Circuit Lab check uses the built-in Ebers–Moll model and lands within a few per cent. Filters and oscillator feedback networks are verified with the phasor MNA solver and an ideal op-amp (VCVS gain 10⁷), so slew rate, GBW and output limits are not modelled; only Butterworth alignments are generated. LC oscillators ignore transistor loading and mutual inductance; the PLL uses the NE565 data-sheet formulas. Regulator designs are steady-state (no ripple rejection or transient response).",
+      "plannedPhase": 9
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",

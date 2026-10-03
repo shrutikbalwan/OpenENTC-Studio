@@ -4,6 +4,7 @@ export const modules = [
   { id: 'home', name: 'Mission control', short: 'Home', icon: '⌂', color: '#5eead4', description: 'Projects, engines and guided workflows.' },
   { id: 'circuit', name: 'Circuit Lab', short: 'Circuit', icon: '⌁', color: '#60a5fa', description: 'Draw, inspect and solve electronic circuits.' },
   { id: 'theory', name: 'Network Theory', short: 'Theory', icon: 'Ω', color: '#93c5fd', description: 'Thévenin, Norton, superposition, maximum power transfer, star–delta and two-port parameters for any netlist, DC or AC.' },
+  { id: 'analog', name: 'Analog Design', short: 'Design', icon: '⊿', color: '#34d399', description: 'Design to a specification: BJT bias and CE amplifier, Wien/phase-shift/Colpitts/Hartley/crystal oscillators, Butterworth Sallen–Key and MFB band-pass filters, Zener and LM317 regulators, Schmitt triggers and the 565 PLL — with standard part values and a simulator check.' },
   { id: 'bench', name: 'Lab Bench', short: 'Bench', icon: '◔', color: '#facc15', description: 'Oscilloscope, function generator, bench power supply and multimeter connected to your Circuit Lab circuit.' },
   { id: 'embedded', name: 'Embedded Lab', short: 'Embedded', icon: '▣', color: '#f59e0b', description: 'Write firmware and prepare MCU projects.' },
   { id: 'power', name: 'Power Electronics', short: 'Power', icon: 'ϟ', color: '#f87171', description: 'Controlled rectifiers, DC-DC converters, inverters and AC controllers with waveforms, harmonics and textbook formulas.' },
