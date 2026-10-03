@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -67,5 +67,18 @@ test('README is a concise entry point whose local links resolve', () => {
       if (/^[a-z]+:/i.test(target)) continue;
       assert.ok(existsSync(resolve(root, dirname(doc), target)), `${doc} links to missing ${target}`);
     }
+  }
+});
+
+test('package API reference is current and every package documents its purpose and types', async () => {
+  const { describePackage, render } = await import('../scripts/generate-api-docs.mjs');
+  assert.equal(read('docs/api/packages.md'), render(), 'run node scripts/generate-api-docs.mjs');
+  const names = readdirSync(resolve(root, 'packages'), { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+  for (const name of names) {
+    const info = describePackage(name);
+    if (!info) continue;
+    assert.ok(info.summary.length > 20, `${name} has a header comment`);
+    assert.ok(info.declarations.length > 0, `${name} has declaration files`);
+    assert.ok(info.exports.length > 0, `${name} exports something`);
   }
 });

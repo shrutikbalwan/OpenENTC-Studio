@@ -1,3 +1,5 @@
+// Digital and analog communication kernels: modulation and demodulation, AWGN channels, BER
+// measurement and theory, eye diagrams, line codes, CRC, Hamming and convolutional/Viterbi coding.
 const MAX_BITS = 1_000_000;
 const SCALE = 1 / Math.sqrt(2);
 

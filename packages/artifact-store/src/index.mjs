@@ -1,3 +1,5 @@
+// Bounded, atomic writes of generated artifacts (simulation runs, build outputs) inside a project
+// folder, with SHA-256 integrity records and path confinement.
 import { createHash } from 'node:crypto';
 import { lstat, mkdir, readFile, realpath, rename, stat, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';

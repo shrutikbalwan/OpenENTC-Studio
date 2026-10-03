@@ -1,3 +1,5 @@
+// Lesson and checkpoint validation and evaluation for the Learning Hub (scalar, table-cell and BER
+// checks).
 const CHECK_KINDS = Object.freeze(['scalar', 'table-cell', 'ber']);
 const MAX_LESSONS = 512;
 

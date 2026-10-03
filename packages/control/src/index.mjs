@@ -1,3 +1,5 @@
+// Control-systems analysis: transfer functions, step and frequency responses, Bode/Nyquist, root
+// locus, Routh-Hurwitz and PID tools.
 function coefficients(values, name) {
   if ((!Array.isArray(values) && !ArrayBuffer.isView(values)) || !values.length || values.length > 128 || Array.from(values).some((value) => typeof value !== 'number' || !Number.isFinite(value))) throw new TypeError(`${name} coefficients are invalid.`);
   return Object.freeze(Array.from(values));

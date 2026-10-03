@@ -1,3 +1,5 @@
+// Physical-device permission policy (serial, USB, debug, capture, SDR, programmer) and a bounded
+// serial session; browsers are always denied native device scopes.
 const PERMISSIONS = Object.freeze(['serial', 'usb', 'debug', 'capture', 'sdr', 'programmer']);
 const TARGET_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const SERIAL_ENCODINGS = Object.freeze(['utf-8', 'ascii']);

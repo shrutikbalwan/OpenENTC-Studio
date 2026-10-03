@@ -7,6 +7,7 @@ no signed or qualified release exists yet.
 ## [Unreleased]
 
 ### Added
+- Shared error classes with stable codes, recovery hints and redaction (`packages/errors`); a central `reportError()` and error panel; a generated package API reference (`docs/api/packages.md`).
 - Code of Conduct, maintainers, repository metadata, support matrix, project compatibility, deprecation and security-contact setup documents.
 - Modernization baseline and the `npm run deps:map` dependency analyser.
 - Hardening baseline audit (`docs/audit/hardening-baseline-2026-10-03.md`).

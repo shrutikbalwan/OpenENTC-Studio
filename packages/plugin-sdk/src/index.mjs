@@ -1,3 +1,5 @@
+// Plugin manifest validation, trust assessment and permission authorisation (no plugin code is
+// executed by this package).
 export const PLUGIN_API_VERSION = 1;
 export const PLUGIN_PERMISSIONS = Object.freeze(['filesystem.project', 'process.engine', 'network.local', 'device.serial', 'device.usb']);
 export const PLUGIN_TRUST_LEVELS = Object.freeze(['builtin', 'reviewed', 'untrusted']);

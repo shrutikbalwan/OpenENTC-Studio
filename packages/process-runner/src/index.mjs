@@ -1,3 +1,5 @@
+// Native process execution boundary: allow-listed executables, argument arrays (no shell),
+// canonical path confinement, output and time limits, and complete process-tree cancellation.
 import { spawn } from 'node:child_process';
 
 export const PROCESS_ERROR_CODES = Object.freeze({

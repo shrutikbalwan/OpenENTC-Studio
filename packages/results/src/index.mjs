@@ -1,3 +1,5 @@
+// Typed, bounded result objects (scalar, table, waveform, spectrum, digital trace, constellation)
+// with provenance.
 export const RESULT_KINDS = Object.freeze(['scalar', 'table', 'waveform', 'spectrum', 'digital-trace', 'constellation', 'network', 'packet-trace', 'field-reference', 'artifact', 'report']);
 export const MAX_RESULT_POINTS = 1_000_000;
 export const MAX_RESULT_PAYLOAD_BYTES = 64 * 1024 * 1024;

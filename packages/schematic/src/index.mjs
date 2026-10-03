@@ -1,3 +1,5 @@
+// Schematic connectivity: node aliases, intermediate netlists, component definitions, electrical-
+// rule checks, SPICE export, geometry, selection and engineering units.
 import { nodeFields } from './components.mjs';
 
 const TEXT_FIELDS = ['id', 'type', 'label', 'n1', 'n2'];

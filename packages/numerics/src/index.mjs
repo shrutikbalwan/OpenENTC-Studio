@@ -1,3 +1,5 @@
+// Numerical kernels: signals, windows, FFT, convolution, resampling, polynomials, complex
+// arithmetic and digital filter design (Butterworth, Chebyshev I, windowed-sinc FIR).
 export * from './polynomial.mjs';
 export * from './filters.mjs';
 
