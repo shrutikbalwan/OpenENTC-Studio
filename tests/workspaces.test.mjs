@@ -25,6 +25,7 @@ export const WORKSPACES = [
   { module: 'sigsys', path: '../src/workspaces/signals/sigsys.js', render: 'renderSigsys', bind: 'bindSigsysEvents', expect: [] },
   { module: 'dsp', path: '../src/workspaces/signals/dsp.js', render: 'renderDsp', bind: 'bindDspLabEvents', expect: [] },
   { module: 'speech', path: '../src/workspaces/signals/speech.js', render: 'renderSpeech', bind: 'bindSpeechEvents', expect: [] },
+  { module: 'dip', path: '../src/workspaces/signals/dip.js', render: 'renderDip', bind: 'bindDipEvents', expect: [] },
 ];
 
 for (const workspace of WORKSPACES) {
