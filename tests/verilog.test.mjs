@@ -5,6 +5,7 @@ import { parse, parseNumber, resultToVcd, simulate, Value } from '../packages/ve
 
 const dir = new URL('./fixtures/verilog/', import.meta.url);
 const read = (name) => readFileSync(new URL(name, dir), 'utf8');
+const normalizeNewlines = (text) => text.replace(/\r\n?/g, '\n');
 const programs = readdirSync(dir).filter((name) => name.endsWith('.v')).sort();
 
 /** Read a VCD into "scope.name" → [time, bits] changes (last value per time step). */
@@ -37,7 +38,7 @@ for (const program of programs) {
   test(`Verilog ${base}: $display output and every waveform match Icarus Verilog`, () => {
     const result = simulate(read(program));
     assert.equal(result.error, null);
-    assert.equal(result.output.trimEnd(), read(`${base}.out`).trimEnd());
+    assert.equal(normalizeNewlines(result.output).trimEnd(), normalizeNewlines(read(`${base}.out`)).trimEnd());
     const reference = readVcd(read(`${base}.vcd`));
     let compared = 0;
     for (const signal of result.signals) {
