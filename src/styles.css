@@ -823,3 +823,23 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .vuv-strip i { flex: 1; }
 .vuv-strip i.voiced { background: #34d399; } .vuv-strip i.unvoiced { background: #f97316; } .vuv-strip i.silence { background: #475569; }
 .file-button { cursor: pointer; display: inline-flex; align-items: center; }
+.ladder-svg { width: 100%; height: auto; margin-top: 10px; background: var(--panel-2); border-radius: 8px; }
+.ladder-rail { stroke: var(--muted); stroke-width: 3; }
+.ladder-wire { stroke: #475569; stroke-width: 2; fill: none; }
+.ladder-wire.on, .ladder-contact.on { stroke: #22c55e; }
+.ladder-contact { stroke: #cbd5e1; stroke-width: 2.4; fill: none; }
+.ladder-coil { fill: none; stroke: #cbd5e1; stroke-width: 2; }
+.ladder-coil.on { fill: rgba(34, 197, 94, 0.25); stroke: #22c55e; }
+.ladder-label, .ladder-rung-no { fill: var(--text); font: 500 10px 'DM Mono', monospace; }
+.ladder-rung-no { fill: var(--muted); }
+.plc-io { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; align-items: start; }
+.plc-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.plc-input { border: 1px solid var(--line); background: var(--soft); color: var(--text); border-radius: 6px; padding: 6px 10px; font: 500 11px 'DM Mono', monospace; cursor: pointer; }
+.plc-input.on { background: #166534; border-color: #22c55e; }
+.plc-lamp { display: inline-flex; align-items: center; gap: 5px; font: 500 11px 'DM Mono', monospace; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; }
+.plc-lamp i { width: 10px; height: 10px; border-radius: 50%; background: #334155; }
+.plc-lamp.on i { background: #facc15; box-shadow: 0 0 8px #facc15; }
+.plc-actions { display: flex; gap: 8px; margin-bottom: 10px; }
+.timing-svg { width: 100%; height: auto; }
+.timing-trace { fill: none; stroke: var(--teal); stroke-width: 2; }
+.timing-grid { stroke: var(--line); stroke-width: 1; }

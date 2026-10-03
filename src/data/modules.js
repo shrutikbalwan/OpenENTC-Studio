@@ -17,6 +17,7 @@ export const modules = [
   { id: 'fpga', name: 'FPGA & Digital', short: 'FPGA', icon: '◇', color: '#a78bfa', description: 'Design, synthesize and verify digital logic.' },
   { id: 'vlsi', name: 'VLSI Lab', short: 'VLSI', icon: '⧈', color: '#c084fc', description: 'CMOS inverter: VTC, switching threshold, noise margins, propagation delay and power with the SPICE level-1 model.' },
   { id: 'rtos', name: 'RTOS Scheduler', short: 'RTOS', icon: '⏱', color: '#38bdf8', description: 'RM, DM, EDF, LLF, FCFS and round-robin scheduling with Gantt charts, response-time analysis and priority inversion.' },
+  { id: 'plc', name: 'PLC & Automation', short: 'PLC', icon: '⊣⊢', color: '#facc15', description: 'Write ladder logic, see the ladder diagram and run it live with clickable inputs and lamps: contacts, coils, latches, TON/TOF/TP timers and counters, with motor, interlock, traffic-light, star–delta and counter examples.' },
   { id: 'logic', name: 'Digital Logic Lab', short: 'Logic', icon: '⊼', color: '#e879f9', description: 'Boolean algebra, K-maps, gate and flip-flop simulation, number codes.' },
   { id: 'sigsys', name: 'Signals & Systems', short: 'S&S', icon: 'ℒ', color: '#fca5a5', description: 'Fourier series with Gibbs effect, Laplace and z-transform partial fractions and inverses, and the DFT step by step.' },
   { id: 'dsp', name: 'Signals & DSP', short: 'DSP', icon: '∿', color: '#fb7185', description: 'Generate, transform and inspect signals.' },

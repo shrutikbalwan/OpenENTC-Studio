@@ -462,6 +462,14 @@
       "plannedPhase": 9
     },
     {
+      "id": "plc.ladder-lab",
+      "surface": "PLC & Automation: a text ladder language (series/parallel contacts, normally closed and rising-edge contacts, coils, set/reset, TON/TOF/TP timers, CTU/CTD counters, RES) drawn as a ladder diagram with live power flow, a live scan-cycle run with clickable inputs and output lamps, scripted timing diagrams and industrial examples (seal-in, interlock, traffic light, star–delta, counter, alarm)",
+      "state": "built-in",
+      "evidence": ["packages/plc/src/index.mjs", "src/app.js#renderPlc", "tests/plc.test.mjs"],
+      "limitations": "A teaching subset of IEC 61131-3 ladder: Boolean bits I/Q/M 0.0–7.7, 16 timers and 16 counters; no analog I/O, math, compare or move blocks, subroutines, function blocks, structured text or SCADA/HMI and fieldbus. Timers count in whole scans of a fixed simulated scan time. Live mode runs in the browser at 10 scans per 100 ms tick; the scan semantics (top-to-bottom solve, results visible to later rungs, edge memory per scan) are checked in the tests.",
+      "plannedPhase": 9
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",
