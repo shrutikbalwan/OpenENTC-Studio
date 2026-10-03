@@ -29,7 +29,7 @@
     "check": "npm run lint",
     "verify": "node scripts/verify.mjs",
     "deps:map": "node scripts/app-dependency-map.mjs --markdown docs/architecture/app-dependency-map.generated.md",
-    "ui:check": "node scripts/check-ui-modules.mjs"
+    "ui:check": "node scripts/check-ui-modules.mjs --strict-unused"
   },
   "engines": {
     "node": ">=22.8.0"

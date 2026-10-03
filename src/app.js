@@ -1,4 +1,4 @@
-import { modules, componentPalette, learningTracks } from './data/modules.js';
+import { modules, componentPalette } from './data/modules.js';
 import { esc, formatAssistantText, safeUrl } from './core/html.js';
 import { forgetApiKey, loadAssistantSettings, redactSecrets, saveAssistantSettings as storeAssistantSettings } from './core/credentials.js';
 import { engines } from './core/engine-registry.js';
@@ -8,19 +8,19 @@ import { getState, setState, updateProject, recordExperiment, subscribe, notify,
 import { simulateDC, simulateTransient, simulateAC, sampleWaveform } from './engines/circuit-engine.js';
 import { exampleCircuits } from './data/example-circuits.js';
 import { circuitNodes, createCoSimulation } from './engines/cosim.js';
-import { circuitTraces, decimate, niceRange, decadeTicks, linePath, stepMetrics, waveformMetrics, bodeMetrics, circuitResultCsv } from './core/circuit-plot.js';
+import { circuitTraces, decimate, niceRange, decadeTicks, stepMetrics, waveformMetrics, bodeMetrics, circuitResultCsv } from './core/circuit-plot.js';
 import { checkElectricalRules, locateElectricalRuleDiagnostic } from '../packages/schematic/src/erc.mjs';
 import { normalizeNode } from '../packages/schematic/src/index.mjs';
 import { nodeFields, pinName as componentPinName } from '../packages/schematic/src/components.mjs';
 import { connectNodes, disconnectNodes, pruneWires, setWireRoute } from './core/wires.js';
-import { duplicateComponent, moveComponents, pasteComponents, rotateComponents } from './core/circuit-editing.js';
+import { moveComponents, pasteComponents, rotateComponents } from './core/circuit-editing.js';
 import { buildSpiceNetlist } from '../packages/schematic/src/spice.mjs';
 import { buildWireSegments, defaultWireRoute, orthogonalPath, wireRouteHandle, wireRouteHandles, wireRouteInsertionPoint } from '../packages/schematic/src/geometry.mjs';
 import { componentsInRect } from '../packages/schematic/src/selection.mjs';
 import { fitCanvasView, screenToCanvas, snapCanvasPoint, zoomCanvasView } from './core/canvas.js';
 import { parseEngineeringValue, formatEngineeringValue } from '../packages/schematic/src/units.mjs';
 import { applyWindow, cabs, cdiv, cexp, complex, convolutionSteps, cscale, designFir, designIir, FILTER_TYPES, FIR_WINDOWS, fft, filterFir, frequencyResponseDigital, generateSine, impulseResponse, lfilter, poleZero, polyadd, polyRoots, polyval } from '../packages/numerics/src/index.mjs';
-import { addAwgn, bitErrorRate, qpskDemodulate, qpskModulate, ANALOG_SCHEMES, berCurve, CRC_POLYNOMIALS, convolutionalEncode, crcCheck, crcDivide, DIGITAL_SCHEMES, eyeDiagram, hammingDecode, hammingEncode, LINE_CODES, lineCode, samplingDemo, simulateAnalogModulation, simulateDigitalLink, viterbiDecode } from '../packages/communications/src/index.mjs';
+import { addAwgn, bitErrorRate, qpskDemodulate, qpskModulate, berCurve, CRC_POLYNOMIALS, convolutionalEncode, crcCheck, crcDivide, DIGITAL_SCHEMES, eyeDiagram, hammingDecode, hammingEncode, LINE_CODES, lineCode, samplingDemo, simulateAnalogModulation, simulateDigitalLink, viterbiDecode } from '../packages/communications/src/index.mjs';
 import { coaxImpedance, ELEMENT_PATTERNS, freeSpacePathLossDb, linearArray, linkBudget, lMatch, microstrip, microstripWidth, parseTouchstone, quarterWaveMatch, reflection, singleStubMatch, SPEED_OF_LIGHT, transmissionLine, twinLeadImpedance } from '../packages/rf/src/index.mjs';
 import { analyzeSystem, classifyStability, firstOrderStability, firstOrderStep, formatPolynomial, makeTransferFunction, pidController, pidLoop, rootLocus, routhArray, timeResponse, zieglerNichols } from '../packages/control/src/index.mjs';
 import { adcResolution, COLOR_BANDS, convertLevel, dbToRatio, decodeCapacitorCode, decodeResistorBands, decodeSmdResistor, design555Astable, E_SERIES, encodeResistorBands, ledResistor, nearestPreferred, OPAMP_CONFIGS, opampStage, POWER_UNITS, ratioToDb, rcFilter, reactance, rlcResonance, seriesParallel, solveOhm, timer555Astable, timer555Monostable, voltageDivider } from '../packages/calculators/src/index.mjs';
@@ -2281,7 +2281,6 @@ const RECORD_DEFAULTS = Object.freeze({
   observations: '', calculations: '', result: '', conclusion: '',
   include: { circuit: true, bench: true, simulation: true, program8051: false, sketch: false, assessment: true },
 });
-const RECORD_TEXT_FIELDS = ['institute', 'department', 'course', 'name', 'roll', 'className', 'batch', 'number', 'date', 'title', 'aim', 'apparatus', 'theory', 'procedure', 'observations', 'calculations', 'result', 'conclusion'];
 
 function recordConfiguration(state) {
   const saved = state.project.experiments.find((experiment) => experiment?.id === 'lab-record')?.inputs || {};
@@ -4144,7 +4143,7 @@ function renderFaultHunt(state) {
   let fault, body;
   try {
     fault = chooseFault(board, c.seed, faultSolve);
-    const faulty = applyFault(board.components, fault);
+    applyFault(board.components, fault); // throws if the chosen fault cannot be applied
     const nets = boardNets(board);
     const netOptions = nets.map((n) => [n, n === '0' ? 'GND (0)' : n]);
     const rows = c.log.map((entry, k) => {
@@ -6348,33 +6347,9 @@ function renderDigital(state) {
     <section class="dsp-card"><div class="dsp-controls"><button class="button run" data-action="parse-vcd">Parse VCD</button><span class="field-help">Scalar VCD import is local and remains separate from lint and simulation.</span></div><label class="rf-input-label">VCD text<textarea data-vcd-field="text" rows="10" spellcheck="false" placeholder="$timescale 1 ns $end">${esc(savedVcd)}</textarea></label>${trace ? `<div class="stat-grid"><div><span>Timescale</span><strong>${esc(trace.timescale)}</strong><small>VCD header</small></div><div><span>Signals</span><strong>${trace.signals.length}</strong><small>scalar</small></div><div><span>Transitions</span><strong>${trace.signals.reduce((sum, signal) => sum + signal.samples.length, 0)}</strong><small>bounded</small></div></div><div class="packet-table"><table><thead><tr><th>Signal</th><th>Transitions</th><th>Samples (time:value)</th></tr></thead><tbody>${rows}</tbody></table></div>` : ''}<p class="module-footnote">GHDL and compiled simulation, generated-waveform ingestion, timing and FPGA implementation remain separate capability gates.</p></section></div>`;
 }
 
-function renderLearning() {
-  return `<div class="page scroll-page">${pageHeader(modules.at(-1), 'LEARN BY BUILDING', '<button class="button primary" disabled>Lessons unavailable</button>')}
-    <section class="learning-hero"><div><span class="pill live"><i></i> PROJECT-BASED CURRICULUM</span><h2>From Ohm’s law to wireless systems.</h2><p>Every track ends in a working engineering project and connects theory directly to the lab modules.</p></div><div class="progress-ring"><strong>12%</strong><span>OVERALL<br>PROGRESS</span></div></section>
-    <section class="track-grid">${learningTracks.map(([name, lessons, level], index) => `<article><span class="track-number">${String(index + 1).padStart(2, '0')}</span><span class="track-level">${level}</span><h3>${name}</h3><p>Planned: ${lessons} lessons · ${Math.max(2, Math.round(lessons / 4))} practical labs</p><div class="progress"><i style="width:0%"></i></div><button disabled>Unavailable in this alpha</button></article>`).join('')}</section>
-  </div>`;
-}
-
-function renderVerifiedLearningLegacy() {
-  const state = getState(); const evaluation = state.lessonEvaluation || (state.learningProgress?.lessons['voltage-divider'] ? { passed: state.learningProgress.lessons['voltage-divider'].passed } : null);
-  return `<div class="page scroll-page">${pageHeader(modules.at(-1), 'LEARN BY BUILDING', '<button class="button primary" data-action="open-lesson-circuit">Open Circuit Lab</button>')}<section class="learning-hero"><div><span class="pill live"><i></i> VERIFIED CHECKPOINT</span><h2>Voltage divider</h2><p>Run the real built-in DC solver and verify that the output node is 6 V within ±0.01 V.</p><button class="button run" data-action="check-lesson">${evaluation ? 'Check latest result' : 'Check checkpoint'}</button></div><div class="progress-ring"><strong>${evaluation?.passed ? '100%' : '0%'}</strong><span>CHECKPOINT<br>PROGRESS</span></div></section><section class="track-grid"><article><span class="track-number">01</span><span class="track-level">FOUNDATION</span><h3>DC fundamentals</h3><p>One real circuit, one measured result and one tolerance-based checkpoint.</p><div class="progress"><i style="width:${evaluation?.passed ? '100%' : '0%'}"></i></div><span class="lesson-status">${evaluation ? (evaluation.passed ? 'Passed' : 'Not yet passed') : 'Not attempted'}</span></article>${learningTracks.slice(1).map(([name, lessons, level], index) => `<article><span class="track-number">${String(index + 2).padStart(2, '0')}</span><span class="track-level">${level}</span><h3>${name}</h3><p>Planned: ${lessons} lessons · future phase</p><div class="progress"><i style="width:0%"></i></div><button disabled>Not implemented</button></article>`).join('')}</section></div>`;
-}
-
 function renderVerifiedLearning() {
   const state = getState(); const evaluation = state.lessonEvaluation || (state.learningProgress?.lessons['voltage-divider'] ? { passed: state.learningProgress.lessons['voltage-divider'].passed } : null); const dspPassed = state.learningProgress?.lessons['dsp-window']?.passed; const commPassed = state.learningProgress?.lessons['qpsk-ber']?.passed;
   return `<div class="page scroll-page">${pageHeader(modules.at(-1), 'LEARN BY BUILDING', '<button class="button primary" data-action="open-lesson-circuit">Open Circuit Lab</button>')}<section class="learning-hero"><div><span class="pill live"><i></i> VERIFIED CHECKPOINTS</span><h2>Build, measure, verify.</h2><p>Checkpoints consume real Circuit, Signals and Link Lab results with explicit tolerances.</p></div><div class="progress-ring"><strong>${[evaluation?.passed, dspPassed, commPassed].filter(Boolean).length}/3</strong><span>CHECKPOINT<br>PROGRESS</span></div></section><section class="track-grid"><article><span class="track-number">01</span><span class="track-level">FOUNDATION</span><h3>DC fundamentals</h3><p>Verify the output node is 6 V within ±0.01 V.</p><div class="progress"><i style="width:${evaluation?.passed ? '100%' : '0%'}"></i></div><span class="lesson-status">${evaluation ? (evaluation.passed ? 'Passed' : 'Not yet passed') : 'Not attempted'}</span></article><article><span class="track-number">02</span><span class="track-level">SIGNALS</span><h3>Windowed FFT</h3><p>Generate a real bounded signal and verify its sample count.</p><div class="progress"><i style="width:${dspPassed ? '100%' : '0%'}"></i></div><button class="button subtle" data-action="check-dsp-lesson">${dspPassed ? 'Passed' : 'Check DSP result'}</button></article><article><span class="track-number">03</span><span class="track-level">COMMS</span><h3>QPSK BER</h3><p>Verify offline BER stays below 20%.</p><div class="progress"><i style="width:${commPassed ? '100%' : '0%'}"></i></div><button class="button subtle" data-action="check-comm-lesson">${commPassed ? 'Passed' : 'Check BER result'}</button></article></section></div>`;
-}
-
-function renderToolchainsLegacy(state) {
-  const toolchainModule = { name: 'Toolchains', description: 'Detected tools, licences and capabilities.', color: '#94a3b8' };
-  const deviceScopes = browserDevicePolicy.inspect();
-  return `<div class="page scroll-page toolchains-page">
-    ${pageHeader(toolchainModule, 'NATIVE CAPABILITY CATALOG', '<button class="button ghost" disabled title="Native detection is unavailable in browser preview">Refresh detection unavailable</button>')}
-    <section class="toolchain-notice"><span class="pill"><i></i> BROWSER PREVIEW</span><h2>Native tools are never assumed installed.</h2><p>The desktop bridge will probe fixed executable paths without installing or mutating the system. This preview shows the reviewed catalogue and honest capability states only.</p></section>
-    <section class="engine-table">${engines.map((engine) => `<div class="engine-row"><span class="engine-logo">${esc(engine.name.slice(0, 2).toUpperCase())}</span><div><b>${esc(engine.name)}</b><small>${esc(engine.capability)}</small></div><span>${esc(engine.area)}</span><span>${esc(engine.license)}</span><span class="engine-status ${engine.status}">${engine.status === 'built-in' ? 'â— Built in' : engine.status === 'unsupported' ? 'âŠ˜ Unsupported' : 'â—‹ Unavailable'}</span></div>`).join('')}</section>
-    <section class="module-info-grid"><article><span class="eyebrow">SECURITY BOUNDARY</span><h3>Read-only discovery</h3><p>Tool detection will use allow-listed manifests, absolute paths and deterministic self-tests. Missing tools remain unavailable until the user configures them.</p></article><article><span class="eyebrow">LICENCE POLICY</span><h3>Upstream terms stay visible</h3><p>Each adapter records an SPDX expression, upstream source and installation mode. OpenENTC does not relicense connected tools.</p></article></section>
-    <section class="permission-card"><div class="section-title"><div><span class="eyebrow">DEVICE PERMISSIONS + PROCESS</span><h2>Explicit target scopes</h2></div><span class="pill">${desktopBridge.available ? 'PROJECT-BOUND' : 'BROWSER DENIED'}</span></div><p class="muted">Serial, USB, debug, capture, SDR and programmer access, plus process execution, are separate permissions. No scope is granted automatically.</p><div class="permission-grid">${deviceScopes.map((scope) => `<div class="permission-row"><span>${esc(scope.permission)}</span><span class="engine-status unavailable">${scope.allowed ? 'Available' : 'Unavailable'}</span><small>${scope.grantedTargets.length ? esc(scope.grantedTargets.join(', ')) : 'No target selected'}</small></div>`).join('')}<div class="permission-row"><span>Process execution</span><span class="engine-status unavailable">Unavailable</span><small>Requires an explicit project-scoped desktop grant; browser preview never exposes it.</small></div></div></section>
-  </div>`;
 }
 
 function renderToolchains(state) {
@@ -7397,17 +7372,6 @@ function moveSelected(dx, dy) {
   const selectedIds = ids.filter(Boolean);
   if (!selectedIds.length) return;
   updateProject((project) => { project.circuit.components = moveComponents(project.circuit.components, selectedIds, { x: dx, y: dy }); });
-}
-
-function duplicateSelected() {
-  const id = getState().selectedComponentId;
-  if (!id) return false;
-  let nextId = null;
-  updateProject((project) => { const result = duplicateComponent(project.circuit.components, id); project.circuit.components = result.components; nextId = result.id; });
-  if (!nextId) return false;
-  setState({ selectedComponentId: nextId, simulation: null });
-  notify('Component duplicated', 'success');
-  return true;
 }
 
 function copySelected() {

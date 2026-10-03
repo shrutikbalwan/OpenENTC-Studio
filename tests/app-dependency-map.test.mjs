@@ -51,5 +51,7 @@ test('UI module check: no unresolved names, no import cycles, no unused shared e
   assert.deepEqual(fileCycles(graph), []);
   assert.deepEqual(fileCycles({ 'a.js': ['b.js'], 'b.js': ['a.js'] }), [['a.js', 'b.js', 'a.js']]);
   assert.deepEqual(await unusedExports(graph), []);
-  assert.deepEqual(diagnose(await uiFiles()).unresolved, []);
+  const { unresolved, unused } = diagnose(await uiFiles());
+  assert.deepEqual(unresolved, []);
+  assert.deepEqual(unused, [], 'no unused imports or locals in UI modules');
 });

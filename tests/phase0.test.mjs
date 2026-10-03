@@ -342,7 +342,9 @@ test('Circuit Lab renders ERC source and fix context beside diagnostics', async 
 });
 
 test('Circuit Lab palette exposes the Phase 3 source and switch component types', async () => {
-  const source = await readFile(resolve(root, 'src/data/modules.js'), 'utf8');
+  // The palette is built from the schematic package's component definitions (src/data/modules.js).
+  assert.match(await readFile(resolve(root, 'src/data/modules.js'), 'utf8'), /componentPalette = COMPONENT_DEFINITIONS\.map/);
+  const source = await readFile(resolve(root, 'packages/schematic/src/components.mjs'), 'utf8');
   const app = await readFile(resolve(root, 'src/app.js'), 'utf8');
   assert.match(source, /type: 'current'/);
   assert.match(source, /type: 'switch'/);
@@ -543,8 +545,8 @@ test('native manifest validation bounds registry IDs and experiment definitions'
 test('Toolchains exposes separate browser-denied device permission scopes', async () => {
   const source = await readFile(resolve(root, 'src/app.js'), 'utf8');
   assert.match(source, /createDevicePermissionPolicy/);
-  assert.match(source, /DEVICE PERMISSIONS/);
-  assert.match(source, /Serial, USB, debug, capture, SDR and programmer/);
+  assert.match(source, /DEVICE, PROCESS AND ARTIFACT PERMISSIONS/);
+  assert.match(source, /Serial, USB, debug, capture, SDR, programmer, process execution and generated-artifact writes are separate permissions/);
   assert.match(source, /Process execution/);
   assert.match(source, /explicit project-scoped desktop grant/);
   assert.match(source, /data-action="grant-process"/);
