@@ -26,11 +26,27 @@ export const LANGUAGES = Object.freeze({ en: 'English', hi: 'Hindi (हिन्
 export function validateBaseUrl(text) {
   let url;
   try { url = new URL(String(text).trim()); } catch { throw new RangeError('Enter a valid API base URL, e.g. https://api.openai.com/v1'); }
-  const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  // Must match the connect-src list in index.html and tauri.conf.json (CSP cannot express [::1]).
+  const local = ['localhost', '127.0.0.1'].includes(url.hostname);
   if (url.protocol !== 'https:' && !(url.protocol === 'http:' && local)) throw new RangeError('The API URL must use https (plain http is allowed only for localhost).');
   if (url.username || url.password) throw new RangeError('Do not put credentials in the URL — use the API key field.');
+  if (url.search || url.hash) throw new RangeError('The API URL must not contain a query string or fragment (keys belong in the API key field).');
   return url.toString().replace(/\/+$/, '');
 }
+
+/** Replace a known secret and anything that looks like a bearer token or provider key with [redacted]. */
+export function redactSecrets(text, secrets = []) {
+  let out = String(text ?? '');
+  for (const secret of secrets) if (secret && String(secret).length >= 4) out = out.split(String(secret)).join('[redacted]');
+  return out
+    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]{8,}/gi, 'Bearer [redacted]')
+    .replace(/\b(sk|gsk|pk|rk)-[A-Za-z0-9_-]{12,}\b/g, '[redacted]')
+    .replace(/\bAIza[0-9A-Za-z_-]{20,}\b/g, '[redacted]');
+}
+
+const MAX_RESPONSE_BYTES = 2_000_000;
+const MAX_TOOL_CALLS_PER_STEP = 8;
+const MAX_TOOL_ARGUMENT_CHARS = 20_000;
 
 // ---------------------------------------------------------------------------
 // Tools.
@@ -144,24 +160,32 @@ export async function chat({ settings, messages, context = {}, fetchImpl = globa
         headers: { 'Content-Type': 'application/json', ...(settings.apiKey ? { Authorization: `Bearer ${settings.apiKey}` } : {}) },
         body: JSON.stringify({ model, messages: conversation, tools, tool_choice: 'auto', temperature: 0.2 }),
         signal: controller.signal,
+        // Never follow a redirect (the key must reach only the configured host), never send
+        // cookies, and never leak the page URL.
+        redirect: 'error',
+        credentials: 'omit',
+        referrerPolicy: 'no-referrer',
       });
     } catch (error) {
-      throw new Error(error.name === 'AbortError' ? 'The AI service did not answer in time.' : `Could not reach ${new URL(baseUrl).host}: ${error.message}. For Ollama, start it with OLLAMA_ORIGINS=* so the browser may call it.`);
+      throw new Error(redactSecrets(error.name === 'AbortError' ? 'The AI service did not answer in time.' : `Could not reach ${new URL(baseUrl).host}: ${error.message}. For Ollama, start it with OLLAMA_ORIGINS=* so the browser may call it.`, [settings.apiKey]));
     } finally { clearTimeout(timer); }
+    if (Number(response.headers?.get?.('content-length')) > MAX_RESPONSE_BYTES) throw new Error('The AI service reply is too large.');
     let data;
     try { data = await response.json(); } catch { data = null; }
-    if (!response.ok) throw new Error(`AI service error ${response.status}: ${data?.error?.message ?? response.statusText ?? 'request failed'}`);
+    if (!response.ok) throw new Error(redactSecrets(`AI service error ${response.status}: ${data?.error?.message ?? response.statusText ?? 'request failed'}`, [settings.apiKey]));
     const message = data?.choices?.[0]?.message;
-    if (!message) throw new Error('The AI service returned no message.');
-    const calls = message.tool_calls ?? [];
-    conversation.push({ role: 'assistant', content: message.content ?? null, ...(calls.length ? { tool_calls: calls } : {}) });
-    if (!calls.length) return { reply: message.content ?? '', messages: conversation.slice(1), trace };
+    if (!message || typeof message !== 'object') throw new Error('The AI service returned no message.');
+    const content = typeof message.content === 'string' ? message.content : message.content == null ? null : JSON.stringify(message.content);
+    const calls = Array.isArray(message.tool_calls) ? message.tool_calls.slice(0, MAX_TOOL_CALLS_PER_STEP) : [];
+    conversation.push({ role: 'assistant', content, ...(calls.length ? { tool_calls: calls } : {}) });
+    if (!calls.length) return { reply: content ?? '', messages: conversation.slice(1), trace };
     for (const call of calls) {
       let args = {};
-      try { args = JSON.parse(call.function?.arguments || '{}'); } catch { args = {}; }
-      const output = executeTool(call.function?.name, args, context);
-      trace.push({ tool: call.function?.name, args, output });
-      conversation.push({ role: 'tool', tool_call_id: call.id, content: output });
+      const raw = call?.function?.arguments;
+      if (typeof raw === 'string' && raw.length <= MAX_TOOL_ARGUMENT_CHARS) { try { const parsed = JSON.parse(raw || '{}'); args = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}; } catch { args = {}; } }
+      const output = typeof raw === 'string' && raw.length > MAX_TOOL_ARGUMENT_CHARS ? 'error: tool arguments too large' : executeTool(String(call?.function?.name ?? ''), args, context);
+      trace.push({ tool: String(call?.function?.name ?? ''), args, output });
+      conversation.push({ role: 'tool', tool_call_id: String(call?.id ?? ''), content: output });
     }
   }
   return { reply: 'I used many tool steps without finishing. Please ask a narrower question.', messages: conversation.slice(1), trace };

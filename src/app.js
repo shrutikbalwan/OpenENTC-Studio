@@ -1,4 +1,6 @@
 import { modules, componentPalette, learningTracks } from './data/modules.js';
+import { esc, formatAssistantText, safeUrl } from './core/html.js';
+import { forgetApiKey, loadAssistantSettings, redactSecrets, saveAssistantSettings as storeAssistantSettings } from './core/credentials.js';
 import { engines } from './core/engine-registry.js';
 import { createProject } from './core/project.js';
 import { createPackagedProjectExport, importProjectFile } from './core/project-file.js';
@@ -83,7 +85,6 @@ import { digitalSignalGroups, filterDigitalSignals, measureDigitalCursors, norma
 
 const app = document.querySelector('#app');
 const importInput = document.querySelector('#project-import');
-const esc = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
 const fmt = (value, digits = 3) => Number(value).toLocaleString(undefined, { maximumFractionDigits: digits });
 let wireSource = null;
 let selectedWire = null;
@@ -2497,7 +2498,7 @@ function bindRecordEvents() {
     if (recordPreviewUrl) URL.revokeObjectURL(recordPreviewUrl);
     recordPreviewUrl = URL.createObjectURL(blob);
     const target = document.querySelector('[data-record-preview]');
-    if (target) target.innerHTML = `<iframe title="Lab record preview" src="${recordPreviewUrl}"></iframe><a href="${recordPreviewUrl}" target="_blank" rel="noopener">Open in a new tab</a>`;
+    if (target) { const url = esc(safeUrl(recordPreviewUrl, { schemes: ['blob:'] })); target.innerHTML = `<iframe title="Lab record preview" src="${url}"></iframe><a href="${url}" target="_blank" rel="noopener">Open in a new tab</a>`; }
   });
 }
 
@@ -5368,20 +5369,18 @@ function bindLearningHubEvents() {
 }
 
 // ---------------------------------------------------------------------------
-// AI lab partner (OpenAI-compatible). Settings and the API key live only in this browser's
-// localStorage — never in the project file.
+// AI lab partner (OpenAI-compatible). Non-secret settings live in localStorage; the API key is
+// kept in memory, or in sessionStorage for this tab only if the user asks (src/core/credentials.js).
+// Neither is ever written to the project file.
 
 const EXPERIMENT_MODULES = { 'signals-fft': 'dsp', 'dsp-lab': 'dsp', 'control-step': 'iot', 'control-lab': 'iot', 'comm-lab': 'communication', 'qpsk-ber': 'communication', 'rx-lab': 'communication', 'rf-touchstone': 'rf', 'rf-lab': 'rf', 'calc-lab': 'calc', 'pcb-board': 'pcb', 'mcu-lab': 'mcu', 'bench-lab': 'bench', 'lab-record': 'record', 'power-lab': 'power', 'adc-lab': 'adc', 'sensor-lab': 'sensors', 'ev-lab': 'ev', 'vlsi-lab': 'vlsi', 'rtos-lab': 'rtos', 'network-lab': 'theory', 'sigsys-lab': 'sigsys', 'em-lab': 'em', 'cell-lab': 'cellular', 'netproto-lab': 'network', 'crypto-lab': 'crypto', 'wsn-lab': 'wsn', 'sdr-lab': 'sdr', 'dip-lab': 'dip', 'bio-lab': 'biomed', 'nn-lab': 'neural', 'console-lab': 'console', 'learn-lab': 'learn', 'info-lab': 'info', 'analog-lab': 'analog', 'meas-lab': 'measure', 'radar-lab': 'radar', 'speech-lab': 'speech', 'plc-lab': 'plc', 'mach-lab': 'machines', 'product-lab': 'product', 'fault-lab': 'faulthunt', 'twin-lab': 'twin', 'topology-metrics': 'network', 'vcd-import': 'fpga' };
-const ASSISTANT_STORAGE = 'openentc.assistant.v1';
-const assistantDefaults = { provider: 'openai', baseUrl: '', model: '', apiKey: '', mode: 'explain', language: 'en', shareLab: true, consented: false };
 const assistant = { open: false, view: 'chat', draft: '', history: [], shown: [], busy: false, status: '', error: '', controller: null, focus: false };
+const assistantStartup = (() => { try { return loadAssistantSettings(localStorage, sessionStorage); } catch { return { removedLegacyKey: false }; } })();
 function assistantSettings() {
-  try { return { ...assistantDefaults, ...JSON.parse(localStorage.getItem(ASSISTANT_STORAGE) || '{}') }; } catch { return { ...assistantDefaults }; }
+  try { const { settings, apiKey } = loadAssistantSettings(localStorage, sessionStorage); return { ...settings, apiKey }; } catch { return { provider: 'openai', baseUrl: '', model: '', apiKey: '', mode: 'explain', language: 'en', shareLab: true, consented: false, rememberKey: false }; }
 }
 function saveAssistantSettings(patch) {
-  const next = { ...assistantSettings(), ...patch };
-  try { localStorage.setItem(ASSISTANT_STORAGE, JSON.stringify(next)); } catch { notify('Could not save assistant settings in this browser.', 'error'); }
-  return next;
+  try { const { settings, apiKey } = storeAssistantSettings(localStorage, sessionStorage, patch); return { ...settings, apiKey }; } catch { notify('Could not save assistant settings in this browser.', 'error'); return assistantSettings(); }
 }
 
 function assistantLabContext(state) {
@@ -5398,16 +5397,6 @@ function assistantLabContext(state) {
 }
 
 /** Minimal, escape-first formatting: code blocks, inline code, bold, bullets and line breaks. */
-function formatAssistantText(text) {
-  const blocks = String(text ?? '').split(/```(?:\w+)?\n?/);
-  return blocks.map((block, index) => (index % 2 ? `<pre class="ai-code">${esc(block.trim())}</pre>` : esc(block)
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
-    .replace(/^#{1,4}\s*(.+)$/gm, '<b>$1</b>')
-    .replace(/^\s*[-*]\s+(.+)$/gm, '• $1')
-    .replace(/\n/g, '<br>'))).join('');
-}
-
 function renderAssistant(state) {
   const settings = assistantSettings();
   if (!assistant.open) return `<button class="ai-fab" data-ai-open title="Ask the AI lab partner">✦ Ask AI</button>`;
@@ -5423,7 +5412,9 @@ function renderAssistant(state) {
       <label>Reply language<select data-ai-setting="language">${Object.entries(LANGUAGES).map(([id, label]) => `<option value="${id}" ${id === settings.language ? 'selected' : ''}>${esc(label)}</option>`).join('')}</select></label>
       <label class="ai-check"><input type="checkbox" data-ai-setting="shareLab" ${settings.shareLab ? 'checked' : ''}> Let the AI read my current lab's inputs and results</label>
       <label class="ai-check"><input type="checkbox" data-ai-setting="consented" ${settings.consented ? 'checked' : ''}> I understand my questions${settings.shareLab ? ' and lab inputs' : ''} are sent to ${esc(provider.label)}</label>
-      <p class="field-help">The key is kept only in this browser (localStorage), never in your project file or exports. Free option: install Ollama, run <code>OLLAMA_ORIGINS=* ollama serve</code> and pull a model such as llama3.1. Every number the AI states is meant to come from OpenENTC's own tested engines — open "Checked with" under a reply to see the calculations.</p>
+      <label class="ai-check"><input type="checkbox" data-ai-setting="rememberKey" ${settings.rememberKey ? 'checked' : ''}> Keep the key until this tab closes (sessionStorage); otherwise it is forgotten on reload</label>${settings.apiKey ? '<button class="button subtle" data-ai-forget>Forget the key now</button>' : ''}
+      ${assistantStartup.removedLegacyKey ? '<p class="field-help ai-notice">An API key saved by an older version of OpenENTC was deleted from this browser\'s storage. Enter it again; it is no longer saved permanently.</p>' : ''}
+      <p class="field-help">The API key is never saved permanently and never goes into your project file or exports; it is sent only to the provider above. Free option: install Ollama, run <code>OLLAMA_ORIGINS=* ollama serve</code> and pull a model such as llama3.1. Every number the AI states is meant to come from OpenENTC's own tested engines — open "Checked with" under a reply to see the calculations.</p>
       <button class="button primary" data-ai-view="chat">Done</button></div>`;
   const messages = assistant.shown.map((m) => `<div class="ai-msg ${m.role}">${m.role === 'user' ? esc(m.text).replace(/\n/g, '<br>') : formatAssistantText(m.text)}${m.trace?.length ? `<details class="ai-trace"><summary>Checked with ${m.trace.length} tool call${m.trace.length > 1 ? 's' : ''}</summary>${m.trace.map((t) => `<div><b>${esc(t.tool)}</b><pre>${esc(t.args.code ?? t.args.netlist ?? t.args.query ?? JSON.stringify(t.args))}</pre><pre class="out">${esc(t.output)}</pre></div>`).join('')}</details>` : ''}</div>`).join('');
   const suggestions = [`Explain what this ${active.name} page does`, 'Why is my result like this?', settings.mode === 'viva' ? 'Start my viva' : 'Quiz me on this topic'];
@@ -5453,7 +5444,7 @@ async function sendToAssistant(text) {
     assistant.shown.push({ role: 'assistant', text: result.reply, trace: result.trace });
   } catch (error) {
     assistant.history.pop();
-    assistant.error = assistant.controller?.signal.aborted ? 'Stopped.' : error.message;
+    assistant.error = assistant.controller?.signal.aborted ? 'Stopped.' : redactSecrets(error.message, [settings.apiKey]);
   } finally {
     assistant.busy = false; assistant.status = ''; assistant.controller = null; assistant.focus = true;
     render();
@@ -5465,6 +5456,7 @@ function bindAssistantEvents() {
   document.querySelector('[data-ai-close]')?.addEventListener('click', () => { assistant.open = false; render(); });
   document.querySelector('[data-ai-clear]')?.addEventListener('click', () => { assistant.history = []; assistant.shown = []; assistant.error = ''; render(); });
   document.querySelectorAll('[data-ai-view]').forEach((b) => b.addEventListener('click', () => { assistant.view = b.dataset.aiView; render(); }));
+  document.querySelector('[data-ai-forget]')?.addEventListener('click', () => { forgetApiKey(sessionStorage); notify('API key forgotten.', 'success'); render(); });
   document.querySelectorAll('[data-ai-setting]').forEach((input) => input.addEventListener('change', () => {
     const key = input.dataset.aiSetting;
     const value = input.type === 'checkbox' ? input.checked : input.value.trim();
@@ -8373,6 +8365,7 @@ window.addEventListener('keydown', (event) => {
 
 subscribe(render);
 render();
+if (assistantStartup.removedLegacyKey) notify('An AI API key saved by an older version was removed from browser storage. Enter it again when you use the assistant.', 'info');
 
 // Offline support: register the service worker in a normal browser (not in the desktop shell,
 // which already has every file locally). The first visit caches the studio for offline use.

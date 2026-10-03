@@ -1,4 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
+/* No web fonts are downloaded (offline use, privacy, strict CSP). The two family names used
+   throughout map to fonts already installed on the computer. */
+@font-face{font-family:'DM Mono';src:local('DM Mono'),local('DMMono-Regular'),local('Cascadia Mono'),local('Consolas'),local('SF Mono'),local('Menlo'),local('DejaVu Sans Mono'),local('Liberation Mono'),local('Noto Sans Mono')}
+@font-face{font-family:'Manrope';src:local('Manrope'),local('Segoe UI'),local('SF Pro Text'),local('Helvetica Neue'),local('Arial'),local('DejaVu Sans'),local('Liberation Sans'),local('Noto Sans')}
 
 .engine-status.built-in{color:#34d399!important}.engine-status.unavailable{color:#fbbf24!important}.engine-status.unsupported{color:var(--muted)!important}
 .engine-status.disabled,.engine-status.incompatible{color:#f59e0b!important}
