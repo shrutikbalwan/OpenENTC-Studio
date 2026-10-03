@@ -446,6 +446,14 @@
       "plannedPhase": 9
     },
     {
+      "id": "radar.satellite-microwave",
+      "surface": "Radar & Satellite: radar range equation with pulse integration, pulse timing, Doppler, MTI canceller and blind speeds, FMCW ranging; Kepler orbits, GEO look angles and uplink/downlink budgets with G/T; thin-dipole patterns with numerical directivity and beamwidth, dish/horn gain and Friis; reflex klystron modes, two-cavity bunching, magnetron Hull cut-off, directional coupler and VSWR",
+      "state": "built-in",
+      "evidence": ["packages/radarsat/src/index.mjs", "src/app.js#renderRadar", "tests/radarsat.test.mjs"],
+      "limitations": "Radar uses the free-space monostatic equation (no clutter, multipath, atmospheric attenuation or Swerling fluctuation; integration is ideal coherent). Orbits are two-body Keplerian with a spherical Earth; look angles are for geostationary satellites. Dipole patterns assume a sinusoidal current on a thin wire; aperture gains use a fixed efficiency. Tube formulas are the small-signal textbook (Liao) relations. Directivity of λ/2, short and full-wave dipoles, GEO radius and period, and the radar/link equations are checked against reference values in the tests.",
+      "plannedPhase": 9
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",
