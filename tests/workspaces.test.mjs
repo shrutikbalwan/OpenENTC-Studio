@@ -43,6 +43,7 @@ export const WORKSPACES = [
   { module: 'pcb', path: '../src/workspaces/pcb/pcb.js', render: 'renderPcb', bind: 'bindPcbEvents', expect: [] },
   { module: 'calc', path: '../src/workspaces/tools/calculators.js', render: 'renderCalculators', bind: 'bindCalculatorEvents', expect: [] },
   { module: 'neural', path: '../src/workspaces/learning/neural.js', render: 'renderNn', bind: 'bindNnEvents', expect: [] },
+  { module: 'console', path: '../src/workspaces/learning/console.js', render: 'renderConsole', bind: 'bindConsoleEvents', expect: [] },
 ];
 
 for (const workspace of WORKSPACES) {
