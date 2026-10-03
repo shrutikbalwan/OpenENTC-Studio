@@ -28,6 +28,7 @@ export const WORKSPACES = [
   { module: 'dip', path: '../src/workspaces/signals/dip.js', render: 'renderDip', bind: 'bindDipEvents', expect: [] },
   { module: 'biomed', path: '../src/workspaces/signals/biomed.js', render: 'renderBio', bind: 'bindBioEvents', expect: [] },
   { module: 'control', path: '../src/workspaces/control/control.js', render: 'renderControl', bind: 'bindControlLabEvents', expect: [] },
+  { module: 'plc', path: '../src/workspaces/control/plc.js', render: 'renderPlc', bind: 'bindPlcEvents', expect: [] },
 ];
 
 for (const workspace of WORKSPACES) {
