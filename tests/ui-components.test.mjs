@@ -149,3 +149,34 @@ test('render service forwards rerender() to the registered shell renderer', asyn
   assert.equal(calls, 2);
   assert.throws(() => setRenderer(null), TypeError);
 });
+
+test('reportError shows a redacted message, applies prefix and fallback, and keeps a bounded recent list', async () => {
+  const { clearRecentErrors, recentErrors, reportError } = await import('../src/services/errors.js');
+  const { ConvergenceError } = await import('../packages/errors/src/index.mjs');
+  clearRecentErrors();
+  reportError(new Error('Upload failed for /home/dana/sketch.ino with token=abcdef123456'), { prefix: 'Arduino' });
+  assert.equal(store.getState().toast.message, 'Arduino: Upload failed for <home>/sketch.ino with token=[redacted]');
+  assert.equal(store.getState().toast.tone, 'error');
+  reportError(new Error(''), { fallback: 'Could not import project' });
+  assert.equal(store.getState().toast.message, 'Could not import project');
+  reportError(new ConvergenceError('Circuit did not converge.'));
+  const recent = recentErrors();
+  assert.equal(recent.length, 3);
+  assert.equal(recent[2].code, 'OPENENTC_CONVERGENCE');
+  assert.match(recent[2].recovery, /device orientation/);
+  assert.doesNotMatch(JSON.stringify(recent), /dana|abcdef123456|stack/);
+  for (let k = 0; k < 30; k += 1) reportError(new Error(`e${k}`));
+  assert.equal(recentErrors().length, 20, 'bounded');
+  clearRecentErrors();
+  assert.equal(recentErrors().length, 0);
+});
+
+test('error panel: unchanged markup for plain errors, adds the recovery hint for OpenENTC errors', async () => {
+  const { renderErrorPanel } = await import('../src/components/errors.js');
+  const { ValidationError } = await import('../packages/errors/src/index.mjs');
+  assert.equal(renderErrorPanel(new RangeError('R must be > 0.'), { title: 'Lab', resetAttribute: 'data-x-reset' }), '<div class="diagnostic error"><b>Lab</b><span>R must be &gt; 0.</span><button class="button" data-x-reset>Reset this tab to its example</button></div>');
+  const html = renderErrorPanel(new ValidationError('R1 must have a resistance greater than zero.', { location: { component: 'R1' } }), { title: 'Circuit' });
+  assert.match(html, /<small class="error-recovery">Check the highlighted value and try again\.<\/small>/);
+  assert.doesNotMatch(html, /<button/);
+  assertEscaped(renderErrorPanel(new Error(HOSTILE), { title: 'T' }));
+});

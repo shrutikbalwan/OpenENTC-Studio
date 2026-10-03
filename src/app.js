@@ -12,6 +12,7 @@ import { assistantStartup } from './shell/assistant.js';
 import { showCommandPalette } from './shell/command-palette.js';
 import { importInput } from './shell/shell-events.js';
 import { render } from './shell/app-shell.js';
+import { reportError } from './services/errors.js';
 
 importInput.addEventListener('change', async () => {
   try {
@@ -22,7 +23,7 @@ importInput.addEventListener('change', async () => {
     replaceProject(imported);
     notify('Project imported', 'success');
   }
-  catch (error) { notify(error.message || 'Could not import project', 'error'); }
+  catch (error) { reportError(error, { fallback: 'Could not import project' }); }
   importInput.value = '';
 });
 

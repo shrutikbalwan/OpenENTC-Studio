@@ -137,8 +137,10 @@ export function pruneUnusedImports(file) {
     let node = ts.getTokenAtPosition ? ts.getTokenAtPosition(sf, d.start) : null;
     while (node && !ts.isImportDeclaration(node)) node = node.parent;
     if (!node) continue;
-    if (d.code === 6192) for (const el of node.importClause?.namedBindings?.elements ?? []) unused.add(el.name.text);
-    else unused.add(sf.text.slice(d.start, d.start + d.length));
+    // The diagnostic span covers either one specifier or the whole declaration; take every
+    // specifier inside the span.
+    const end = d.start + (d.length ?? 0);
+    for (const el of node.importClause?.namedBindings?.elements ?? []) if (d.code === 6192 || (el.getStart(sf) >= d.start && el.getEnd() <= end)) unused.add(el.name.text);
   }
   if (!unused.size) return [];
   const lines = sf.text.split('\n').flatMap((line) => {

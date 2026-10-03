@@ -12,6 +12,7 @@ import { groupField, labSelect } from '../../components/forms.js';
 import { pageHeader } from '../../components/layout.js';
 import { bindLabControls, makeLab } from '../../controllers/lab-controls.js';
 import { rerender } from '../../services/render.js';
+import { reportError } from '../../services/errors.js';
 
 const twinLab = makeLab('twin-lab', {
   tab: 'bench',
@@ -71,7 +72,7 @@ function runTwinVirtual() {
   const components = c.experiment === 'rc' ? [part('R1', 'resistor', c.r, 'drive', 'cap'), part('C1', 'capacitor', c.c, 'cap', '0'), part('VUSB', 'voltage', c.vs, 'vcc', '0'), part('RA1', 'resistor', 1e6, 'vcc', 'a1')] : [part('VUSB', 'voltage', c.vs, 'vcc', '0'), part('R1', 'resistor', c.rTop, 'vcc', 'a1'), part('R2', 'resistor', c.rBottom, 'a1', '0'), part('RA0', 'resistor', 1e6, 'a0', '0')];
   const connections = c.experiment === 'rc' ? [{ pin: 'D8', node: 'drive' }, { pin: 'A0', node: 'cap' }, { pin: 'A1', node: 'a1' }] : [{ pin: 'A0', node: 'a0' }, { pin: 'A1', node: 'a1' }];
   let sim;
-  try { sim = createCoSimulation(board, { components, connections, maxStep: Math.min(50e-6, c.period * 1e-6 / 2), historyLimit: 2000 }); } catch (error) { notify(error.message, 'error'); return; }
+  try { sim = createCoSimulation(board, { components, connections, maxStep: Math.min(50e-6, c.period * 1e-6 / 2), historyLimit: 2000 }); } catch (error) { reportError(error); return; }
   const text = () => new TextDecoder().decode(new Uint8Array(board.mcu.usart.output));
   sim.advance(0.03);
   board.mcu.usart.receive([...new TextEncoder().encode(twinCommand(c))]);
@@ -86,7 +87,7 @@ function runTwinVirtual() {
       twinState.virtual = analyseTwin(c, text());
       twinState.busy = '';
       notify('Virtual run finished', 'success');
-    } catch (error) { twinState.busy = ''; notify(`Virtual run failed: ${error.message}`, 'error'); }
+    } catch (error) { twinState.busy = ''; reportError(error, { prefix: 'Virtual run failed' }); }
     rerender();
   };
   setTimeout(step, 0);
@@ -101,7 +102,7 @@ async function connectTwinSerial() {
     twinState.reader = decoder.readable.getReader();
     (async () => { try { for (;;) { const { value, done } = await twinState.reader.read(); if (done) break; twinState.text += value; if (twinState.text.includes(TWIN_BANNER)) twinState.ready = true; if (twinState.text.length > 200000) twinState.text = twinState.text.slice(-100000); } } catch { /* port closed */ } twinState.connected = false; rerender(); })();
     notify('Arduino connected — it restarts when the port opens, so wait a second before running.', 'success');
-  } catch (error) { notify(`Could not open the serial port: ${error.message}`, 'error'); }
+  } catch (error) { reportError(error, { prefix: 'Could not open the serial port' }); }
   rerender();
 }
 async function runTwinReal() {
@@ -120,7 +121,7 @@ async function runTwinReal() {
     while (parseTwinOutput(twinState.text).complete < 1 && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 100));
     twinState.real = analyseTwin(c, twinState.text);
     notify('Real run finished', 'success');
-  } catch (error) { notify(error.message, 'error'); }
+  } catch (error) { reportError(error); }
   twinState.busy = '';
   rerender();
 }

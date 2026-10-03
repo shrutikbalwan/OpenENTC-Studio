@@ -1,12 +1,16 @@
+// @ts-check
 // Smith chart (constant-resistance circles and constant-reactance arcs in the reflection plane),
 // shared by the RF and EM workspaces.
 import { cdiv, complex } from '../../packages/numerics/src/index.mjs';
 import { esc } from '../shared/escaping.js';
 
 /** Smith chart: constant-resistance circles and constant-reactance arcs in the Γ plane. */
+/**
+ * @param {{ label: string, points?: { gamma: { re: number, im: number }, color: string, radius?: number, text?: string }[], traces?: { points: { re: number, im: number }[], color: string, dashed?: boolean }[] }} chart
+ */
 export function renderSmithChart({ label, points = [], traces = [] }) {
   const size = 320, c = size / 2, radius = 140;
-  const px = (re) => (c + re * radius).toFixed(2), py = (im) => (c - im * radius).toFixed(2);
+  const px = (/** @type {number} */ re) => (c + re * radius).toFixed(2), py = (/** @type {number} */ im) => (c - im * radius).toFixed(2);
   const resistances = [0.2, 0.5, 1, 2, 5];
   const reactances = [0.2, 0.5, 1, 2, 5];
   const circles = resistances.map((r) => `<circle cx="${px(r / (1 + r))}" cy="${c}" r="${(radius / (1 + r)).toFixed(2)}"/>`).join('');

@@ -12,6 +12,7 @@ import { createDesktopProcessAdapterRunner, joinDesktopProjectPath } from '../..
 import { normalizeDigitalWaveformView, serializeDigitalCsv, transformDigitalWaveformView } from '../../core/digital-waveform-view.js';
 import { bindVerilogEvents } from './fpga.js';
 import { nativeSessions } from '../../state/native-sessions.js';
+import { reportError } from '../../services/errors.js';
 
 export function bindDigitalEvents() {
   bindVerilogEvents();
@@ -24,7 +25,7 @@ export function bindDigitalEvents() {
       recordExperiment({ id: 'vcd-import', kind: 'hdl', operation: 'vcd-parse', inputs: { text } });
       setState({ simulation: { kind: 'digital', trace: parseVcd(text) }, digitalView: { source: 'imported' } });
       notify('VCD waveform parsed', 'success');
-    } catch (error) { notify(error.message || 'VCD input is invalid', 'error'); }
+    } catch (error) { reportError(error, { fallback: 'VCD input is invalid' }); }
   });
   document.querySelector('[data-action="lint-verilator"]')?.addEventListener('click', runNativeVerilatorLint);
   document.querySelector('[data-action="synthesize-yosys"]')?.addEventListener('click', runNativeYosysSynthesis);
@@ -41,7 +42,7 @@ export function bindDigitalEvents() {
     if (field.dataset.hdlField === 'constraints') {
       const constraints = field.value || '';
       try { if (new TextEncoder().encode(constraints).byteLength > 64 * 1024) throw new TypeError('PCF constraints exceed 64 KiB.'); recordExperiment({ id: 'hdl-ice40-hx8k-ct256', kind: 'hdl', operation: 'target-constraints', inputs: { target: 'ice40-hx8k-ct256', family: 'ice40', device: 'hx8k', package: 'ct256', constraintsFormat: 'pcf', constraints } }); }
-      catch (error) { notify(error?.message || 'FPGA constraints are invalid', 'error'); }
+      catch (error) { reportError(error, { fallback: 'FPGA constraints are invalid' }); }
       return;
     }
     if (['vhdlSource', 'vhdlTop', 'stopTimeNs'].includes(field.dataset.hdlField)) {
@@ -53,7 +54,7 @@ export function bindDigitalEvents() {
         if (!/^[A-Za-z_][A-Za-z0-9_]{0,199}$/.test(topUnit)) throw new TypeError('VHDL top entity must be a safe identifier.');
         if (!Number.isInteger(stopTimeNs) || stopTimeNs < 1 || stopTimeNs > 1_000_000_000) throw new TypeError('VHDL stop time must be 1 through 1000000000 ns.');
         recordExperiment({ id: 'hdl-vhdl-counter', kind: 'hdl', operation: 'author-source', inputs: { language: 'vhdl', path: 'src/counter_tb.vhd', topUnit, stopTimeNs, source } });
-      } catch (error) { notify(error?.message || 'VHDL source configuration is invalid', 'error'); }
+      } catch (error) { reportError(error, { fallback: 'VHDL source configuration is invalid' }); }
       return;
     }
     const source = document.querySelector('[data-hdl-field="source"]')?.value || '';
@@ -62,7 +63,7 @@ export function bindDigitalEvents() {
       if (new TextEncoder().encode(source).byteLength > 48 * 1024) throw new TypeError('HDL source exceeds the 48 KiB authored limit.');
       if (!/^[A-Za-z_][A-Za-z0-9_$]{0,199}$/.test(topUnit)) throw new TypeError('HDL top unit must be a safe identifier.');
       recordExperiment({ id: 'hdl-systemverilog-counter', kind: 'hdl', operation: 'author-source', inputs: { language: 'systemverilog', path: 'src/counter.sv', topUnit, source } });
-    } catch (error) { notify(error?.message || 'HDL source configuration is invalid', 'error'); }
+    } catch (error) { reportError(error, { fallback: 'HDL source configuration is invalid' }); }
   }));
 }
 function activeDigitalTrace(state = getState()) {
@@ -90,7 +91,7 @@ function exportDigitalCsv() {
   try {
     const csv = serializeDigitalCsv(trace, state.digitalView || {});
     const blob = new Blob([csv], { type: 'text/csv' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'openentc-digital-waveform.csv'; link.click(); URL.revokeObjectURL(link.href); notify('Digital waveform CSV exported', 'success');
-  } catch (error) { notify(error?.message || 'Digital waveform export failed', 'error'); }
+  } catch (error) { reportError(error, { fallback: 'Digital waveform export failed' }); }
 }
 async function runNativeVerilatorLint() {
   const source = document.querySelector('[data-hdl-field="source"]')?.value || '';
@@ -266,5 +267,5 @@ export async function cancelHdlJob(silent = false) {
   if (!active) return;
   setState({ hdlJob: { runId: active.runId, engine: active.engine, operation: active.operation, phase: 'cancelling' } });
   try { await active.adapter.cancel(); if (!silent) notify(`Cancelling ${active.engine} ${active.operation}`, 'success'); }
-  catch (error) { if (!silent) notify(error?.message || 'HDL job cancellation failed', 'error'); }
+  catch (error) { if (!silent) reportError(error, { fallback: 'HDL job cancellation failed' }); }
 }

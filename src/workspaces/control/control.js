@@ -10,6 +10,7 @@ import { readout } from '../../components/tables.js';
 import { linearTicks, planeExtent, PLOT_COLORS, renderComplexPlane, renderPlotFrame } from '../../components/plots.js';
 import { labField, labTabs } from '../../components/forms.js';
 import { pageHeader } from '../../components/layout.js';
+import { reportError } from '../../services/errors.js';
 
 const CONTROL_DEFAULTS = Object.freeze({
   tab: 'first-order', numerator: '10', denominator: 's(s+1)(s+5)', feedback: true, duration: '',
@@ -174,7 +175,7 @@ function bindControlLabEvents() {
       const round = (value) => Number(value.toPrecision(4));
       persistControl({ kp: round(rule.kp), ki: round(rule.ki), kd: round(rule.kd) });
       notify(`Ziegler-Nichols ${rule.name} gains applied`, 'success');
-    } catch (error) { notify(error.message, 'error'); }
+    } catch (error) { reportError(error); }
   }));
 }
 
@@ -187,7 +188,7 @@ export function bindControlEvents() {
       recordExperiment({ id: 'control-step', kind: 'control', operation: 'step-response', inputs: { gain, tau, sampleRate, length } });
       setState({ simulation: { kind: 'control', response: firstOrderStep({ gain, tau, sampleRate, length }), stability: firstOrderStability(tau) } });
       notify('Control step response computed', 'success');
-    } catch (error) { notify(error.message, 'error'); }
+    } catch (error) { reportError(error); }
   });
   document.querySelector('[data-action="export-control"]')?.addEventListener('click', () => {
     const result = getState().simulation;

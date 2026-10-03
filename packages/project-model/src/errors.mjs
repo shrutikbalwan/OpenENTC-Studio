@@ -1,8 +1,11 @@
-export class ProjectError extends Error {
+import { ProjectFormatError } from '../../errors/src/index.mjs';
+
+// Project-format failures. ProjectError keeps its historical name, `code` values and `details`
+// object, and is a ProjectFormatError, so it also carries a recovery hint and redacted context.
+export class ProjectError extends ProjectFormatError {
   constructor(code, message, details = {}) {
-    super(message);
+    super(message, { code, context: details });
     this.name = 'ProjectError';
-    this.code = code;
     this.details = details;
   }
 }

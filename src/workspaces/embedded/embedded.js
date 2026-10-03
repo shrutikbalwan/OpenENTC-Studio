@@ -13,6 +13,7 @@ import { fmt } from '../../shared/formatting.js';
 import { pageHeader } from '../../components/layout.js';
 import { nativeSessions } from '../../state/native-sessions.js';
 import { showModal } from '../../components/dialogs.js';
+import { reportError } from '../../services/errors.js';
 
 function selectedArduinoTarget(state) {
   const saved = state.project.experiments.find((experiment) => experiment?.id === 'firmware-arduino-target')?.inputs || {};
@@ -138,7 +139,7 @@ async function refreshArduinoInventory() {
     notify(`Arduino inventory loaded: ${results['board-inventory'].items.length} boards, ${results['core-inventory'].items.length} cores, ${results['library-inventory'].items.length} libraries`, 'success');
   } catch (error) {
     try { setState({ desktopJobs: await desktopBridge.listJobs(desktopProject.project_id), desktopEvents: await desktopBridge.drainEvents(desktopProject.project_id) }); } catch { /* retain the inventory error */ }
-    notify(error?.message || 'Arduino inventory failed', 'error');
+    reportError(error, { fallback: 'Arduino inventory failed' });
   }
 }
 function reviewArduinoProgrammerGrant() {
@@ -153,7 +154,7 @@ function reviewArduinoProgrammerGrant() {
       setState({ arduinoDeviceGrant: { projectId: project.project_id, permission: 'device-programmer', target: port } });
       document.querySelector('.modal-done')?.click();
       notify(`Programmer access granted for ${port}`, 'success');
-    } catch (error) { notify(error?.message || 'Programmer permission was not granted', 'error'); }
+    } catch (error) { reportError(error, { fallback: 'Programmer permission was not granted' }); }
   });
 }
 function serialConfiguration(state = getState()) {
@@ -207,7 +208,7 @@ function reviewArduinoSerialGrant() {
       await desktopBridge.grantDeviceTarget(project.project_id, 'device-serial', port, true);
       setState({ arduinoSerialGrant: { projectId: project.project_id, permission: 'device-serial', target: port } });
       document.querySelector('.modal-done')?.click(); notify(`Serial access granted for ${port}`, 'success');
-    } catch (error) { notify(error?.message || 'Serial permission was not granted', 'error'); }
+    } catch (error) { reportError(error, { fallback: 'Serial permission was not granted' }); }
   });
 }
 async function revokeArduinoSerialGrant() {
@@ -218,7 +219,7 @@ async function revokeArduinoSerialGrant() {
     await desktopBridge.revokeDeviceTarget(projectId, grant.permission, grant.target);
     setState({ arduinoSerialGrant: null, arduinoSerial: null });
     notify(`Serial access revoked for ${grant.target}`, 'success');
-  } catch (error) { notify(error?.message || 'Serial permission could not be revoked', 'error'); }
+  } catch (error) { reportError(error, { fallback: 'Serial permission could not be revoked' }); }
 }
 async function connectArduinoSerial() {
   const state = getState(); const project = state.desktopProject; const port = selectedArduinoPort(state); const config = serialConfiguration(state);
@@ -232,7 +233,7 @@ async function connectArduinoSerial() {
     nativeSessions.activeSerialSession.connect();
     nativeSessions.activeSerialNative = { projectId: project.project_id, id, target: port, baud: config.baud, encoding: config.encoding, decoder: new TextDecoder('utf-8') };
     publishArduinoSerial(); nativeSessions.serialPollTimer = setTimeout(pollArduinoSerial, 0); notify(`Serial terminal connected to ${port}`, 'success');
-  } catch (error) { notify(error?.message || 'Serial port could not be opened', 'error'); }
+  } catch (error) { reportError(error, { fallback: 'Serial port could not be opened' }); }
 }
 async function reconnectArduinoSerial() {
   const native = nativeSessions.activeSerialNative;
@@ -242,7 +243,7 @@ async function reconnectArduinoSerial() {
     nativeSessions.activeSerialSession.reconnect(); native.decoder = new TextDecoder('utf-8'); publishArduinoSerial(); nativeSessions.serialPollTimer = setTimeout(pollArduinoSerial, 0); notify(`Serial terminal reconnected to ${native.target}`, 'success');
   } catch (error) {
     try { nativeSessions.activeSerialSession.reconnect(); nativeSessions.activeSerialSession.markReconnectFailed(); } catch { /* state already exhausted */ }
-    publishArduinoSerial(error?.message || 'Serial reconnect failed'); notify(error?.message || 'Serial reconnect failed', 'error');
+    publishArduinoSerial(error?.message || 'Serial reconnect failed'); reportError(error, { fallback: 'Serial reconnect failed' });
   }
 }
 async function disconnectArduinoSerial() {
@@ -269,7 +270,7 @@ async function sendArduinoSerial() {
   if (!input || !native || !nativeSessions.activeSerialSession) return;
   try {
     const text = nativeSessions.activeSerialSession.formatTransmit(input.value); await desktopBridge.writeSerial(native.projectId, native.id, new TextEncoder().encode(text)); input.value = '';
-  } catch (error) { notify(error?.message || 'Serial write failed', 'error'); }
+  } catch (error) { reportError(error, { fallback: 'Serial write failed' }); }
 }
 async function revokeArduinoProgrammerGrant() {
   const state = getState(); const grant = state.arduinoDeviceGrant; const projectId = state.desktopProject?.project_id;
@@ -278,7 +279,7 @@ async function revokeArduinoProgrammerGrant() {
     await desktopBridge.revokeDeviceTarget(projectId, grant.permission, grant.target);
     setState({ arduinoDeviceGrant: null });
     notify(`Programmer access revoked for ${grant.target}`, 'success');
-  } catch (error) { notify(error?.message || 'Programmer permission could not be revoked', 'error'); }
+  } catch (error) { reportError(error, { fallback: 'Programmer permission could not be revoked' }); }
 }
 export async function cancelArduinoUpload(silent = false) {
   const upload = nativeSessions.activeArduinoUpload;
@@ -288,7 +289,7 @@ export async function cancelArduinoUpload(silent = false) {
     await upload.adapter?.cancel();
     if (!silent) notify(`Cancelling Arduino job for ${upload.port}`, 'success');
   } catch (error) {
-    if (!silent) notify(error?.message || 'Arduino upload cancellation failed', 'error');
+    if (!silent) reportError(error, { fallback: 'Arduino upload cancellation failed' });
   }
 }
 async function runNativeArduinoUpload() {
@@ -383,7 +384,7 @@ async function runNativeArduinoCompile() {
     notify('Arduino CLI compile completed', 'success');
   } catch (error) {
     try { setState({ desktopJobs: await desktopBridge.listJobs(desktopProject.project_id), desktopEvents: await desktopBridge.drainEvents(desktopProject.project_id) }); } catch { /* retain the original engine error */ }
-    notify(error?.message || 'Arduino CLI compile failed', 'error');
+    reportError(error, { fallback: 'Arduino CLI compile failed' });
   } finally {
     await adapter?.clean().catch(() => {});
   }

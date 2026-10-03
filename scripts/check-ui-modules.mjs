@@ -74,9 +74,10 @@ export async function unusedExports(graph) {
   const consumers = [...Object.keys(graph), ...(await walk(path.join(root, 'tests'), (f) => f.endsWith('.mjs'))).map(rel)];
   const texts = Object.fromEntries(await Promise.all(consumers.map(async (f) => [f, await readFile(path.join(root, f), 'utf8')])));
   for (const [file, text] of Object.entries(texts)) {
-    for (const m of text.matchAll(/(?:import|export)\s*\{([^}]*)\}\s*from\s+'(\.[^']+)'/g)) {
+    // Static `import { a } from './x.js'` / re-exports, and `const { a } = await import('./x.js')`.
+    for (const m of [...text.matchAll(/(?:import|export)\s*\{([^}]*)\}\s*from\s+'(\.[^']+)'/g), ...text.matchAll(/\{([^{}]*)\}\s*=\s*await\s+import\('(\.[^']+)'\)/g)]) {
       const target = rel(path.resolve(path.dirname(path.join(root, file)), m[2]));
-      for (const name of m[1].split(',').map((s) => s.trim().split(/\s+as\s+/)[0]).filter(Boolean)) (importers.get(target) ?? importers.set(target, new Set()).get(target)).add(name);
+      for (const name of m[1].split(',').map((s) => s.trim().split(/\s+as\s+|\s*:\s*/)[0]).filter(Boolean)) (importers.get(target) ?? importers.set(target, new Set()).get(target)).add(name);
     }
   }
   const unused = [];

@@ -13,6 +13,7 @@ import { PLOT_COLORS, renderPlotFrame } from '../../components/plots.js';
 import { labField, labSelect, labTabs } from '../../components/forms.js';
 import { pageHeader } from '../../components/layout.js';
 import { rerender } from '../../services/render.js';
+import { reportError } from '../../services/errors.js';
 
 const MCU_SPEEDS = [['0.01', 'Slow motion (1 %)'], ['0.1', '10 %'], ['1', 'Real time'], ['10', '10×'], ['max', 'As fast as possible']];
 export const mcuRuntime = { cpu: null, board: null, assembly: null, key: null, running: false, frame: 0, last: 0, breakpoints: new Set(), terminal: '', loadedHex: null, error: null };
@@ -236,7 +237,7 @@ export function bindMcuEvents() {
     const text = await file.text();
     if (/\.(hex|ihx)$/i.test(file.name)) {
       try { const parsed = parseIntelHex(text); mcuRuntime.loadedHex = { name: file.name, image: parsed.image, bytes: parsed.bytes }; mcuRuntime.key = null; rerender(); notify(`Loaded ${parsed.bytes} bytes from ${file.name}`, 'success'); }
-      catch (error) { notify(error.message, 'error'); }
+      catch (error) { reportError(error); }
     } else { mcuRuntime.loadedHex = null; persistMcu({ source: text, exampleId: 'custom' }); }
   });
   root.querySelector('[data-action="mcu-download-hex"]')?.addEventListener('click', () => {
@@ -269,7 +270,7 @@ export function bindMcuEvents() {
     const wiring = structuredClone(config().wiring);
     const [group, key] = field.dataset.mcuWire.split('.');
     wiring[group][key] = field.type === 'checkbox' ? field.checked : key === 'port' || key === 'dataPort' ? Number(field.value) : field.value.trim().toUpperCase();
-    try { new TrainerBoard(new Cpu8051(), wiring); persistMcu({ wiring }); } catch (error) { notify(error.message, 'error'); }
+    try { new TrainerBoard(new Cpu8051(), wiring); persistMcu({ wiring }); } catch (error) { reportError(error); }
   }));
   if (mcuRuntime.running && !mcuRuntime.frame) mcuStart();
 }
@@ -504,7 +505,7 @@ function bindUnoEvents() {
     if (!file) return;
     if (file.size > 200_000) { notify('That file is too large for an ATmega328P.', 'error'); return; }
     try { const text = await file.text(); const parsed = parseIntelHex(text); if (parsed.size > 32_768) throw new RangeError('The program is larger than 32 KB of flash.'); unoRuntime.hex = { name: file.name, text, bytes: parsed.bytes }; unoRuntime.key = null; rerender(); notify(`Loaded ${file.name}`, 'success'); }
-    catch (error) { notify(error.message, 'error'); }
+    catch (error) { reportError(error); }
   });
   const input = root.querySelector('[data-uno-input]');
   const send = () => { if (!input) return; unoRuntime.board.mcu.usart.receive([...`${input.value}\n`].map((character) => character.charCodeAt(0) & 0xff)); input.value = ''; };
@@ -526,7 +527,7 @@ function bindUnoEvents() {
       else if (kind === 'pots') board.pots = list.map((pin) => ({ pin: pin.toUpperCase(), volts: board.pots.find((pot) => pot.pin === pin.toUpperCase())?.volts ?? 2.5 }));
       else board.lcd = field.checked ? { rs: 12, enable: 11, d4: 5, d5: 4, d6: 3, d7: 2 } : null;
       persistMcu({ avrBoard: board });
-    } catch (error) { notify(error.message, 'error'); }
+    } catch (error) { reportError(error); }
   }));
   if (unoRuntime.running && !unoRuntime.frame) unoStart();
 }
@@ -690,7 +691,7 @@ function bindAnalyzerEvents(target) {
       laState.imported[target] = { channels, end, name: file.name };
       persistLa(target, { windowMs: String(Math.max(0.5, Math.round(end * 1000))) });
       notify(`Imported ${channels.length} signals from ${file.name}`, 'success');
-    } catch (error) { notify(error.message, 'error'); }
+    } catch (error) { reportError(error); }
   });
 }
 

@@ -13,6 +13,7 @@ import { engineeringInput } from '../../shared/parsing.js';
 import { readout } from '../../components/tables.js';
 import { labSelect } from '../../components/forms.js';
 import { pageHeader } from '../../components/layout.js';
+import { reportError } from '../../services/errors.js';
 
 const BENCH_DEFAULTS = Object.freeze({
   generator: { enabled: true, sourceId: '', shape: 'sine', frequency: 1000, vpp: 2, offset: 0, duty: 0.5, impedance: 'high-z' },
@@ -308,7 +309,7 @@ export function bindBenchEvents() {
     const path = input.dataset.benchField;
     let value;
     try { value = engineeringInput(input.value, input.closest('label')?.firstChild?.textContent || 'Value'); }
-    catch (error) { notify(error.message, 'error'); return; }
+    catch (error) { reportError(error); return; }
     if (BENCH_PERCENT_FIELDS.includes(path)) value = Math.min(99.9, Math.max(0.1, value)) / 100;
     setBenchPath(path, value);
   }));

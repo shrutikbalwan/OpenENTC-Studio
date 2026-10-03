@@ -1,7 +1,7 @@
 // ADC & DAC Lab workspace. Entry points: renderAdcLab(state); bindAdcEvents().
 import { modules } from '../../data/modules.js';
 import { esc } from '../../shared/escaping.js';
-import { getState, notify, recordExperiment } from '../../core/store.js';
+import { getState, recordExperiment } from '../../core/store.js';
 import { decimate, niceRange } from '../../core/circuit-plot.js';
 import { adcCode, adcThresholds, dualSlope, dynamicTest, flashConvert, integratingRejection, linearity, r2rDac, sarConvert, sigmaDelta, weightedDac } from '../../../packages/converters/src/index.mjs';
 import { binary, eng, fmt } from '../../shared/formatting.js';
@@ -10,6 +10,7 @@ import { comparisonRow, comparisonTable, readout } from '../../components/tables
 import { PLOT_COLORS, renderPlotFrame } from '../../components/plots.js';
 import { labSelect, labTabs } from '../../components/forms.js';
 import { pageHeader } from '../../components/layout.js';
+import { reportError } from '../../services/errors.js';
 
 const ADC_TABS = [['quantise', 'Transfer, DNL/INL & SNR'], ['sar', 'SAR'], ['flash', 'Flash'], ['dual', 'Dual-slope'], ['sigma', 'Sigma-delta'], ['dac', 'DAC']];
 const ADC_DEFAULTS = Object.freeze({
@@ -117,7 +118,7 @@ export function bindAdcEvents() {
     const path = input.dataset.adcField;
     const [group, key] = path.split('.');
     let value;
-    try { value = engineeringInput(input.value, input.closest('label')?.firstChild?.textContent || 'Value'); } catch (error) { notify(error.message, 'error'); return; }
+    try { value = engineeringInput(input.value, input.closest('label')?.firstChild?.textContent || 'Value'); } catch (error) { reportError(error); return; }
     if (ADC_INTEGER_FIELDS.has(path)) value = Math.round(value);
     if (path.endsWith('bits')) value = Math.min(path.startsWith('flash') ? 6 : path.startsWith('dual') ? 20 : path.startsWith('dac') ? 14 : 16, Math.max(1, value));
     if (path === 'sigma.osr') value = Math.min(512, Math.max(4, value));

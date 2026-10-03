@@ -9,6 +9,7 @@ import { linePlot, PLOT_COLORS } from '../../components/plots.js';
 import { groupField, labSelect } from '../../components/forms.js';
 import { labCard, pageHeader } from '../../components/layout.js';
 import { bindLabControls, makeLab } from '../../controllers/lab-controls.js';
+import { reportError } from '../../services/errors.js';
 
 const SPEECH_TABS = [['waveform', 'Energy & ZCR'], ['pitch', 'Pitch'], ['lpc', 'LPC & formants'], ['spectrogram', 'Spectrogram'], ['mfcc', 'MFCC']];
 // Peterson & Barney (1952) average male formants F1–F3 (Hz).
@@ -117,7 +118,7 @@ export function bindSpeechEvents() {
   document.querySelectorAll('[data-speech-file]').forEach((input) => input.addEventListener('change', async () => {
     const file = input.files?.[0];
     if (!file) return;
-    try { speechAudio = await decodeToMono(await file.arrayBuffer()); speechLab.persist((config) => { config.source.kind = 'recorded'; config.source.frameMs = 200; }); notify(`Loaded ${file.name}`, 'success'); } catch (error) { notify(`Could not decode the audio: ${error.message}`, 'error'); }
+    try { speechAudio = await decodeToMono(await file.arrayBuffer()); speechLab.persist((config) => { config.source.kind = 'recorded'; config.source.frameMs = 200; }); notify(`Loaded ${file.name}`, 'success'); } catch (error) { reportError(error, { prefix: 'Could not decode the audio' }); }
   }));
   document.querySelectorAll('[data-speech-record]').forEach((button) => button.addEventListener('click', async () => {
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') { notify('This browser cannot record audio.', 'error'); return; }
@@ -127,12 +128,12 @@ export function bindSpeechEvents() {
       recorder.ondataavailable = (event) => chunks.push(event.data);
       recorder.onstop = async () => {
         stream.getTracks().forEach((track) => track.stop());
-        try { speechAudio = await decodeToMono(await new Blob(chunks).arrayBuffer()); speechLab.persist((config) => { config.source.kind = 'recorded'; }); notify('Recording ready', 'success'); } catch (error) { notify(`Could not decode the recording: ${error.message}`, 'error'); }
+        try { speechAudio = await decodeToMono(await new Blob(chunks).arrayBuffer()); speechLab.persist((config) => { config.source.kind = 'recorded'; }); notify('Recording ready', 'success'); } catch (error) { reportError(error, { prefix: 'Could not decode the recording' }); }
       };
       notify('Recording for 2 seconds — speak now', 'success');
       recorder.start();
       setTimeout(() => recorder.stop(), 2000);
-    } catch (error) { notify(`Microphone not available: ${error.message}`, 'error'); }
+    } catch (error) { reportError(error, { prefix: 'Microphone not available' }); }
   }));
   document.querySelectorAll('[data-speech-play]').forEach((button) => button.addEventListener('click', () => {
     const { fs, samples } = speechSignal(speechLab.configuration(getState()).source);
@@ -142,6 +143,6 @@ export function bindSpeechEvents() {
       buffer.getChannelData(0).set(samples.map((v) => 0.8 * v));
       const node = context.createBufferSource(); node.buffer = buffer; node.connect(context.destination); node.start();
       node.onended = () => context.close?.();
-    } catch (error) { notify(`Cannot play audio: ${error.message}`, 'error'); }
+    } catch (error) { reportError(error, { prefix: 'Cannot play audio' }); }
   }));
 }

@@ -1,6 +1,7 @@
 import { resolveNodeAliases } from '../../packages/schematic/src/index.mjs';
 import { nodeFields } from '../../packages/schematic/src/components.mjs';
 import { BJT_CJC, BJT_CJE, BJT_REVERSE_BETA, BJT_SATURATION_CURRENT, BJT_TF, DIODE_EMISSION, MOSFET_CGD, MOSFET_CGS, MOSFET_DEFAULT_KP, MOSFET_LAMBDA, OPAMP_GAIN_BANDWIDTH, OPAMP_OPEN_LOOP_GAIN, OPAMP_POLE_CAPACITANCE, THERMAL_VOLTAGE, diodeSaturationCurrent, opampLimit } from '../../packages/schematic/src/device-models.mjs';
+import { ConvergenceError, NumericalError, ValidationError } from '../../packages/errors/src/index.mjs';
 
 export { OPAMP_GAIN_BANDWIDTH, OPAMP_OPEN_LOOP_GAIN, opampLimit };
 
@@ -24,7 +25,7 @@ function solveLinear(matrix, vector) {
     let best = pivot;
     for (let row = pivot + 1; row < n; row += 1) if (Math.abs(augmented[row][pivot]) > Math.abs(augmented[best][pivot])) best = row;
     [augmented[pivot], augmented[best]] = [augmented[best], augmented[pivot]];
-    if (Math.abs(augmented[pivot][pivot]) < EPSILON) throw new Error('Circuit matrix is singular. Check for floating nodes or conflicting sources.');
+    if (Math.abs(augmented[pivot][pivot]) < EPSILON) throw new NumericalError('Circuit matrix is singular. Check for floating nodes or conflicting sources.');
     for (let row = pivot + 1; row < n; row += 1) {
       const ratio = augmented[row][pivot] / augmented[pivot][pivot];
       if (ratio === 0) continue;
@@ -51,7 +52,7 @@ function solveComplex(re, im, bRe, bIm) {
     [ar[pivot], ar[best]] = [ar[best], ar[pivot]];
     [ai[pivot], ai[best]] = [ai[best], ai[pivot]];
     const pr = ar[pivot][pivot], pi = ai[pivot][pivot], denominator = pr * pr + pi * pi;
-    if (Math.sqrt(denominator) < EPSILON) throw new Error('AC circuit matrix is singular. Check for floating nodes or conflicting sources.');
+    if (Math.sqrt(denominator) < EPSILON) throw new NumericalError('AC circuit matrix is singular. Check for floating nodes or conflicting sources.');
     for (let row = pivot + 1; row < n; row += 1) {
       const xr = ar[row][pivot], xi = ai[row][pivot];
       if (xr === 0 && xi === 0) continue;
@@ -76,7 +77,7 @@ function solveComplex(re, im, bRe, bIm) {
 
 function diodeModel(part) {
   const forwardVoltage = Number(part.value);
-  if (!(forwardVoltage > 0 && forwardVoltage <= 10)) throw new Error(`${part.label} must have a forward voltage between 0 and 10 V.`);
+  if (!(forwardVoltage > 0 && forwardVoltage <= 10)) throw new ValidationError(`${part.label} must have a forward voltage between 0 and 10 V.`, { location: { component: part.id } });
   const nVt = DIODE_EMISSION[part.type] * THERMAL_VOLTAGE;
   const saturation = diodeSaturationCurrent(forwardVoltage, part.type);
   return { nVt, saturation, critical: nVt * Math.log(nVt / (Math.SQRT2 * saturation)) };
@@ -162,7 +163,7 @@ function diodeDevice(part, nodes) {
 /** Ebers-Moll (transport) BJT: terminals collector, base, emitter; value is the forward beta. */
 function bjtDevice(part, nodes) {
   const beta = Number(part.value);
-  if (!(beta > 0 && beta <= 1e5)) throw new Error(`${part.label} must have a current gain (β) between 0 and 100000.`);
+  if (!(beta > 0 && beta <= 1e5)) throw new ValidationError(`${part.label} must have a current gain (β) between 0 and 100000.`, { location: { component: part.id } });
   const polarity = part.type === 'pnp' ? -1 : 1;
   const junction = { nVt: THERMAL_VOLTAGE, saturation: BJT_SATURATION_CURRENT, critical: THERMAL_VOLTAGE * Math.log(THERMAL_VOLTAGE / (Math.SQRT2 * BJT_SATURATION_CURRENT)) };
   const be = [0, polarity, -polarity], bc = [-polarity, polarity, 0];
@@ -214,9 +215,9 @@ function bjtDevice(part, nodes) {
 /** Shichman-Hodges (SPICE level 1) MOSFET with the body tied to the source: drain, gate, source. */
 function mosfetDevice(part, nodes) {
   const threshold = Number(part.value);
-  if (!(threshold > 0 && threshold <= 100)) throw new Error(`${part.label} must have a threshold voltage between 0 and 100 V.`);
+  if (!(threshold > 0 && threshold <= 100)) throw new ValidationError(`${part.label} must have a threshold voltage between 0 and 100 V.`, { location: { component: part.id } });
   const kp = part.kp === undefined ? MOSFET_DEFAULT_KP : Number(part.kp);
-  if (!(kp > 0 && kp <= 1e3)) throw new Error(`${part.label} must have a transconductance K greater than zero.`);
+  if (!(kp > 0 && kp <= 1e3)) throw new ValidationError(`${part.label} must have a transconductance K greater than zero.`, { location: { component: part.id } });
   const polarity = part.type === 'pmos' ? -1 : 1;
   const gs = [0, polarity, -polarity], ds = [polarity, 0, -polarity];
   // Square-law drain current for forward operation (vds >= 0), with derivatives.
@@ -269,7 +270,7 @@ function mosfetDevice(part, nodes) {
  */
 function opampDevice(part, nodes, internal, branch) {
   const rail = Number(part.value);
-  if (!(rail > 0 && rail <= 1e4)) throw new Error(`${part.label} must have a supply rail (Vsat) greater than zero.`);
+  if (!(rail > 0 && rail <= 1e4)) throw new ValidationError(`${part.label} must have a supply rail (Vsat) greater than zero.`, { location: { component: part.id } });
   const [plus, minus, output] = nodes;
   return {
     nodes,
@@ -295,13 +296,13 @@ function buildCircuit(components, wires, netLabels) {
   const authored = components.filter((part) => ANALOG_TYPES.includes(part.type));
   for (const part of authored) {
     const value = Number(part.value);
-    if (part.type === 'resistor' && !(value > 0)) throw new Error(`${part.label} must have a resistance greater than zero.`);
-    if (part.type === 'capacitor' && !(value > 0)) throw new Error(`${part.label} must have a capacitance greater than zero.`);
-    if (part.type === 'inductor' && !(value > 0)) throw new Error(`${part.label} must have an inductance greater than zero.`);
-    if (['voltage', 'current'].includes(part.type) && !Number.isFinite(value)) throw new Error(`${part.label} must have a finite ${part.type === 'voltage' ? 'voltage' : 'current'}.`);
-    for (const field of nodeFields(part)) if (typeof part[field] !== 'string' || !part[field].trim()) throw new Error(`${part.label} has an unconnected ${field} terminal.`);
+    if (part.type === 'resistor' && !(value > 0)) throw new ValidationError(`${part.label} must have a resistance greater than zero.`, { location: { component: part.id } });
+    if (part.type === 'capacitor' && !(value > 0)) throw new ValidationError(`${part.label} must have a capacitance greater than zero.`, { location: { component: part.id } });
+    if (part.type === 'inductor' && !(value > 0)) throw new ValidationError(`${part.label} must have an inductance greater than zero.`, { location: { component: part.id } });
+    if (['voltage', 'current'].includes(part.type) && !Number.isFinite(value)) throw new ValidationError(`${part.label} must have a finite ${part.type === 'voltage' ? 'voltage' : 'current'}.`, { location: { component: part.id } });
+    for (const field of nodeFields(part)) if (typeof part[field] !== 'string' || !part[field].trim()) throw new ValidationError(`${part.label} has an unconnected ${field} terminal.`, { location: { component: part.id } });
   }
-  if (!authored.some((part) => part.type === 'voltage' || part.type === 'current')) throw new Error('Add at least one DC voltage source or current source.');
+  if (!authored.some((part) => part.type === 'voltage' || part.type === 'current')) throw new ValidationError('Add at least one DC voltage source or current source.');
   // Each op-amp adds a hidden pole node with a 1 Ω load and a capacitor setting its open-loop bandwidth.
   const internalNode = (part) => `${INTERNAL_PREFIX}${part.id}`;
   const synthetic = authored.filter((part) => part.type === 'opamp').flatMap((part) => [
@@ -315,7 +316,7 @@ function buildCircuit(components, wires, netLabels) {
   const branchParts = parts.filter((part) => BRANCH_TYPES.includes(part.type) && (part.type !== 'switch' || Number(part.value) >= 0.5));
   const branchIndex = new Map(branchParts.map((part, index) => [part.id, nodeNames.length + index]));
   const size = nodeNames.length + branchParts.length;
-  if (size > MAX_UNKNOWNS) throw new Error(`Circuit exceeds the built-in solver limit of ${MAX_UNKNOWNS} unknowns.`);
+  if (size > MAX_UNKNOWNS) throw new ValidationError(`Circuit exceeds the built-in solver limit of ${MAX_UNKNOWNS} unknowns.`);
   const terminals = new Map(parts.map((part) => [part.id, nodeFields(part).map((field) => part.internal ? part[field] : node(part[field])).map((name) => name === '0' ? -1 : nodeLookup.get(name))]));
   const devices = new Map();
   for (const part of authored) {
@@ -423,7 +424,7 @@ function solveNonlinearWith(circuit, options, gmin) {
     x = next;
     if (converged && iteration > 0) return x;
   }
-  throw new Error('Circuit did not converge. Check device orientation, bias and source values.');
+  throw new ConvergenceError('Circuit did not converge. Check device orientation, bias and source values.');
 }
 
 function operatingPoint(circuit, sourceValue) {

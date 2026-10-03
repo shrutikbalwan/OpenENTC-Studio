@@ -11,6 +11,7 @@ import { linearTicks, linePlot, PLOT_COLORS, renderPlotFrame } from '../../compo
 import { groupField, labSelect } from '../../components/forms.js';
 import { pageHeader } from '../../components/layout.js';
 import { bindLabControls, makeLab } from '../../controllers/lab-controls.js';
+import { reportError } from '../../services/errors.js';
 
 function renderQpskLink(state) {
   const result = state.simulation?.kind === 'communication' ? state.simulation : null;
@@ -265,7 +266,7 @@ function bindCommLabEvents() {
   document.querySelector('[data-action="comm-ber-curve"]')?.addEventListener('click', () => {
     const config = commConfiguration(getState());
     try { setState({ commBerCurve: berCurve({ scheme: config.digitalScheme, from: 0, to: 12, step: 1, bitsPerPoint: 100_000 }) }); notify('BER curve computed', 'success'); }
-    catch (error) { notify(error.message, 'error'); }
+    catch (error) { reportError(error); }
   });
 }
 
@@ -280,6 +281,6 @@ export function bindCommunicationEvents() {
       recordExperiment({ id: 'qpsk-ber', kind: 'communication', operation: 'qpsk-ber', inputs: { bits: bitsText, sigma: Number.isFinite(sigma) ? sigma : 0, seed: 7 } });
       setState({ simulation: { kind: 'communication', channel, ber: bitErrorRate(bits, qpskDemodulate(channel)) } });
       notify('QPSK experiment completed', 'success');
-    } catch (error) { notify(error.message, 'error'); }
+    } catch (error) { reportError(error); }
   });
 }

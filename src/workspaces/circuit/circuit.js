@@ -28,6 +28,7 @@ import { readout } from '../../components/tables.js';
 import { PLOT_COLORS, renderPlotFrame } from '../../components/plots.js';
 import { circuitEditor } from '../../state/circuit-editor.js';
 import { isDcResult } from '../../shared/simulation.js';
+import { reportError } from '../../services/errors.js';
 
 function circuitSymbol(part) {
   if (part.type === 'resistor') return '<svg viewBox="0 0 90 38"><path d="M2 19h12l7-12 11 24L43 7l11 24L65 7l8 12h15"/></svg>';
@@ -369,7 +370,7 @@ export function bindCircuitEvents() {
         const kp = parseEngineeringValue(input.value);
         if (!(kp > 0)) throw new RangeError('Transconductance K must be greater than zero.');
         updateProject((project) => { const part = project.circuit.components.find((item) => item.id === getState().selectedComponentId); if (part) part.kp = kp; });
-      } catch (error) { notify(error.message, 'error'); }
+      } catch (error) { reportError(error); }
       return;
     }
     if (input.dataset.partField === 'value') {
@@ -377,7 +378,7 @@ export function bindCircuitEvents() {
       try {
         const value = parseEngineeringValue(input.value, { unit: selected?.unit || null });
         updateProject((project) => { const part = project.circuit.components.find((item) => item.id === getState().selectedComponentId); if (part) part.value = value; });
-      } catch (error) { notify(error.message, 'error'); }
+      } catch (error) { reportError(error); }
       return;
     }
     updateProject((project) => { const part = project.circuit.components.find((item) => item.id === getState().selectedComponentId); if (part) part[input.dataset.partField] = input.value; });
@@ -897,7 +898,7 @@ function runSimulation() {
     setState({ simulation: result, selectedComponentId: null, selectedComponentIds: [] });
     const warnings = result.warnings?.length ? ` with ${result.warnings.length} warning${result.warnings.length === 1 ? '' : 's'}` : '';
     notify(`${{ dc: 'DC analysis', transient: 'Transient analysis', ac: 'AC sweep' }[config.analysis]} completed${warnings}`, 'success');
-  } catch (error) { notify(error.message, 'error'); }
+  } catch (error) { reportError(error); }
 }
 function persistBuiltinConfiguration(field, rawValue) {
   const engineering = new Set(['stopTime', 'timeStep', 'frequency', 'amplitude', 'startHz', 'stopHz']);
@@ -928,7 +929,7 @@ function loadExampleCircuit(id) {
 function exportCircuitCsv() {
   const result = getState().simulation;
   let csv;
-  try { csv = circuitResultCsv(result); } catch (error) { notify(error.message, 'error'); return; }
+  try { csv = circuitResultCsv(result); } catch (error) { reportError(error); return; }
   const blob = new Blob([csv], { type: 'text/csv' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `openentc-${result.kind === 'circuit-ac' ? 'ac-sweep' : 'transient'}.csv`; link.click(); URL.revokeObjectURL(link.href);
   notify('Simulation CSV exported', 'success');
 }
@@ -982,7 +983,7 @@ async function runNativeNgspice() {
     try { setState({ desktopJobs: await desktopBridge.listJobs(desktopProject.project_id), desktopEvents: await desktopBridge.drainEvents(desktopProject.project_id) }); } catch { /* retain the original engine error */ }
     const engineDiagnostics = parseNgspiceDiagnostics(error?.message || String(error));
     setState({ simulation: { kind: 'ngspice-error', diagnostics: engineDiagnostics, operation: config.operation, engineVersion } });
-    notify(error?.message || 'Native ngspice analysis failed', 'error');
+    reportError(error, { fallback: 'Native ngspice analysis failed' });
   } finally {
     await adapter?.clean().catch(() => {});
   }
@@ -998,7 +999,7 @@ function exportSpiceNetlist() {
     link.click();
     URL.revokeObjectURL(link.href);
     notify('SPICE netlist exported', 'success');
-  } catch (error) { notify(error.message || 'Could not export SPICE netlist', 'error'); }
+  } catch (error) { reportError(error, { fallback: 'Could not export SPICE netlist' }); }
 }
 
 export function copySelected() {

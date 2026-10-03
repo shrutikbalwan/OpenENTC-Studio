@@ -9,6 +9,7 @@ import { forgetApiKey, loadAssistantSettings, redactSecrets, saveAssistantSettin
 import { getState, notify } from '../core/store.js';
 import { rerender } from '../services/render.js';
 import { EXPERIMENT_MODULES } from '../shared/experiments.js';
+import { reportError } from '../services/errors.js';
 
 const assistant = { open: false, view: 'chat', draft: '', history: [], shown: [], busy: false, status: '', error: '', controller: null, focus: false };
 export const assistantStartup = (() => { try { return loadAssistantSettings(localStorage, sessionStorage); } catch { return { removedLegacyKey: false }; } })();
@@ -92,7 +93,7 @@ export function bindAssistantEvents() {
   document.querySelectorAll('[data-ai-setting]').forEach((input) => input.addEventListener('change', () => {
     const key = input.dataset.aiSetting;
     const value = input.type === 'checkbox' ? input.checked : input.value.trim();
-    if (key === 'baseUrl' && value) { try { validateBaseUrl(value); } catch (error) { notify(error.message, 'error'); return; } }
+    if (key === 'baseUrl' && value) { try { validateBaseUrl(value); } catch (error) { reportError(error); return; } }
     saveAssistantSettings(key === 'provider' ? { provider: value, baseUrl: '', model: '' } : { [key]: value });
     rerender();
   }));

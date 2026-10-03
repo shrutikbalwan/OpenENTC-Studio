@@ -1,7 +1,7 @@
 // Power Electronics workspace. Entry points: renderPower(state); bindPowerEvents().
 import { modules } from '../../data/modules.js';
 import { esc } from '../../shared/escaping.js';
-import { getState, notify, recordExperiment } from '../../core/store.js';
+import { getState, recordExperiment } from '../../core/store.js';
 import { decimate, niceRange } from '../../core/circuit-plot.js';
 import { formatEngineeringValue } from '../../../packages/schematic/src/units.mjs';
 import { CONVERTERS, INVERTERS, RECTIFIERS, simulateAcController, simulateConverter, simulateInverter, simulateRectifier } from '../../../packages/power/src/index.mjs';
@@ -11,6 +11,7 @@ import { comparisonRow, comparisonTable } from '../../components/tables.js';
 import { PLOT_COLORS, renderPlotFrame } from '../../components/plots.js';
 import { labSelect, labTabs } from '../../components/forms.js';
 import { pageHeader } from '../../components/layout.js';
+import { reportError } from '../../services/errors.js';
 
 const POWER_TABS = [['rectifier', 'Rectifiers'], ['dcdc', 'DC-DC converters'], ['inverter', 'Inverters'], ['ac', 'AC voltage controller']];
 const POWER_DEFAULTS = Object.freeze({
@@ -123,7 +124,7 @@ export function bindPowerEvents() {
     const [group, key] = input.dataset.powerField.split('.');
     let value;
     try { value = POWER_DEGREE_FIELDS.has(input.dataset.powerField) ? Number(input.value) : engineeringInput(input.value, input.closest('label')?.firstChild?.textContent || 'Value'); if (!Number.isFinite(value)) throw new RangeError('Enter a number.'); }
-    catch (error) { notify(error.message, 'error'); return; }
+    catch (error) { reportError(error); return; }
     persistPower((config) => { config[group][key] = value; });
   }));
   document.querySelectorAll('[data-power-select]').forEach((select) => select.addEventListener('change', () => {

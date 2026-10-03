@@ -9,6 +9,7 @@ import { readout } from '../../components/tables.js';
 import { indexTicks, linearTicks, planeExtent, PLOT_COLORS, renderComplexPlane, renderPlotFrame } from '../../components/plots.js';
 import { labField, labSelect, labTabs } from '../../components/forms.js';
 import { pageHeader } from '../../components/layout.js';
+import { reportError } from '../../services/errors.js';
 
 const DSP_DEFAULTS = Object.freeze({
   tab: 'fft', method: 'butterworth', filterType: 'lowpass', order: 4, taps: 31, window: 'hamming', beta: 6, rippleDb: 1,
@@ -149,7 +150,7 @@ export function bindDspEvents() {
       recordExperiment({ id: 'signals-fft', kind: 'dsp', operation: 'fft', inputs: { frequency: signal.frequency, sampleRate: signal.sampleRate, length: signal.data.length, taps, window } });
       setState({ simulation: { kind: 'dsp', signal: windowed, taps, window, spectrum: fft(windowed) } });
       notify(`Signal filtered (${taps} FIR tap${taps === 1 ? '' : 's'}) and FFT computed`, 'success');
-    } catch (error) { notify(error.message, 'error'); }
+    } catch (error) { reportError(error); }
   });
   document.querySelector('[data-action="export-dsp"]')?.addEventListener('click', () => {
     const result = getState().simulation;

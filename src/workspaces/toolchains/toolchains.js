@@ -6,6 +6,7 @@ import { notify, setState } from '../../core/store.js';
 import { createDevicePermissionPolicy } from '../../../packages/device-bridge/src/index.mjs';
 import { desktopBridge } from '../../core/desktop-bridge.js';
 import { pageHeader } from '../../components/layout.js';
+import { reportError } from '../../services/errors.js';
 
 const browserDevicePolicy = createDevicePermissionPolicy({ environment: 'browser' });
 export function renderToolchains(state) {
@@ -49,6 +50,6 @@ export async function refreshEngineDetection() {
     setState({ toolchainDetection: detection, ...(detection['arduino-cli']?.state === 'detected' ? {} : { arduinoInventory: null, arduinoDeviceGrant: null, arduinoSerialGrant: null, arduinoSerial: null }) });
     notify('Toolchain paths checked without executing them', 'success');
   } catch (error) {
-    notify(error?.message || 'Toolchain detection failed', 'error');
+    reportError(error, { fallback: 'Toolchain detection failed' });
   }
 }

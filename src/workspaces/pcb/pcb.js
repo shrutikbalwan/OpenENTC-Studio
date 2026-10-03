@@ -7,6 +7,7 @@ import { fmt } from '../../shared/formatting.js';
 import { readout } from '../../components/tables.js';
 import { labField, labSelect } from '../../components/forms.js';
 import { pageHeader } from '../../components/layout.js';
+import { reportError } from '../../services/errors.js';
 
 const PCB_DEFAULTS = Object.freeze({ style: 'tht', rules: {}, placement: {}, tracks: [], vias: [], show: { top: true, bottom: true, silk: true, ratsnest: true, drc: true }, selected: null, current: 1, tempRise: 10, copperOz: 1 });
 const PCB_RULE_FIELDS = [['trackWidth', 'Track width'], ['clearance', 'Clearance'], ['viaDiameter', 'Via diameter'], ['viaDrill', 'Via drill'], ['edgeClearance', 'Edge clearance'], ['margin', 'Board margin'], ['grid', 'Router grid']];
@@ -105,7 +106,7 @@ export function bindPcbEvents() {
   const current = () => pcbBoardState(getState());
   const save = (patch) => { setState({ pcbSession: null }); persistPcb(patch); };
   document.querySelector('[data-action="pcb-autoplace"]')?.addEventListener('click', () => {
-    try { const { board } = current(); const netlist = extractNetlist(getState().project.circuit, board.style); save({ placement: autoPlace(netlist), tracks: [], vias: [], selected: null }); notify('Parts auto-placed; routes cleared', 'success'); } catch (error) { notify(error.message, 'error'); }
+    try { const { board } = current(); const netlist = extractNetlist(getState().project.circuit, board.style); save({ placement: autoPlace(netlist), tracks: [], vias: [], selected: null }); notify('Parts auto-placed; routes cleared', 'success'); } catch (error) { reportError(error); }
   });
   document.querySelector('[data-action="pcb-clear"]')?.addEventListener('click', () => save({ tracks: [], vias: [] }));
   document.querySelector('[data-action="pcb-autoroute"]')?.addEventListener('click', () => {
@@ -114,10 +115,10 @@ export function bindPcbEvents() {
       const result = autoroute(board, { tracks, vias });
       save({ placement: board.placement, tracks: compactTracks(result.tracks), vias: compactVias(result.vias) });
       notify(result.remaining ? `Routed with ${result.remaining} connection(s) left — move parts apart or relax the rules, then route again.` : 'All connections routed', result.remaining ? 'error' : 'success');
-    } catch (error) { notify(error.message, 'error'); }
+    } catch (error) { reportError(error); }
   });
   document.querySelector('[data-action="pcb-drc"]')?.addEventListener('click', () => {
-    try { const { config, board, tracks, vias } = current(); const result = runDrc(board, { tracks, vias }); setState({ pcbDrc: { signature: pcbSignature(config, board), result } }); notify(result.passed ? 'DRC passed' : `DRC: ${result.errors} error(s)`, result.passed ? 'success' : 'error'); } catch (error) { notify(error.message, 'error'); }
+    try { const { config, board, tracks, vias } = current(); const result = runDrc(board, { tracks, vias }); setState({ pcbDrc: { signature: pcbSignature(config, board), result } }); notify(result.passed ? 'DRC passed' : `DRC: ${result.errors} error(s)`, result.passed ? 'success' : 'error'); } catch (error) { reportError(error); }
   });
   document.querySelector('[data-action="pcb-export"]')?.addEventListener('click', () => {
     try {
@@ -127,7 +128,7 @@ export function bindPcbEvents() {
       const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([zip], { type: 'application/zip' })); link.download = `${name.replace(/[^A-Za-z0-9_-]+/g, '_') || 'board'}-fabrication.zip`; link.click(); URL.revokeObjectURL(link.href);
       const open = ratsnest(board, tracks, vias).length;
       notify(open ? `Fabrication ZIP exported — warning: ${open} connection(s) are not routed yet` : 'Fabrication ZIP exported', open ? 'error' : 'success');
-    } catch (error) { notify(error.message, 'error'); }
+    } catch (error) { reportError(error); }
   });
   document.querySelector('[data-action="pcb-rotate"]')?.addEventListener('click', () => {
     const { config, board, tracks, vias } = current();
@@ -141,7 +142,7 @@ export function bindPcbEvents() {
   document.querySelectorAll('[data-pcb-rule]').forEach((field) => field.addEventListener('change', () => {
     const { config } = current();
     const rules = { ...config.rules, [field.dataset.pcbRule]: Number(field.value) };
-    try { normalizeRules(rules); save({ rules, tracks: [], vias: [] }); notify('Rules updated; routes cleared', 'success'); } catch (error) { notify(error.message, 'error'); }
+    try { normalizeRules(rules); save({ rules, tracks: [], vias: [] }); notify('Rules updated; routes cleared', 'success'); } catch (error) { reportError(error); }
   }));
   document.querySelectorAll('[data-pcb-show]').forEach((box) => box.addEventListener('change', () => { const { config } = current(); save({ show: { ...config.show, [box.dataset.pcbShow]: box.checked } }); }));
   if (!svg) return;

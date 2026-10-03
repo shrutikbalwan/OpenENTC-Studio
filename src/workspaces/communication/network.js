@@ -11,6 +11,7 @@ import { linePlot } from '../../components/plots.js';
 import { groupField, labSelect, labTabs } from '../../components/forms.js';
 import { labError, pageHeader } from '../../components/layout.js';
 import { bindLabControls, makeLab } from '../../controllers/lab-controls.js';
+import { reportError } from '../../services/errors.js';
 
 function renderPacketCapture(state) {
   const result = state.simulation?.kind === 'network' ? state.simulation.trace : null;
@@ -142,7 +143,7 @@ export function bindNetworkEvents() {
       const format = document.querySelector('[data-pcap-field="format"]')?.value || 'pcap';
       setState({ simulation: { kind: 'network', trace: format === 'pcapng' ? parsePcapNg(bytes) : parsePcap(bytes) } });
       notify(`Saved ${format.toUpperCase()} parsed`, 'success');
-    } catch (error) { notify(error.message, 'error'); }
+    } catch (error) { reportError(error); }
   });
   document.querySelector('[data-action="run-topology"]')?.addEventListener('click', () => {
     try {
@@ -150,6 +151,6 @@ export function bindNetworkEvents() {
       recordExperiment({ id: 'topology-metrics', kind: 'network', operation: 'topology-metrics', inputs: { topology } });
       setState({ simulation: { kind: 'topology', metrics: topologyMetrics(topology, topology.nodes?.[0]?.id || null) } });
       notify('Topology metrics computed', 'success');
-    } catch (error) { notify(error.message || 'Topology is invalid', 'error'); }
+    } catch (error) { reportError(error, { fallback: 'Topology is invalid' }); }
   });
 }

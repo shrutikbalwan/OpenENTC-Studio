@@ -1,3 +1,4 @@
+// @ts-check
 // Desktop project lifecycle and permissions (Tauri shell only): open/save/close a native project,
 // list and cancel jobs, and review or revoke the project-scoped process and artifact grants.
 // Closing a project also stops serial sessions, uploads and HDL jobs.
@@ -8,6 +9,7 @@ import { nativeSessions } from '../state/native-sessions.js';
 import { showModal } from '../components/dialogs.js';
 import { cancelArduinoUpload } from '../workspaces/embedded/embedded.js';
 import { cancelHdlJob } from '../workspaces/digital/hdl-toolchain.js';
+import { reportError } from './errors.js';
 
 export async function refreshDesktopJobs() {
   const project = getState().desktopProject;
@@ -15,10 +17,11 @@ export async function refreshDesktopJobs() {
   try {
     const jobs = await desktopBridge.listJobs(project.project_id);
     const events = await desktopBridge.drainEvents(project.project_id);
-    setState({ desktopJobs: Array.isArray(jobs) ? jobs : [], desktopEvents: Array.isArray(events) ? events : [] });
+    setState({ desktopJobs: Array.isArray(jobs) ? jobs : [], desktopEvents: Array.isArray(events) ? /** @type {any[]} */ (events) : [] });
     notify('Native job records refreshed', 'success');
-  } catch (error) { notify(error?.message || 'Native jobs could not be listed', 'error'); }
+  } catch (error) { reportError(error, { fallback: 'Native jobs could not be listed' }); }
 }
+/** @param {string} id */
 export async function cancelDesktopJob(id) {
   const project = getState().desktopProject;
   if (!desktopBridge.available || !project?.project_id || !id) { notify('Native job cancellation is unavailable in the browser preview', 'error'); return; }
@@ -31,7 +34,7 @@ export async function cancelDesktopJob(id) {
     }
     await refreshDesktopJobs();
     notify(terminal ? `Cancellation completed for ${id}` : `Cancellation requested for ${id}`, 'success');
-  } catch (error) { notify(error?.message || 'Native job cancellation failed', 'error'); }
+  } catch (error) { reportError(error, { fallback: 'Native job cancellation failed' }); }
 }
 export async function openDesktopProject() {
   if (!desktopBridge.available) { notify('Desktop project access is unavailable in the browser preview', 'error'); return; }
@@ -44,7 +47,7 @@ export async function openDesktopProject() {
     const summary = await desktopBridge.openProject(root);
     nativeOpened = true;
     const project = await desktopBridge.readOpenProject();
-    replaceProject(project);
+    replaceProject(/** @type {any} */ (project)); // replaceProject validates the manifest
     nativeSessions.activeSerialSession = null; nativeSessions.activeSerialNative = null; if (nativeSessions.serialPollTimer) clearTimeout(nativeSessions.serialPollTimer); nativeSessions.serialPollTimer = null;
     setState({ desktopProject: summary, desktopJobs: [], desktopEvents: [], arduinoInventory: null, arduinoDeviceGrant: null, arduinoSerialGrant: null, arduinoSerial: null, arduinoUpload: null, hdlJob: null, hdlResults: null, digitalView: null, processPermissionGranted: false, artifactPermissionGranted: false });
     notify('Desktop project opened and validated', 'success');
@@ -52,7 +55,7 @@ export async function openDesktopProject() {
     if (nativeOpened) await desktopBridge.closeProject().catch(() => {});
     nativeSessions.activeSerialSession = null; nativeSessions.activeSerialNative = null; if (nativeSessions.serialPollTimer) clearTimeout(nativeSessions.serialPollTimer); nativeSessions.serialPollTimer = null;
     setState({ desktopProject: null, desktopJobs: [], desktopEvents: [], arduinoInventory: null, arduinoDeviceGrant: null, arduinoSerialGrant: null, arduinoSerial: null, arduinoUpload: null, hdlJob: null, hdlResults: null, digitalView: null, processPermissionGranted: false, artifactPermissionGranted: false });
-    notify(error?.message || 'Desktop project could not be opened', 'error');
+    reportError(error, { fallback: 'Desktop project could not be opened' });
   }
 }
 export async function closeNativeSessionForBrowserProject() {
@@ -64,7 +67,7 @@ export async function closeNativeSessionForBrowserProject() {
     nativeSessions.activeSerialSession = null; nativeSessions.activeSerialNative = null; if (nativeSessions.serialPollTimer) clearTimeout(nativeSessions.serialPollTimer); nativeSessions.serialPollTimer = null;
     return true;
   } catch (error) {
-    notify(error?.message || 'The native project session could not be closed', 'error');
+    reportError(error, { fallback: 'The native project session could not be closed' });
     return false;
   }
 }
@@ -76,9 +79,9 @@ export function reviewProcessGrant() {
     try {
       await desktopBridge.grantProcessExecution(project.project_id, true);
       setState({ processPermissionGranted: true });
-      document.querySelector('.modal-done')?.click();
+      /** @type {HTMLElement | null} */ (document.querySelector('.modal-done'))?.click();
       notify('Process execution granted for this project', 'success');
-    } catch (error) { notify(error?.message || 'Process permission was not granted', 'error'); }
+    } catch (error) { reportError(error, { fallback: 'Process permission was not granted' }); }
   });
 }
 export function reviewArtifactGrant() {
@@ -89,22 +92,22 @@ export function reviewArtifactGrant() {
     try {
       await desktopBridge.grantArtifactWrite(project.project_id, true);
       setState({ artifactPermissionGranted: true });
-      document.querySelector('.modal-done')?.click();
+      /** @type {HTMLElement | null} */ (document.querySelector('.modal-done'))?.click();
       notify('Artifact writes granted for this project', 'success');
-    } catch (error) { notify(error?.message || 'Artifact-write permission was not granted', 'error'); }
+    } catch (error) { reportError(error, { fallback: 'Artifact-write permission was not granted' }); }
   });
 }
 export async function revokeProcessGrant() {
   const project = getState().desktopProject;
   if (!desktopBridge.available || !project?.project_id) return;
   try { await desktopBridge.revokeProcessExecution(project.project_id); setState({ processPermissionGranted: false }); notify('Process execution revoked and owned jobs cancelled', 'success'); }
-  catch (error) { notify(error?.message || 'Process permission could not be revoked', 'error'); }
+  catch (error) { reportError(error, { fallback: 'Process permission could not be revoked' }); }
 }
 export async function revokeArtifactGrant() {
   const project = getState().desktopProject;
   if (!desktopBridge.available || !project?.project_id) return;
   try { await desktopBridge.revokeArtifactWrite(project.project_id); setState({ artifactPermissionGranted: false }); notify('Artifact-write permission revoked', 'success'); }
-  catch (error) { notify(error?.message || 'Artifact permission could not be revoked', 'error'); }
+  catch (error) { reportError(error, { fallback: 'Artifact permission could not be revoked' }); }
 }
 export async function saveDesktopProject() {
   if (!desktopBridge.available) { notify('Desktop project access is unavailable in the browser preview', 'error'); return; }
@@ -112,6 +115,6 @@ export async function saveDesktopProject() {
     await desktopBridge.saveOpenProject(getState().project);
     notify('Project saved to the desktop directory', 'success');
   } catch (error) {
-    notify(error?.message || 'Desktop project could not be saved', 'error');
+    reportError(error, { fallback: 'Desktop project could not be saved' });
   }
 }

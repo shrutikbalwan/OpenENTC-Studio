@@ -9,6 +9,7 @@ import { readout, simpleTable } from '../../components/tables.js';
 import { labSelect } from '../../components/forms.js';
 import { labError, pageHeader } from '../../components/layout.js';
 import { makeLab } from '../../controllers/lab-controls.js';
+import { reportError } from '../../services/errors.js';
 
 const faultLab = makeLab('fault-lab', {
   tab: 'hunt',
@@ -70,7 +71,7 @@ export function bindFaultHuntEvents() {
       const faulty = applyFault(board.components, chooseFault(board, c.seed, faultSolve));
       const value = c.mode === 'v' ? faultMeasureVoltage(faulty, c.red, c.black, faultSolve) : faultMeasureResistance(faulty, c.red, c.black, faultSolve);
       faultLab.persist((config) => { config.hunt.log = [...config.hunt.log, { mode: c.mode, red: c.red, black: c.black, value: Number.isFinite(value) ? value : null }].slice(-40); });
-    } catch (error) { notify(error.message, 'error'); }
+    } catch (error) { reportError(error); }
   }));
   document.querySelectorAll('[data-fault-peek]').forEach((button) => button.addEventListener('click', () => faultLab.persist((config) => { config.hunt.peeked = true; })));
   document.querySelectorAll('[data-fault-giveup]').forEach((button) => button.addEventListener('click', () => faultLab.persist((config) => { config.hunt.gaveUp = true; })));

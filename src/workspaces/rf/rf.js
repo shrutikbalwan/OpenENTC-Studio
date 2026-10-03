@@ -12,6 +12,7 @@ import { PLOT_COLORS, renderPlotFrame } from '../../components/plots.js';
 import { labField, labSelect, labTabs } from '../../components/forms.js';
 import { pageHeader } from '../../components/layout.js';
 import { renderSmithChart } from '../../components/smith-chart.js';
+import { reportError } from '../../services/errors.js';
 
 const RF_DEFAULTS = Object.freeze({
   tab: 'touchstone', loadRe: 100, loadIm: 50, z0: 50, frequency: '100M', lineLength: 0.3, lineLoss: 0, velocityFactor: 0.66,
@@ -163,6 +164,6 @@ export function bindRfEvents() {
   document.querySelector('[data-action="parse-rf"]')?.addEventListener('click', () => {
     const text = document.querySelector('[data-rf-field="text"]')?.value || ''; const ports = Number(document.querySelector('[data-rf-field="ports"]')?.value);
     try { const normalizedPorts = Number.isInteger(ports) ? ports : 2; const data = parseTouchstone(text, { ports: normalizedPorts }); recordExperiment({ id: 'rf-touchstone', kind: 'rf', operation: 'touchstone-parse', inputs: { text, ports: normalizedPorts } }); setState({ simulation: { kind: 'rf', data } }); notify('Touchstone data parsed', 'success'); }
-    catch (error) { notify(error.message, 'error'); }
+    catch (error) { reportError(error); }
   });
 }

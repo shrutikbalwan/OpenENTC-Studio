@@ -23,7 +23,19 @@
     "src/core/project-file.js",
     "src/core/store.js",
     "workers/**/*.ts",
-    "schemas/**/*.json"
+    "schemas/**/*.json",
+    "packages/errors/src/index.mjs",
+    "src/shared/**/*.js",
+    "src/components/**/*.js",
+    "src/controllers/**/*.js",
+    "src/services/**/*.js",
+    "src/state/**/*.js"
   ],
-  "exclude": ["node_modules", "runs", "build", "dist", "**/target"]
+  "exclude": [
+    "node_modules",
+    "runs",
+    "build",
+    "dist",
+    "**/target"
+  ]
 }

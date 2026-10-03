@@ -1,6 +1,7 @@
 // @ts-check
 
 import { createProject, importProject, MAX_PROJECT_BYTES, PROJECT_VERSION, validateProject } from './project.js';
+import { StorageError } from '../../packages/errors/src/index.mjs';
 
 /** @typedef {import('../../packages/project-model/src/types.d.ts').OpenEntcProject} OpenEntcProject */
 /** @typedef {{ getItem(key: string): string | null, setItem(key: string, value: string): void, removeItem?(key: string): void }} StorageLike */
@@ -73,7 +74,7 @@ export function loadStoredProject(storage, key, { backupKey = `${key}${STORAGE_B
         previousBackup = storage.getItem(backupKey);
         storage.setItem(backupKey, raw);
         storage.setItem(key, serialized);
-        if (storage.getItem(key) !== serialized) throw new Error('Migrated project write could not be verified.');
+        if (storage.getItem(key) !== serialized) throw new StorageError('Migrated project write could not be verified.');
       } catch (error) {
         try { storage.setItem(key, raw); } catch { /* preserve the original record when storage is failing */ }
         try { if (previousBackup === null) storage.removeItem?.(backupKey); else storage.setItem(backupKey, previousBackup); } catch { /* preserve the original migration error */ }
@@ -109,9 +110,9 @@ export function saveStoredProject(storage, key, project) {
   try {
     previous = storage.getItem(key);
     storage.setItem(temporaryKey, serialized);
-    if (storage.getItem(temporaryKey) !== serialized) throw new Error('Temporary project write could not be verified.');
+    if (storage.getItem(temporaryKey) !== serialized) throw new StorageError('Temporary project write could not be verified.');
     storage.setItem(key, serialized);
-    if (storage.getItem(key) !== serialized) throw new Error('Project write could not be verified.');
+    if (storage.getItem(key) !== serialized) throw new StorageError('Project write could not be verified.');
     storage.removeItem?.(temporaryKey);
   } catch (error) {
     try {

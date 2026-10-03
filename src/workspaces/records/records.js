@@ -15,6 +15,7 @@ import { pageHeader } from '../../components/layout.js';
 import { isDcResult } from '../../shared/simulation.js';
 import { mcuConfiguration, mcuRuntime, unoRuntime } from '../embedded/mcu.js';
 import { benchCompute, benchConfiguration, benchScope } from '../circuit/bench.js';
+import { reportError } from '../../services/errors.js';
 
 const RECORD_TEMPLATES = Object.freeze({
   blank: { name: 'Blank record', title: '', aim: '', apparatus: '', theory: '', procedure: '', conclusion: '' },
@@ -224,7 +225,7 @@ export function bindRecordEvents() {
   });
   document.querySelector('[data-action="record-download"]')?.addEventListener('click', () => {
     let blob;
-    try { blob = recordPdfBlob(); } catch (error) { notify(error.message, 'error'); return; }
+    try { blob = recordPdfBlob(); } catch (error) { reportError(error); return; }
     const config = recordConfiguration(getState());
     const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
     link.download = `${['experiment', config.number, config.title].filter(Boolean).join('-').replace(/[^\w-]+/g, '-').replace(/-+/g, '-').slice(0, 80) || 'lab-record'}.pdf`;
@@ -233,7 +234,7 @@ export function bindRecordEvents() {
   });
   document.querySelector('[data-action="record-preview"]')?.addEventListener('click', () => {
     let blob;
-    try { blob = recordPdfBlob(); } catch (error) { notify(error.message, 'error'); return; }
+    try { blob = recordPdfBlob(); } catch (error) { reportError(error); return; }
     if (recordPreviewUrl) URL.revokeObjectURL(recordPreviewUrl);
     recordPreviewUrl = URL.createObjectURL(blob);
     const target = document.querySelector('[data-record-preview]');

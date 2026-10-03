@@ -282,7 +282,7 @@ test('browser icon controls expose explicit accessible names', async () => {
 test('shared modal helper traps focus and restores the invoking control', async () => {
   const source = readUiSource();
   assert.match(source, /aria-modal="true" aria-labelledby="modal-title"/);
-  assert.match(source, /previousFocus = document\.activeElement/);
+  assert.match(source, /previousFocus = (?:\/\*\* @type \{[^}]+\} \*\/ \()?document\.activeElement/, 'the invoking control is remembered');
   assert.match(source, /event\.key === 'Escape'/);
   assert.match(source, /event\.key !== 'Tab'/);
   assert.match(source, /previousFocus\.focus\(\)/);

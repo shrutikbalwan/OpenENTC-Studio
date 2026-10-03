@@ -6,6 +6,7 @@ import { getState, notify, recordExperiment, setState } from '../../core/store.j
 import { analyzeCombinational, analyzeFunction, convertNumber, LOGIC_TEMPLATES, parseNetlist, parseNumber, simulateNetlist, truthTable } from '../../../packages/logic/src/index.mjs';
 import { GROUP_COLORS, parseMintermNotation, renderGateDiagram, renderKarnaugh, renderTimingDiagram } from '../../core/logic-view.js';
 import { pageHeader } from '../../components/layout.js';
+import { reportError } from '../../services/errors.js';
 
 const LOGIC_DEFAULTS = Object.freeze({ tab: 'boolean', booleanMode: 'expression', expression: "AB + A'C + BC", tableVariables: 3, tableOutputs: '00010111', template: 'full-adder', netlist: LOGIC_TEMPLATES.find((item) => item.id === 'full-adder').text, stopTime: 160, inputValues: {}, codeText: '42', codeBase: 'decimal', codeBits: 8 });
 const LOGIC_EXAMPLES = ["AB + A'C + BC", "A ^ B ^ C", "Σm(1,3,7,11,15) + d(0,2,5)", "(A + B)(A' + C)(B + C')", "A'B'C'D' + A'BC'D + ABCD + AB'CD'"];
@@ -123,7 +124,7 @@ function runLogicSimulation(analyze = false) {
     notify(analyze ? 'Truth table extracted from the circuit' : `Simulated ${trace.stopTime} ns`, trace.warnings.length ? 'info' : 'success');
   } catch (error) {
     setState({ logicSimulation: { netlist: config.netlist, error: error.message } });
-    notify(error.message, 'error');
+    reportError(error);
   }
 }
 export function bindLogicEvents() {

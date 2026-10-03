@@ -9,6 +9,7 @@ import { readout } from '../../components/tables.js';
 import { linePlot } from '../../components/plots.js';
 import { pageHeader } from '../../components/layout.js';
 import { makeLab } from '../../controllers/lab-controls.js';
+import { reportError } from '../../services/errors.js';
 
 const sdrLab = makeLab('sdr-lab', { tab: 'editor', editor: { graph: exampleGraph('fm'), example: 'fm', selected: null } });
 const SDR_BLOCK_WIDTH = 150;
@@ -103,7 +104,7 @@ export function bindSdrEvents() {
   document.querySelectorAll('[data-sdr-param]').forEach((input) => input.addEventListener('change', () => {
     const key = input.dataset.sdrParam;
     let value = input.value;
-    if (input.tagName === 'INPUT') { try { value = engineeringInput(input.value, 'Value'); } catch (error) { notify(error.message, 'error'); return; } }
+    if (input.tagName === 'INPUT') { try { value = engineeringInput(input.value, 'Value'); } catch (error) { reportError(error); return; } }
     else if (value !== '' && !Number.isNaN(Number(value))) value = Number(value);
     edit((graph) => { const block = graph.blocks.find((b) => b.id === sdrLab.configuration(getState()).editor.selected); if (block) block.params = { ...block.params, [key]: value }; });
   }));
