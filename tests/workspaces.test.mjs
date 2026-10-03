@@ -46,6 +46,7 @@ export const WORKSPACES = [
   { module: 'console', path: '../src/workspaces/learning/console.js', render: 'renderConsole', bind: 'bindConsoleEvents', expect: [] },
   { module: 'learn', path: '../src/workspaces/learning/learning-hub.js', render: 'renderLearningHub', bind: 'bindLearningHubEvents', expect: [] },
   { module: 'mcu', path: '../src/workspaces/embedded/mcu.js', render: 'renderMcu', bind: 'bindMcuEvents', expect: [] },
+  { module: 'bench', path: '../src/workspaces/circuit/bench.js', render: 'renderBench', bind: 'bindBenchEvents', expect: [] },
 ];
 
 for (const workspace of WORKSPACES) {
