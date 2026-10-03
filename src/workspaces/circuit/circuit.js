@@ -1,6 +1,7 @@
 // Circuit Lab workspace: schematic canvas and editing, inspector, built-in DC/transient/AC
 // simulation, ngspice runs, examples and instruments. Entry points: renderCircuit(state),
 // bindCircuitEvents(). builtinConfiguration is exported for the Analog Design Studio.
+import { moveComponents, pasteComponents, rotateComponents } from '../../core/circuit-editing.js';
 import { componentPalette } from '../../data/modules.js';
 import { esc } from '../../shared/escaping.js';
 import { canRedoProject, canUndoProject, getState, notify, recordExperiment, redoProject, setState, synchronizeOpenProject, undoProject, updateProject } from '../../core/store.js';
@@ -11,7 +12,6 @@ import { checkElectricalRules, locateElectricalRuleDiagnostic } from '../../../p
 import { normalizeNode } from '../../../packages/schematic/src/index.mjs';
 import { nodeFields, pinName as componentPinName } from '../../../packages/schematic/src/components.mjs';
 import { connectNodes, disconnectNodes, pruneWires, setWireRoute } from '../../core/wires.js';
-import { moveComponents, rotateComponents } from '../../core/circuit-editing.js';
 import { buildSpiceNetlist } from '../../../packages/schematic/src/spice.mjs';
 import { buildWireSegments, defaultWireRoute, orthogonalPath, wireRouteHandle, wireRouteHandles, wireRouteInsertionPoint } from '../../../packages/schematic/src/geometry.mjs';
 import { componentsInRect } from '../../../packages/schematic/src/selection.mjs';
@@ -999,4 +999,38 @@ function exportSpiceNetlist() {
     URL.revokeObjectURL(link.href);
     notify('SPICE netlist exported', 'success');
   } catch (error) { notify(error.message || 'Could not export SPICE netlist', 'error'); }
+}
+
+export function copySelected() {
+  const state = getState();
+  const ids = state.selectedComponentIds?.length ? state.selectedComponentIds : (state.selectedComponentId ? [state.selectedComponentId] : []);
+  circuitEditor.clipboardParts = state.project.circuit.components.filter((part) => ids.includes(part.id)).map((part) => structuredClone(part));
+  const nodes = new Set(circuitEditor.clipboardParts.flatMap((part) => nodeFields(part).map((field) => part[field])).filter((node) => typeof node === 'string'));
+  circuitEditor.clipboardWires = state.project.circuit.wires.filter((wire) => nodes.has(wire.from) && nodes.has(wire.to)).map((wire) => structuredClone(wire));
+  if (!circuitEditor.clipboardParts.length) return false;
+  notify(`${circuitEditor.clipboardParts.length} component${circuitEditor.clipboardParts.length === 1 ? '' : 's'} copied`, 'info');
+  return true;
+}
+export function pasteCopied() {
+  if (!circuitEditor.clipboardParts.length) return false;
+  let nextIds = [];
+  updateProject((project) => {
+    const pasteOffset = { x: 28, y: 28 };
+    const result = pasteComponents(project.circuit.components, circuitEditor.clipboardParts, pasteOffset);
+    project.circuit.components = result.components;
+    project.circuit.wires = circuitEditor.clipboardWires.reduce((wires, wire) => {
+      const from = result.nodeMap[wire.from] || wire.from;
+      const to = result.nodeMap[wire.to] || wire.to;
+      const connected = connectNodes(wires, from, to);
+      if (!wire.route) return connected;
+      const route = Array.isArray(wire.route.points)
+        ? { points: wire.route.points.map((point) => ({ x: point.x + pasteOffset.x, y: point.y + pasteOffset.y })) }
+        : { axis: wire.route.axis, coordinate: wire.route.coordinate + pasteOffset[wire.route.axis] };
+      return setWireRoute(connected, from, to, route);
+    }, project.circuit.wires);
+    nextIds = result.ids;
+  });
+  setState({ selectedComponentId: nextIds.at(-1) || null, selectedComponentIds: nextIds, simulation: null });
+  notify(`${nextIds.length} component${nextIds.length === 1 ? '' : 's'} pasted`, 'success');
+  return true;
 }

@@ -74,3 +74,12 @@ test('move into an existing module never imports the module itself or a name twi
   assert.equal(target.match(/import \{[^}]*\besc\b/g).length, 1, 'esc imported once');
   assert.match(readFileSync(from, 'utf8'), /^import \{ eng \} from '\.\/fmt\.js';$/m, 'merged into the existing import; fmt is no longer used');
 });
+
+test('a declaration block never includes the top-level statements that follow it', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'openentc-move-'));
+  const from = join(dir, 'app.js');
+  writeFileSync(from, "const input = {};\nfunction save() { return 1; }\ninput.onchange = () => save();\nstartUp();\nfunction startUp() {}\n");
+  move({ from, to: join(dir, 'io.js'), names: ['save'] });
+  assert.doesNotMatch(readFileSync(join(dir, 'io.js'), 'utf8'), /onchange|startUp/);
+  assert.match(readFileSync(from, 'utf8'), /input\.onchange = \(\) => save\(\);\nstartUp\(\);/);
+});

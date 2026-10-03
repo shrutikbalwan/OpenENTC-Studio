@@ -1,9 +1,9 @@
 // Communication Lab (including the receiver and fibre tabs) workspace. Entry points: renderCommunication(state); bindCommLabEvents(), bindReceiverEvents().
+import { addAwgn, berCurve, bitErrorRate, convolutionalEncode, CRC_POLYNOMIALS, crcCheck, crcDivide, DIGITAL_SCHEMES, eyeDiagram, hammingDecode, hammingEncode, LINE_CODES, lineCode, qpskDemodulate, qpskModulate, samplingDemo, simulateAnalogModulation, simulateDigitalLink, viterbiDecode } from '../../../packages/communications/src/index.mjs';
 import { modules } from '../../data/modules.js';
 import { esc } from '../../shared/escaping.js';
 import { getState, notify, recordExperiment, setState } from '../../core/store.js';
 import { niceRange } from '../../core/circuit-plot.js';
-import { berCurve, convolutionalEncode, CRC_POLYNOMIALS, crcCheck, crcDivide, DIGITAL_SCHEMES, eyeDiagram, hammingDecode, hammingEncode, LINE_CODES, lineCode, samplingDemo, simulateAnalogModulation, simulateDigitalLink, viterbiDecode } from '../../../packages/communications/src/index.mjs';
 import { fibreParameters, powerBudget, receiverChain, riseTimeBudget, superhet, tuningRange } from '../../../packages/commsys/src/index.mjs';
 import { eng, fmt } from '../../shared/formatting.js';
 import { readout } from '../../components/tables.js';
@@ -243,7 +243,7 @@ export function renderCommunication(state) {
   return `<div class="page scroll-page communication-page">${pageHeader(modules.find((item) => item.id === 'communication'), 'BUILT-IN COMMUNICATION LAB', '<span class="pill live"><i></i> OFFLINE EXPERIMENT</span>')}
     <div class="logic-tabs" role="tablist">${COMM_TABS.map(([id, label]) => `<button role="tab" aria-selected="${config.tab === id}" class="${config.tab === id ? 'active' : ''}" data-comm-tab="${id}">${label}</button>`).join('')}</div>${body}</div>`;
 }
-export function bindCommLabEvents() {
+function bindCommLabEvents() {
   document.querySelectorAll('[data-comm-tab]').forEach((button) => button.addEventListener('click', () => persistComm({ tab: button.dataset.commTab })));
   document.querySelectorAll('[data-comm-lab-field]').forEach((field) => field.addEventListener('change', () => {
     const name = field.dataset.commLabField;
@@ -266,5 +266,20 @@ export function bindCommLabEvents() {
     const config = commConfiguration(getState());
     try { setState({ commBerCurve: berCurve({ scheme: config.digitalScheme, from: 0, to: 12, step: 1, bitsPerPoint: 100_000 }) }); notify('BER curve computed', 'success'); }
     catch (error) { notify(error.message, 'error'); }
+  });
+}
+
+export function bindCommunicationEvents() {
+  bindCommLabEvents();
+  document.querySelector('[data-action="run-communication"]')?.addEventListener('click', () => {
+    const bitsText = document.querySelector('[data-comm-field="bits"]')?.value?.trim() || '';
+    const sigma = Number(document.querySelector('[data-comm-field="sigma"]')?.value);
+    try {
+      if (!/^[01]+$/.test(bitsText) || bitsText.length % 2 || bitsText.length > 256) throw new Error('Enter an even bit sequence containing only 0 and 1 (max 256 bits).');
+      const bits = [...bitsText].map(Number); const source = qpskModulate(bits); const channel = addAwgn(source, { sigma: Number.isFinite(sigma) ? sigma : 0, seed: 7 });
+      recordExperiment({ id: 'qpsk-ber', kind: 'communication', operation: 'qpsk-ber', inputs: { bits: bitsText, sigma: Number.isFinite(sigma) ? sigma : 0, seed: 7 } });
+      setState({ simulation: { kind: 'communication', channel, ber: bitErrorRate(bits, qpskDemodulate(channel)) } });
+      notify('QPSK experiment completed', 'success');
+    } catch (error) { notify(error.message, 'error'); }
   });
 }

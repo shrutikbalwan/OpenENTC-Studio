@@ -1,10 +1,10 @@
 // Control Lab workspace. Entry points: renderControl(state); bindControlLabEvents().
+import { getState, notify, recordExperiment, setState } from '../../core/store.js';
+import { analyzeSystem, classifyStability, firstOrderStability, firstOrderStep, formatPolynomial, makeTransferFunction, pidController, pidLoop, rootLocus, routhArray, timeResponse, zieglerNichols } from '../../../packages/control/src/index.mjs';
 import { modules } from '../../data/modules.js';
 import { esc } from '../../shared/escaping.js';
-import { getState, notify, recordExperiment } from '../../core/store.js';
 import { decadeTicks, niceRange } from '../../core/circuit-plot.js';
 import { polyadd, polyRoots } from '../../../packages/numerics/src/index.mjs';
-import { analyzeSystem, classifyStability, formatPolynomial, makeTransferFunction, pidController, pidLoop, rootLocus, routhArray, timeResponse, zieglerNichols } from '../../../packages/control/src/index.mjs';
 import { complexText, eng, fmt } from '../../shared/formatting.js';
 import { readout } from '../../components/tables.js';
 import { linearTicks, planeExtent, PLOT_COLORS, renderComplexPlane, renderPlotFrame } from '../../components/plots.js';
@@ -155,7 +155,7 @@ export function renderControl(state) {
   return `<div class="page scroll-page control-page">${pageHeader(modules.find((item) => item.id === 'iot'), 'BUILT-IN CONTROL LAB', '<span class="pill live"><i></i> LOCAL MODEL</span>')}
     ${labTabs(CONTROL_TABS, config.tab, 'data-control-tab')}${body}</div>`;
 }
-export function bindControlLabEvents() {
+function bindControlLabEvents() {
   document.querySelectorAll('[data-control-tab]').forEach((button) => button.addEventListener('click', () => persistControl({ tab: button.dataset.controlTab })));
   document.querySelectorAll('[data-control-lab-field]').forEach((field) => field.addEventListener('change', () => {
     const name = field.dataset.controlLabField;
@@ -176,4 +176,24 @@ export function bindControlLabEvents() {
       notify(`Ziegler-Nichols ${rule.name} gains applied`, 'success');
     } catch (error) { notify(error.message, 'error'); }
   }));
+}
+
+export function bindControlEvents() {
+  bindControlLabEvents();
+  document.querySelector('[data-action="run-control"]')?.addEventListener('click', () => {
+    const read = (name, fallback) => { const value = Number(document.querySelector(`[data-control-field="${name}"]`)?.value); return Number.isFinite(value) ? value : fallback; };
+    try {
+      const gain = read('gain', 1); const tau = Math.max(0.001, read('tau', 0.1)); const sampleRate = Math.max(1, read('sampleRate', 100)); const length = Math.min(4096, Math.max(8, Math.trunc(read('length', 256))));
+      recordExperiment({ id: 'control-step', kind: 'control', operation: 'step-response', inputs: { gain, tau, sampleRate, length } });
+      setState({ simulation: { kind: 'control', response: firstOrderStep({ gain, tau, sampleRate, length }), stability: firstOrderStability(tau) } });
+      notify('Control step response computed', 'success');
+    } catch (error) { notify(error.message, 'error'); }
+  });
+  document.querySelector('[data-action="export-control"]')?.addEventListener('click', () => {
+    const result = getState().simulation;
+    const response = result?.kind === 'control' ? result.response : null;
+    if (!response?.data?.length) { notify('Run the control experiment before exporting.', 'error'); return; }
+    const rows = ['time_s,value', ...Array.from(response.data, (value, index) => `${(index / response.sampleRate).toFixed(9)},${Number(value).toPrecision(12)}`)];
+    const blob = new Blob([`${rows.join('\n')}\n`], { type: 'text/csv' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'openentc-step-response.csv'; link.click(); URL.revokeObjectURL(link.href); notify('Step response CSV exported', 'success');
+  });
 }

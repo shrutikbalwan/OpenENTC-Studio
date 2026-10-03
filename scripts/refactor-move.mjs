@@ -30,21 +30,25 @@ export function parseModule(text) {
     const m = IMPORT.exec(line);
     if (m) imports.push({ index, from: m[2], names: m[1].split(',').map((s) => s.trim()).filter(Boolean).map((s) => { const [imported, local] = s.split(/\s+as\s+/); return { imported: imported.trim(), local: (local ?? imported).trim() }; }) });
   });
-  const starts = [];
-  lines.forEach((line, index) => { const m = DECL.exec(line); if (m) starts.push({ index, name: m[1] ?? m[2] }); });
+  // Declaration extents come from the syntax tree: a block is exactly one top-level declaration
+  // statement plus the comment lines directly above it. Other top-level statements (start-up
+  // code, listeners) never become part of a block.
+  const sf = ts.createSourceFile('m.js', text, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const lineOf = (pos) => sf.getLineAndCharacterOfPosition(pos).line;
   const blocks = new Map();
-  starts.forEach(({ index, name }, k) => {
-    let end = k + 1 < starts.length ? starts[k + 1].index : lines.length;
-    while (end > index + 1 && lines[end - 1].trim() === '') end -= 1;
-    let trailing = end;
-    while (trailing > index + 1 && isComment(lines[trailing - 1])) trailing -= 1;
-    if (trailing < end && /^\s*(\/\/|\/\*\*)/.test(lines[trailing])) end = trailing;
-    while (end > index + 1 && lines[end - 1].trim() === '') end -= 1;
-    let start = index;
+  for (const statement of sf.statements) {
+    const names = (ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement)) && statement.name ? [statement.name.text]
+      : ts.isVariableStatement(statement) ? statement.declarationList.declarations.filter((d) => ts.isIdentifier(d.name)).map((d) => d.name.text) : [];
+    if (!names.length) continue;
+    const line = lineOf(statement.getStart(sf));
+    let start = line;
     while (start > 0 && isComment(lines[start - 1]) && !DECL.test(lines[start - 1])) start -= 1;
-    if (blocks.has(name)) throw new Error(`Duplicate top-level declaration ${name}.`);
-    blocks.set(name, { start, end, line: index });
-  });
+    const end = lineOf(statement.getEnd()) + 1;
+    for (const name of names) {
+      if (blocks.has(name)) throw new Error(`Duplicate top-level declaration ${name}.`);
+      blocks.set(name, { start, end, line, group: names });
+    }
+  }
   return { lines, imports, blocks };
 }
 
@@ -156,6 +160,10 @@ export function move({ from, to, names, doc = '', exportAlso = [] }) {
   const missing = names.filter((n) => !source.blocks.has(n));
   if (missing.length) throw new Error(`Not top-level declarations in ${from}: ${missing.join(', ')}`);
   const moving = new Set(names);
+  for (const name of names) {
+    const outside = source.blocks.get(name).group.filter((n) => !moving.has(n));
+    if (outside.length) throw new Error(`${name} is declared in one statement with ${outside.join(', ')}; move them together.`);
+  }
   const remove = new Set();
   for (const name of moving) {
     const { start, end } = source.blocks.get(name);
@@ -167,8 +175,11 @@ export function move({ from, to, names, doc = '', exportAlso = [] }) {
   const back = names.filter((n) => bodyIds.has(n));
   const exported = new Set([...back, ...exportAlso]);
   const chunks = [];
+  const emitted = new Set();
   for (const name of [...source.blocks.keys()].filter((n) => moving.has(n))) {
     const { start, end, line } = source.blocks.get(name);
+    if (emitted.has(start)) continue;
+    emitted.add(start);
     const chunk = source.lines.slice(start, end);
     if (exported.has(name) && !chunk[line - start].startsWith('export ')) chunk[line - start] = `export ${chunk[line - start]}`;
     chunks.push(chunk.join('\n'));

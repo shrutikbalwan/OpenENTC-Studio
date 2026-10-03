@@ -1,10 +1,10 @@
 // RF Lab workspace. Entry points: renderRf(state); bindRfLabEvents().
+import { getState, notify, recordExperiment, setState } from '../../core/store.js';
+import { coaxImpedance, ELEMENT_PATTERNS, freeSpacePathLossDb, linearArray, linkBudget, lMatch, microstrip, microstripWidth, parseTouchstone, quarterWaveMatch, reflection, singleStubMatch, SPEED_OF_LIGHT, transmissionLine, twinLeadImpedance } from '../../../packages/rf/src/index.mjs';
 import { modules } from '../../data/modules.js';
 import { esc } from '../../shared/escaping.js';
-import { getState, notify, recordExperiment } from '../../core/store.js';
 import { decadeTicks, niceRange } from '../../core/circuit-plot.js';
 import { cdiv, cexp, complex, cscale } from '../../../packages/numerics/src/index.mjs';
-import { coaxImpedance, ELEMENT_PATTERNS, freeSpacePathLossDb, linearArray, linkBudget, lMatch, microstrip, microstripWidth, quarterWaveMatch, reflection, singleStubMatch, SPEED_OF_LIGHT, transmissionLine, twinLeadImpedance } from '../../../packages/rf/src/index.mjs';
 import { eng, finiteEng, fmt } from '../../shared/formatting.js';
 import { engineeringInput } from '../../shared/parsing.js';
 import { readout } from '../../components/tables.js';
@@ -142,7 +142,7 @@ export function renderRf(state) {
   return `<div class="page scroll-page rf-page">${pageHeader(modules.find((item) => item.id === 'rf'), 'BUILT-IN RF LAB', '<span class="pill live"><i></i> LOCAL COMPUTATION</span>')}
     ${labTabs(RF_TABS, config.tab, 'data-rf-tab')}${body}</div>`;
 }
-export function bindRfLabEvents() {
+function bindRfLabEvents() {
   document.querySelectorAll('[data-rf-tab]').forEach((button) => button.addEventListener('click', () => persistRf({ tab: button.dataset.rfTab })));
   document.querySelectorAll('[data-rf-lab-field]').forEach((field) => field.addEventListener('change', () => {
     const name = field.dataset.rfLabField;
@@ -151,4 +151,18 @@ export function bindRfLabEvents() {
     if (!text && !Number.isFinite(value)) { notify('Enter a number', 'error'); return; }
     persistRf({ [name]: value });
   }));
+}
+
+export function bindRfEvents() {
+  bindRfLabEvents();
+  const saved = getState().project.experiments.find((experiment) => experiment?.id === 'rf-touchstone')?.inputs || {};
+  const rfText = document.querySelector('[data-rf-field="text"]');
+  const rfPorts = document.querySelector('[data-rf-field="ports"]');
+  if (saved.text && rfText) rfText.value = saved.text;
+  if (Number.isInteger(saved.ports) && rfPorts) rfPorts.value = String(saved.ports);
+  document.querySelector('[data-action="parse-rf"]')?.addEventListener('click', () => {
+    const text = document.querySelector('[data-rf-field="text"]')?.value || ''; const ports = Number(document.querySelector('[data-rf-field="ports"]')?.value);
+    try { const normalizedPorts = Number.isInteger(ports) ? ports : 2; const data = parseTouchstone(text, { ports: normalizedPorts }); recordExperiment({ id: 'rf-touchstone', kind: 'rf', operation: 'touchstone-parse', inputs: { text, ports: normalizedPorts } }); setState({ simulation: { kind: 'rf', data } }); notify('Touchstone data parsed', 'success'); }
+    catch (error) { notify(error.message, 'error'); }
+  });
 }

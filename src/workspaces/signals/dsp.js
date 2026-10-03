@@ -1,9 +1,9 @@
 // Signals / DSP Lab workspace. Entry points: renderDsp(state); bindDspLabEvents().
+import { getState, notify, recordExperiment, setState } from '../../core/store.js';
+import { applyWindow, cabs, cdiv, cexp, complex, convolutionSteps, designFir, designIir, fft, FILTER_TYPES, filterFir, FIR_WINDOWS, frequencyResponseDigital, generateSine, impulseResponse, lfilter, poleZero, polyval } from '../../../packages/numerics/src/index.mjs';
 import { modules } from '../../data/modules.js';
 import { esc } from '../../shared/escaping.js';
-import { getState, notify, recordExperiment } from '../../core/store.js';
 import { niceRange } from '../../core/circuit-plot.js';
-import { cabs, cdiv, cexp, complex, convolutionSteps, designFir, designIir, FILTER_TYPES, FIR_WINDOWS, frequencyResponseDigital, impulseResponse, lfilter, poleZero, polyval } from '../../../packages/numerics/src/index.mjs';
 import { decibels, eng, fmt } from '../../shared/formatting.js';
 import { readout } from '../../components/tables.js';
 import { indexTicks, linearTicks, planeExtent, PLOT_COLORS, renderComplexPlane, renderPlotFrame } from '../../components/plots.js';
@@ -124,7 +124,7 @@ export function renderDsp(state) {
   return `<div class="page scroll-page dsp-page">${pageHeader(modules.find((item) => item.id === 'dsp'), 'BUILT-IN NUMERICAL LAB', '<span class="pill live"><i></i> LOCAL COMPUTATION</span>')}
     ${labTabs(DSP_TABS, config.tab, 'data-dsp-tab')}${body}</div>`;
 }
-export function bindDspLabEvents() {
+function bindDspLabEvents() {
   document.querySelectorAll('[data-dsp-tab]').forEach((button) => button.addEventListener('click', () => persistDsp({ tab: button.dataset.dspTab })));
   document.querySelectorAll('[data-dsp-lab-field]').forEach((field) => field.addEventListener('change', () => {
     const name = field.dataset.dspLabField;
@@ -134,4 +134,35 @@ export function bindDspLabEvents() {
     persistDsp({ [name]: value });
   }));
   document.querySelectorAll('[data-dsp-conv-n]').forEach((button) => button.addEventListener('click', () => persistDsp({ convN: Number(button.dataset.dspConvN) })));
+}
+
+export function bindDspEvents() {
+  bindDspLabEvents();
+  document.querySelector('[data-action="run-dsp"]')?.addEventListener('click', () => {
+    const read = (name, fallback) => { const value = Number(document.querySelector(`[data-dsp-field="${name}"]`)?.value); return Number.isFinite(value) ? value : fallback; };
+    try {
+      const signal = generateSine({ frequency: read('frequency', 1000), sampleRate: read('sampleRate', 48000), length: Math.min(4096, Math.max(8, Math.trunc(read('length', 256)))), amplitude: 1 });
+      const taps = Math.min(64, Math.max(1, Math.trunc(read('taps', 1))));
+      const filtered = filterFir(signal, Array.from({ length: taps }, () => 1 / taps));
+      const window = document.querySelector('[data-dsp-field="window"]')?.value || 'hann';
+      const windowed = applyWindow(filtered, { window });
+      recordExperiment({ id: 'signals-fft', kind: 'dsp', operation: 'fft', inputs: { frequency: signal.frequency, sampleRate: signal.sampleRate, length: signal.data.length, taps, window } });
+      setState({ simulation: { kind: 'dsp', signal: windowed, taps, window, spectrum: fft(windowed) } });
+      notify(`Signal filtered (${taps} FIR tap${taps === 1 ? '' : 's'}) and FFT computed`, 'success');
+    } catch (error) { notify(error.message, 'error'); }
+  });
+  document.querySelector('[data-action="export-dsp"]')?.addEventListener('click', () => {
+    const result = getState().simulation;
+    if (result?.kind !== 'dsp' || !result.signal?.data?.length) { notify('Run the Signals experiment before exporting.', 'error'); return; }
+    const rows = ['time_s,value'];
+    for (let index = 0; index < result.signal.data.length; index += 1) rows.push(`${index / result.signal.sampleRate},${result.signal.data[index]}`);
+    const blob = new Blob([`${rows.join('\n')}\n`], { type: 'text/csv' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'openentc-signal.csv'; link.click(); URL.revokeObjectURL(link.href); notify('Signal CSV exported', 'success');
+  });
+  document.querySelector('[data-action="export-spectrum"]')?.addEventListener('click', () => {
+    const result = getState().simulation;
+    if (result?.kind !== 'dsp' || !result.spectrum?.real?.length) { notify('Run the Signals experiment before exporting the spectrum.', 'error'); return; }
+    const rows = ['frequency_hz,real,imaginary,magnitude'];
+    for (let index = 0; index < result.spectrum.real.length; index += 1) { const real = result.spectrum.real[index]; const imaginary = result.spectrum.imaginary[index]; rows.push(`${result.spectrum.frequencies[index]},${real},${imaginary},${Math.hypot(real, imaginary)}`); }
+    const blob = new Blob([`${rows.join('\n')}\n`], { type: 'text/csv' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'openentc-spectrum.csv'; link.click(); URL.revokeObjectURL(link.href); notify('Spectrum CSV exported', 'success');
+  });
 }

@@ -1,4 +1,7 @@
 // Computer Networks workspace. Entry points: renderNetwork(state); bindNetprotoEvents().
+import { getState, notify, recordExperiment, setState } from '../../core/store.js';
+import { parsePcap, parsePcapNg } from '../../../packages/packets/src/index.mjs';
+import { topologyMetrics } from '../../../packages/topology/src/index.mjs';
 import { modules } from '../../data/modules.js';
 import { esc } from '../../shared/escaping.js';
 import { arqUtilisation, binaryIpv4, csmaCdEfficiency, dijkstra, formatIpv4, ipv6Info, linkChange, nonPersistentCsma, onePersistentCsma, parseGraph, pureAloha, simulateArq, slottedAloha, splitSubnet, subnetInfo, summarize, vlsm } from '../../../packages/netproto/src/index.mjs';
@@ -124,4 +127,29 @@ export function renderNetwork(state) {
 export function bindNetprotoEvents() {
   bindLabControls('np', netLab2, ['source', 'poisoned', 'destination', 'protocol']);
   document.querySelectorAll('[data-np-text]').forEach((input) => input.addEventListener('change', () => { const [group, key] = input.dataset.npText.split('.'); netLab2.persist((config) => { config[group][key] = input.value; }); }));
+}
+
+export function bindNetworkEvents() {
+  const savedTopology = getState().project.experiments.find((experiment) => experiment?.id === 'topology-metrics')?.inputs?.topology;
+  const topologyField = document.querySelector('[data-topology-field="json"]');
+  if (savedTopology && topologyField) topologyField.value = JSON.stringify(savedTopology, null, 2);
+  document.querySelector('[data-action="parse-pcap"]')?.addEventListener('click', () => {
+    const input = document.querySelector('[data-pcap-field="hex"]')?.value || '';
+    try {
+      const compact = input.replace(/\s+/g, '');
+      if (!compact || compact.length > 2 * 256 * 1024 * 1024 || compact.length % 2 || !/^[0-9a-f]+$/i.test(compact)) throw new Error('Enter an even-length hexadecimal PCAP capture within the size limit.');
+      const bytes = Uint8Array.from({ length: compact.length / 2 }, (_, index) => Number.parseInt(compact.slice(index * 2, index * 2 + 2), 16));
+      const format = document.querySelector('[data-pcap-field="format"]')?.value || 'pcap';
+      setState({ simulation: { kind: 'network', trace: format === 'pcapng' ? parsePcapNg(bytes) : parsePcap(bytes) } });
+      notify(`Saved ${format.toUpperCase()} parsed`, 'success');
+    } catch (error) { notify(error.message, 'error'); }
+  });
+  document.querySelector('[data-action="run-topology"]')?.addEventListener('click', () => {
+    try {
+      const topology = JSON.parse(document.querySelector('[data-topology-field="json"]')?.value || '');
+      recordExperiment({ id: 'topology-metrics', kind: 'network', operation: 'topology-metrics', inputs: { topology } });
+      setState({ simulation: { kind: 'topology', metrics: topologyMetrics(topology, topology.nodes?.[0]?.id || null) } });
+      notify('Topology metrics computed', 'success');
+    } catch (error) { notify(error.message || 'Topology is invalid', 'error'); }
+  });
 }

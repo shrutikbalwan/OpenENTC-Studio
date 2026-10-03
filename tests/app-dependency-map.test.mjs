@@ -39,10 +39,18 @@ test('domain packages have no import cycles and no runtime npm dependencies', as
   assert.deepEqual(external, []);
 });
 
-test('every workspace module in renderWorkspace is mapped to a renderer', async () => {
-  const app = analyseApp(await readFile(new URL('../src/app.js', import.meta.url), 'utf8'));
-  assert.ok(Object.keys(app.workspaces).length >= 40);
-  for (const [id, w] of Object.entries(app.workspaces)) assert.match(w.renderer, /^render/, id);
+test('every module routes to a renderer imported from a workspace or shell module', async () => {
+  const navigation = await readFile(new URL('../src/shell/navigation.js', import.meta.url), 'utf8');
+  const { modules } = await import('../src/data/modules.js').catch(() => ({ modules: null }));
+  const routes = Object.fromEntries([...navigation.matchAll(/(?:activeModule|active\.id) === '([\w-]+)'\)(?: \{[\s\S]*?)? return (render\w+)\(/g)].map((m) => [m[1], m[2]]));
+  assert.ok(Object.keys(routes).length >= 40);
+  const imported = new Map();
+  for (const m of navigation.matchAll(/^import \{([^}]*)\} from '([^']+)';/gm)) for (const name of m[1].split(',').map((n) => n.trim())) imported.set(name, m[2]);
+  for (const [id, renderer] of Object.entries(routes)) assert.match(imported.get(renderer) ?? '', /^(\.\.\/workspaces\/|\.\/)/, `${id} → ${renderer}`);
+  if (modules) for (const module of modules) assert.ok(routes[module.id] || module.id === 'home' || /renderEngineeringModule/.test(navigation), module.id);
+  // The entry point stays a thin composition layer.
+  const app = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  assert.ok(app.split('\n').length < 150, 'src/app.js is a composition layer');
 });
 
 test('UI module check: no unresolved names, no import cycles, no unused shared exports', async () => {
