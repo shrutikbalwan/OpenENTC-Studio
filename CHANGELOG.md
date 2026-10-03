@@ -15,6 +15,7 @@ no signed or qualified release exists yet.
 - Browser-security tests and an opt-in Chromium injection probe (`tests/e2e/injection-probe.mjs`).
 
 ### Changed
+- The browser UI is split into modules: `src/app.js` (940 KB) is now a 67-line entry point over `src/shell`, 42 workspace modules in `src/workspaces`, and shared `components`, `controllers`, `services`, `state` and `shared` layers. Rendered output is unchanged. `npm run ui:check` (in `verify`) blocks import cycles and unused code.
 - `LICENSE` now holds the full GPL-3.0 text; the "or any later version" grant is in `NOTICE`. The desktop manifests declare `GPL-3.0-or-later`.
 - The README is a short introduction with a quick start; the feature catalogue moved to `docs/features.md`, the command reference to `docs/development.md`. The documented Node.js requirement is now 22.8.0 or newer everywhere.
 - Issue forms: added accessibility and security-contact-request forms, renamed the engine form, and disabled blank issues.

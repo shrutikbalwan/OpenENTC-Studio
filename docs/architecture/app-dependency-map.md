@@ -1,6 +1,8 @@
 # `src/app.js` dependency map and extraction plan
 
-Status: Phase 0 analysis. No code has moved yet. The raw data is in
+Status: **historical** (Phase 0 plan). The extraction it describes was completed in Phase 2. The
+resulting structure is documented in [`ui-modules.md`](ui-modules.md) and
+[`adr-0002-ui-modularisation.md`](adr-0002-ui-modularisation.md). The raw data is in
 [`app-dependency-map.generated.md`](app-dependency-map.generated.md); regenerate it with
 `npm run deps:map` after every extraction to track progress.
 

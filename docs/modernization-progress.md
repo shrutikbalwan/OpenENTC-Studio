@@ -12,7 +12,7 @@ Baseline: [`docs/modernization-baseline.md`](modernization-baseline.md) (commit 
 |---|---|---|
 | 0 Baseline and safety | **done** | baseline, dependency map, extraction plan |
 | 1 Correctness and repository fixes | **done** | Node version, full GPL text, README quick start, policies, issue forms |
-| 2 UI modularisation | pending | plan in `docs/architecture/app-dependency-map.md` |
+| 2 UI modularisation | **done** | `src/app.js` 940 KB → 4 KB; 42 workspace modules; `ui:check` in verify |
 | 3 Types and errors | pending | |
 | 4 Browser workflows | pending | |
 | 5 Coverage | pending | |
@@ -62,19 +62,46 @@ Baseline: [`docs/modernization-baseline.md`](modernization-baseline.md) (commit 
 - **Test:** `tests/repository-docs.test.mjs` checks the Node version agreement, the licence hash and
   grants, that the documents exist, the issue forms, the README size and that local links in the documents resolve.
 
+### Phase 2 — UI modularisation (2026-10-03)
+
+- **`src/app.js`:** 8,384 lines / 940,410 bytes at the baseline, now **67 lines / 4,220 bytes**. It only composes the parts.
+- **New layers:**
+  - `src/shell/` (6 files);
+  - `src/workspaces/` (42 files in 13 areas, one entry module per laboratory);
+  - `src/components/` (tables, plots, Smith chart, forms, layout, dialogs);
+  - `src/controllers/` (lab controls), `src/services/` (render hook, desktop project, project I/O);
+  - `src/state/` (circuit-editor and native-session state), `src/shared/` (escaping, formatting, parsing).
+- **Guard rails in `npm run verify`:** `npm run ui:check` fails on import cycles, unresolved or duplicate
+  names, unused imports or locals, and unused shared exports.
+- **Tests:**
+  - workspace contract tests (each renderer renders its title, no "undefined", binder is safe without DOM);
+  - unit tests for components, controllers and the render service;
+  - tests for the move tool.
+  - Source-text tests read the whole UI tree (`tests/helpers/ui-source.mjs`).
+- **Tools:**
+  - `scripts/refactor-move.mjs`: verbatim declaration mover using the TypeScript checker; refuses cycles.
+  - `tests/e2e/ui-sweep.mjs`: opens every module and tab and fails on errors; `--compare` checks that the rendered HTML is identical.
+- **Dead code removed:** two legacy renderers, an old Learning page, a duplicate helper, an unused palette and four unused
+  imports. Two source-text tests that matched only that dead code now check the live code.
+- **Documents:** `docs/architecture/ui-modules.md` and `docs/architecture/adr-0002-ui-modularisation.md`.
+
 ## Remaining work
 
-Phases 2–13. The next step is Phase 2: move the shared helpers out of `src/app.js` (formatting,
-tables, plots, forms), add an import-cycle check, then extract workspaces one per commit.
+Phases 3–13. The next step is Phase 3: type safety (`checkJs` for critical modules) and a consistent
+error architecture.
 
 ## Verification evidence
 
 | Date | Phase | Evidence |
 |---|---|---|
+| 2026-10-03 | 2 | After the final move: `npm run verify` 756 tests (744 pass, 0 fail, 12 skipped); `ui:check` clean; `ui-sweep --compare` against the pre-Phase-2 snapshot: 0 changed views out of 180 (1 view detected as live); injection probe clean across 43 modules; quick start reads 6 V; API-key flow unchanged. |
 | 2026-10-03 | 1 | `npm run verify` 698 tests (686 pass, 0 fail, 12 skipped); `browser:smoke` passed; `cargo test` 39 passed; `native:sbom` and `license:audit` ran (0 unresolved licences); quick start walked in Chromium. GitHub's licence detection cannot be run locally; the file matches the official text byte for byte. |
 | 2026-10-03 | 0 | `npm test` 689 tests (677 pass, 0 fail, 12 skipped); with ngspice-42 and process tests enabled, 687 pass and 2 skipped; `hdl:smoke` 8/8 stages passed; `browser:smoke` passed; cargo test 39 passed; audits 0 vulnerabilities. Details in the baseline. |
 
 ## Known limitations
+
+- Workspaces keep rendering and event binding in one module, and the whole page still re-renders on every change (unchanged behaviour; see `docs/architecture/ui-modules.md`).
+- `release:verify` checks hard-coded hashes for the native SBOM and notices. Phase 1 changed the notices (added NOTICE), so that check needs regeneration in Phase 12. It already could not run on Linux.
 
 - `release:verify` needs a Windows desktop executable, so it cannot pass in a Linux container.
 - Browser checks need Chromium with `--no-sandbox` when run as root (container-specific).
@@ -88,6 +115,7 @@ tables, plots, forms), add an import-cycle check, then extract workspaces one pe
 | Continue on the existing hardening branch | It already has the CI, CodeQL, CSP and credential work that Phases 1 and 6 ask for. Redoing it would duplicate effort, and those commits are not merged yet. |
 | Write a small in-repo analyser instead of adding a tool such as madge or dependency-cruiser | No new dependency is needed, and it understands this file's render/bind convention. |
 | Keep `LICENSE` as pure GPL text and move the project notice to `NOTICE` | GitHub's detector (licensee) matches the licence file against the official text; a preamble lowers the match. |
+| Move code verbatim with a checker-based tool, and prove identical HTML per view | A hand rewrite of 940 KB could not be reviewed. Identical output is a strong, cheap check. See ADR 0002. |
 | Extract shared components before any workspace | Shared components are used by 8–94 declarations each. Moving them first makes each workspace move small. |
 
 ## External actions still required

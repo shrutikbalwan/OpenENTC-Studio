@@ -82,7 +82,7 @@ Browser projects use crash-aware localStorage writes with bounded corrupt backup
 
 ## Where the code lives
 
-- `src/app.js`: application shell and workspace rendering
+- `src/app.js`: entry point; `src/shell/` frame and routing; `src/workspaces/<area>/<module>.js` one module per laboratory (see `docs/architecture/ui-modules.md`)
 - `src/core/store.js`: state, autosave and project lifecycle
 - `src/core/project.js`: browser-safe project validation and import/export facade
 - `packages/project-model`: versioned project schema, migrations, directory persistence, artifact references and history contracts
