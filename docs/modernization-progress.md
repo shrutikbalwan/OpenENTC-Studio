@@ -14,7 +14,7 @@ Baseline: [`docs/modernization-baseline.md`](modernization-baseline.md) (commit 
 | 1 Correctness and repository fixes | **done** | Node version, full GPL text, README quick start, policies, issue forms |
 | 2 UI modularisation | **done** | `src/app.js` 940 KB → 4 KB; 42 workspace modules; `ui:check` in verify |
 | 3 Types and errors | **done** | error architecture, reportError, ts-check for shared layers, API reference |
-| 4 Browser workflows | **done** (CI job added; first hosted run to be confirmed) | 24 Playwright journeys; found and fixed 2 real bugs |
+| 4 Browser workflows | **done**; journeys pass in hosted CI (run 93) | 24 Playwright journeys; found and fixed 2 real bugs |
 | 5 Coverage | pending | |
 | 6 Security | partly done earlier | CodeQL, Dependabot, CSP and session-only API keys were added by the earlier hardening pass on this branch; the rest is pending |
 | 7 Numerical credibility | pending | |
@@ -138,7 +138,8 @@ Phases 5–13. The next step is Phase 5: coverage reporting with thresholds, and
 
 | Date | Phase | Evidence |
 |---|---|---|
-| 2026-10-03 | 4 | `npm run test:e2e`: 24 journeys, 24 pass, about 36 s (Chromium 141). The offline and migration journeys fail against the pre-fix code (mutation-checked). `npm run verify` green. The hosted CI result of the new job is not yet confirmed here. |
+| 2026-10-03 | 4 | `npm run test:e2e`: 24 journeys, 24 pass, about 36 s (Chromium 141). The offline and migration journeys fail against the pre-fix code (mutation-checked). **Hosted CI:** the `Browser journeys (Chromium)` job passed in run 93 (https://github.com/shrutikbalwan/OpenENTC-Studio/actions/runs/37157935257), and `Verify (ubuntu-latest)` passed there too. |
+| 2026-10-03 | CI correction | **Hosted `Verify (windows-latest)` failed in runs 84–92** (since commit `455634d`): the new `tests/refactor-move.test.mjs` exposed a Windows path bug in `scripts/refactor-move.mjs` (absolute imports written for `C:\` paths). Earlier phase reports of "verify passed" referred to local runs only. Fixed in `796d627`; the confirming hosted run is recorded below. Hosted CI is now checked after each push. |
 | 2026-10-03 | 3 | `npm run verify` 764 tests (752 pass, 0 fail, 12 skipped); typecheck 134 files; `ui-sweep --compare` 0 changed views; injection probe clean; modal focus trap and Escape verified in Chromium; a circuit validation error shows "R2 must have a resistance greater than zero." |
 | 2026-10-03 | 2 | After the final move: `npm run verify` 756 tests (744 pass, 0 fail, 12 skipped); `ui:check` clean; `ui-sweep --compare` against the pre-Phase-2 snapshot: 0 changed views out of 180 (1 view detected as live); injection probe clean across 43 modules; quick start reads 6 V; API-key flow unchanged. |
 | 2026-10-03 | 1 | `npm run verify` 698 tests (686 pass, 0 fail, 12 skipped); `browser:smoke` passed; `cargo test` 39 passed; `native:sbom` and `license:audit` ran (0 unresolved licences); quick start walked in Chromium. GitHub's licence detection cannot be run locally; the file matches the official text byte for byte. |
