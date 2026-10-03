@@ -36,6 +36,7 @@ export const WORKSPACES = [
   { module: 'wsn', path: '../src/workspaces/communication/wsn.js', render: 'renderWsn', bind: 'bindWsnEvents', expect: [] },
   { module: 'sdr', path: '../src/workspaces/communication/sdr.js', render: 'renderSdr', bind: 'bindSdrEvents', expect: [] },
   { module: 'crypto', path: '../src/workspaces/communication/crypto.js', render: 'renderCrypto', bind: 'bindCryptoEvents', expect: [] },
+  { module: 'rf', path: '../src/workspaces/rf/rf.js', render: 'renderRf', bind: 'bindRfLabEvents', expect: [] },
 ];
 
 for (const workspace of WORKSPACES) {
