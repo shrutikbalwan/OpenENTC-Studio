@@ -407,7 +407,7 @@
     },
     {
       "id": "learning.courseware",
-      "surface": "Learning Hub: six tracks of 36 lessons linked to the labs, quizzes with seeded numeric and multiple-choice questions, viva practice with self-marking, and the verified lab checkpoints",
+      "surface": "Learning Hub: eight tracks of 49 lessons linked to the labs (including every Phase 9–10 lab), quizzes with seeded numeric and multiple-choice questions, viva practice with self-marking, and the verified lab checkpoints",
       "state": "built-in",
       "evidence": ["packages/learning/src/courseware.mjs", "packages/learning/src/quiz.mjs", "src/app.js#renderLearningHub", "tests/courseware.test.mjs"],
       "limitations": "Short lessons, not a full textbook; quizzes check numeric answers to a relative tolerance (2 % unless stated) and accept engineering notation but not expressions. Progress is stored in the project file, not in an account. Selected answers are cross-checked against the cellular, receiver, waveguide and link-budget engines.",

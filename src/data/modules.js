@@ -42,7 +42,7 @@ export const modules = [
   { id: 'wsn', name: 'Sensor Networks', short: 'WSN', icon: '⁂', color: '#a3e635', description: 'Random and grid deployments, radio connectivity and k-coverage, and network lifetime with direct, multi-hop and LEACH clustering on the first-order radio model.' },
   { id: 'crypto', name: 'Cryptography', short: 'Crypto', icon: '⚿', color: '#f472b6', description: 'Caesar, Vigenère, Playfair, Hill and rail fence; modular arithmetic, RSA and Diffie–Hellman; AES, DES and SHA-256 round by round.' },
   { id: 'record', name: 'Lab Records', short: 'Record', icon: '✎', color: '#fda4af', description: 'Write your practical journal and download it as a PDF with circuit, oscilloscope captures, graphs and programs.' },
-  { id: 'learn', name: 'Learning Hub', short: 'Learn', icon: '◫', color: '#facc15', description: 'Six ENTC tracks of short lessons linked to the labs, quizzes with fresh numbers every attempt, viva practice and verified lab checkpoints.' }
+  { id: 'learn', name: 'Learning Hub', short: 'Learn', icon: '◫', color: '#facc15', description: 'Eight ENTC tracks of short lessons linked to the labs, quizzes with fresh numbers every attempt, viva practice and verified lab checkpoints.' }
 ];
 
 const legacyComponentPalette = [
