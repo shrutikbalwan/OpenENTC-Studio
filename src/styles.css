@@ -803,3 +803,60 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .ai-settings input[type="text"], .ai-settings input[type="password"], .ai-settings select { border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); padding: 7px 9px; font: 500 12px DM Mono; }
 .ai-settings .ai-check { flex-direction: row; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--text); }
 .ai-settings p { font-size: 11px; line-height: 1.5; }
+
+/* Phase 9 labs */
+.ofdm-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ofdm-pair svg { width: 100%; height: auto; }
+.mono-wrap { word-break: break-all; font-family: 'DM Mono', monospace; }
+.bridge-svg { width: 100%; max-width: 420px; height: auto; }
+.bridge-wire { fill: none; stroke: var(--teal); stroke-width: 2; }
+.bridge-detector { fill: var(--panel-2); stroke: #f59e0b; stroke-width: 2; }
+.bridge-text { fill: var(--text); font: 500 10px 'DM Mono', monospace; }
+.null-meter { display: grid; gap: 6px; margin-top: 10px; }
+.null-meter b { font: 500 18px 'DM Mono', monospace; color: #f59e0b; }
+.null-meter small { color: var(--muted); font-size: 10px; }
+.null-bar { height: 12px; border-radius: 6px; background: var(--soft); overflow: hidden; }
+.null-bar i { display: block; height: 100%; background: linear-gradient(90deg, #22c55e, #f59e0b, #ef4444); }
+.heatmap { width: 100%; height: 220px; display: block; border-radius: 6px; }
+.heatmap-axis { display: flex; justify-content: space-between; font-size: 9px; color: var(--muted); margin-top: 3px; }
+.vuv-strip { display: flex; height: 10px; border-radius: 4px; overflow: hidden; margin: 4px 0; }
+.vuv-strip i { flex: 1; }
+.vuv-strip i.voiced { background: #34d399; } .vuv-strip i.unvoiced { background: #f97316; } .vuv-strip i.silence { background: #475569; }
+.file-button { cursor: pointer; display: inline-flex; align-items: center; }
+.ladder-svg { width: 100%; height: auto; margin-top: 10px; background: var(--panel-2); border-radius: 8px; }
+.ladder-rail { stroke: var(--muted); stroke-width: 3; }
+.ladder-wire { stroke: #475569; stroke-width: 2; fill: none; }
+.ladder-wire.on, .ladder-contact.on { stroke: #22c55e; }
+.ladder-contact { stroke: #cbd5e1; stroke-width: 2.4; fill: none; }
+.ladder-coil { fill: none; stroke: #cbd5e1; stroke-width: 2; }
+.ladder-coil.on { fill: rgba(34, 197, 94, 0.25); stroke: #22c55e; }
+.ladder-label, .ladder-rung-no { fill: var(--text); font: 500 10px 'DM Mono', monospace; }
+.ladder-rung-no { fill: var(--muted); }
+.plc-io { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; align-items: start; }
+.plc-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.plc-input { border: 1px solid var(--line); background: var(--soft); color: var(--text); border-radius: 6px; padding: 6px 10px; font: 500 11px 'DM Mono', monospace; cursor: pointer; }
+.plc-input.on { background: #166534; border-color: #22c55e; }
+.plc-lamp { display: inline-flex; align-items: center; gap: 5px; font: 500 11px 'DM Mono', monospace; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; }
+.plc-lamp i { width: 10px; height: 10px; border-radius: 50%; background: #334155; }
+.plc-lamp.on i { background: #facc15; box-shadow: 0 0 8px #facc15; }
+.plc-actions { display: flex; gap: 8px; margin-bottom: 10px; }
+.timing-svg { width: 100%; height: auto; }
+.timing-trace { fill: none; stroke: var(--teal); stroke-width: 2; }
+.timing-grid { stroke: var(--line); stroke-width: 1; }
+.fh-layout { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); gap: 18px; }
+@media (max-width: 900px) { .fh-layout { grid-template-columns: 1fr; } }
+.fh-board { width: 100%; height: auto; max-height: 360px; }
+.fh-pcb { fill: #0b3d2e; stroke: #14532d; stroke-width: 2; }
+.fh-part rect { fill: #0f172a; stroke: #34d399; stroke-width: 1.5; }
+.fh-part.source rect { stroke: #f59e0b; }
+.fh-id { fill: #e2e8f0; font: 600 11px 'DM Mono', monospace; }
+.fh-glyph { fill: #94a3b8; font-weight: 400; }
+.fh-value { fill: #5eead4; font: 500 10px 'DM Mono', monospace; }
+.fh-nets { fill: #fbbf24; font: 500 9px 'DM Mono', monospace; }
+.fh-meter { margin: 10px 0; }
+.fh-side { display: flex; flex-direction: column; gap: 12px; }
+.fh-score { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; justify-items: center; background: var(--panel-2); }
+.fh-score span { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; }
+.fh-score b { font: 600 40px 'DM Mono', monospace; color: #facc15; }
+.fh-score small { color: var(--muted); }
+.fh-actions { display: flex; flex-wrap: wrap; gap: 8px; }

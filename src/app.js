@@ -68,6 +68,15 @@ import { createGhdlAdapter, parseGhdlDiagnostics } from '../packages/engine-sdk/
 import { createDesktopProcessAdapterRunner, joinDesktopProjectPath } from './core/desktop-process-adapter-runner.js';
 import { measureNgspiceCursors, normalizeNgspiceView, serializeNgspiceCsv, transformNgspiceWindowView } from './core/ngspice-view.js';
 import { analyzeCombinational, analyzeFunction, convertNumber, LOGIC_TEMPLATES, parseNetlist, parseNumber, simulateNetlist, truthTable } from '../packages/logic/src/index.mjs';
+import { awgnCapacity, channelCapacity, dsss, encodeWithCode, fhss, GOLD_PAIRS, goldCodes, huffman, lfsr, lzwDecode, lzwEncode, minimumEbN0Db, mutualInformation, ofdmLink, periodicCorrelation, PRIMITIVE_TAPS, sequenceProperties, shannonFano, textSource } from '../packages/infotheory/src/index.mjs';
+import { designBandpass, designBias, designLm317, designOscillator, designPll, designSallenKey, designSchmitt, designZener, networkSweep, OSCILLATORS } from '../packages/analogdesign/src/index.mjs';
+import { ammeterShunt, armImpedance, ayrtonShunt, BRIDGES, bridgeDetector, combineErrors, fullScaleToReading, lissajous, qMeter, readingStatistics, seriesOhmmeter, solveBridge, voltmeterLoading, voltmeterMultiplier } from '../packages/measurement/src/index.mjs';
+import { apertureAntenna, combineCn, dipolePattern, directionalCoupler, directivity, doppler, fmcw, friisLink, gOverT, halfPowerBeamwidth, lookAngles, magnetron, orbit, orbitTrace, pulseRadar, R_EARTH, radarRange, reflexKlystron, satelliteLink, vswrMeasurement } from '../packages/radarsat/src/index.mjs';
+import { cepstrum, formants, hamming, lpc, lpcSpectrum, melFilterbank, mfcc, pitchAmdf, pitchAutocorrelation, powerSpectrum, shortTimeFeatures, spectrogram, synthesizeNoise, synthesizeVowel } from '../packages/speech/src/index.mjs';
+import { createPlc, LADDER_EXAMPLES, layoutCondition, operands, parseInputScript, parseLadder, runLadder, scan } from '../packages/plc/src/index.mjs';
+import { allDayEfficiency, dcSeriesMotor, dcShuntMotor, inductionMotor, resistanceFiring, seriesString, snubber, switchingLoss, transformerTests, ujtOscillator } from '../packages/machines/src/index.mjs';
+import { batteryLife, heatsink, PART_FIT, reliability, traceWidth } from '../packages/productdesign/src/index.mjs';
+import { applyFault, BOARDS, boardNets, chooseFault, debrief, FAULT_TYPES, faultsFor, measureResistance as faultMeasureResistance, measureVoltage as faultMeasureVoltage, score as faultScore } from '../packages/faulthunt/src/index.mjs';
 import { GROUP_COLORS, parseMintermNotation, renderGateDiagram, renderKarnaugh, renderTimingDiagram } from './core/logic-view.js';
 import { digitalSignalGroups, filterDigitalSignals, measureDigitalCursors, normalizeDigitalWaveformView, sampleDigitalSignal, serializeDigitalCsv, transformDigitalWaveformView } from './core/digital-waveform-view.js';
 
@@ -190,6 +199,15 @@ function renderWorkspace(state, active) {
   if (active.id === 'theory') return renderNetworkTheory(state);
   if (active.id === 'sigsys') return renderSigsys(state);
   if (active.id === 'em') return renderEm(state);
+  if (active.id === 'faulthunt') return renderFaultHunt(state);
+  if (active.id === 'machines') return renderMachines(state);
+  if (active.id === 'product') return renderProduct(state);
+  if (active.id === 'plc') return renderPlc(state);
+  if (active.id === 'speech') return renderSpeech(state);
+  if (active.id === 'radar') return renderRadar(state);
+  if (active.id === 'measure') return renderMeasurement(state);
+  if (active.id === 'analog') return renderAnalog(state);
+  if (active.id === 'info') return renderInfo(state);
   if (active.id === 'cellular') return renderCellular(state);
   if (active.id === 'crypto') return renderCrypto(state);
   if (active.id === 'wsn') return renderWsn(state);
@@ -3379,6 +3397,922 @@ function bindEmEvents() {
 }
 
 // ---------------------------------------------------------------------------
+// Shared helpers for the Phase 9 labs.
+
+const labText = (prefix) => (path, label, value, rows = 0) => (rows ? `<label class="em-text">${label}<textarea rows="${rows}" spellcheck="false" data-${prefix}-text="${path}">${esc(value)}</textarea></label>` : `<label>${label}<input type="text" spellcheck="false" data-${prefix}-text="${path}" value="${esc(value)}"></label>`);
+function bindLabText(prefix, lab, after = null) {
+  document.querySelectorAll(`[data-${prefix}-text]`).forEach((input) => input.addEventListener('change', () => {
+    const [group, key] = input.dataset[`${prefix}Text`].split('.');
+    lab.persist((config) => { config[group][key] = input.value; after?.(config, group, key); });
+  }));
+}
+const labCard = (prefix, title, tabs, config, renderTab) => {
+  let view;
+  try { view = renderTab(config); } catch (error) { view = { controls: '', body: labError(prefix, title, error) }; }
+  return `${labTabs(tabs, config.tab, `data-${prefix}-tab`)}<div class="dsp-card"><div class="dsp-controls">${view.controls}</div>${view.body}</div>`;
+};
+const simpleTable = (headers, rows) => `<table class="truth-table comm-table power-table"><thead><tr>${headers.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${esc(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+const stemPlot = (title, values, { color = PLOT_COLORS[0] } = {}) => {
+  const xs = values.map((_, k) => k), xMax = Math.max(1, xs.length - 1);
+  return renderPlotFrame({ title, series: [{ xs, ys: values, color, stem: true, primary: true }], xMin: 0, xMax, xTicks: Array.from({ length: 6 }, (_, k) => ({ position: k / 5, text: fmt(xMax * k / 5, 3) })), yRange: niceRange(Math.min(0, ...values), Math.max(0, ...values)), formatY: (value) => fmt(value, 3) });
+};
+const parseNumberList = (text, label) => String(text).split(/[\s,;]+/).filter(Boolean).map((token) => engineeringInput(token, label));
+const scatterPlane = (label, points, extent = 1.6, color = PLOT_COLORS[0]) => {
+  const size = 300, centre = size / 2, scale = 130 / extent;
+  const dots = points.slice(0, 1500).map((p) => `<circle cx="${(centre + Math.max(-extent, Math.min(extent, p.re)) * scale).toFixed(1)}" cy="${(centre - Math.max(-extent, Math.min(extent, p.im)) * scale).toFixed(1)}" r="1.6" fill="${color}" fill-opacity="0.65"/>`).join('');
+  return `<svg class="pz-plot" viewBox="0 0 ${size} ${size}" role="img" aria-label="${esc(label)}"><path class="axis" d="M${centre} 4V${size - 4}M4 ${centre}H${size - 4}"/>${dots}</svg>`;
+};
+
+// ---------------------------------------------------------------------------
+// Information theory, source coding and spread spectrum.
+
+const INFO_TABS = [['source', 'Source coding'], ['lzw', 'LZW'], ['channel', 'Channel capacity'], ['pn', 'PN & Gold codes'], ['dsss', 'DSSS & FHSS'], ['ofdm', 'OFDM']];
+const INFO_CHANNELS = { bsc: ['Binary symmetric (p = 0.1)', '0.9 0.1\n0.1 0.9', '0.5 0.5'], bec: ['Binary erasure (ε = 0.2)', '0.8 0.2 0\n0 0.2 0.8', '0.5 0.5'], z: ['Z-channel (p = 0.3)', '1 0\n0.3 0.7', '0.5 0.5'], typewriter: ['Noisy typewriter (4 symbols)', '0.5 0.5 0 0\n0 0.5 0.5 0\n0 0 0.5 0.5\n0.5 0 0 0.5', '0.25 0.25 0.25 0.25'] };
+const infoLab = makeLab('info-lab', {
+  tab: 'source',
+  source: { mode: 'probabilities', probabilities: 'A 0.4\nB 0.2\nC 0.2\nD 0.1\nE 0.1', text: 'ELECTRONICS AND TELECOMMUNICATION', method: 'huffman' },
+  lzw: { text: 'TOBEORNOTTOBEORTOBEORNOT' },
+  channel: { preset: 'bsc', matrix: INFO_CHANNELS.bsc[1], inputs: INFO_CHANNELS.bsc[2], bandwidth: 3100, snr: 30 },
+  pn: { degree: 5, goldA: 2, goldB: 7 },
+  dsss: { degree: 5, ebN0: 6, jsr: 10, jammerFrequency: 0.01, spread: 'yes', channelBits: 3, hops: 40 },
+  ofdm: { subcarriers: 64, cp: 16, scheme: 'qpsk', channel: '1 0 0 0.6 0 0 0.45 0 0.3', snr: 25 },
+});
+const infoField = groupField('data-info-field');
+const infoText = labText('info');
+
+function parseSourceTable(text) {
+  const symbols = String(text).split('\n').map((line) => line.trim()).filter(Boolean).map((line, index) => {
+    const parts = line.split(/[\s,]+/);
+    if (parts.length !== 2) throw new RangeError(`Line ${index + 1}: enter "symbol probability".`);
+    return { symbol: parts[0], p: engineeringInput(parts[1], `Line ${index + 1}`) };
+  });
+  if (symbols.length > 40) throw new RangeError('Use at most 40 symbols.');
+  return symbols;
+}
+const parseMatrix = (text) => String(text).split('\n').map((line) => line.trim()).filter(Boolean).map((line, index) => parseNumberList(line, `Row ${index + 1}`));
+const showSymbol = (symbol) => (symbol === ' ' ? '␣' : symbol);
+
+function renderInfoTab(config) {
+  const c = config[config.tab];
+  if (config.tab === 'source') {
+    const symbols = c.mode === 'text' ? textSource(c.text).slice(0, 40) : parseSourceTable(c.probabilities);
+    const huff = huffman(symbols), fano = shannonFano(symbols);
+    const chosen = c.method === 'fano' ? fano : huff;
+    const controls = `${labSelect('data-info-select', 'source.mode', 'Source', c.mode, [['probabilities', 'Symbol probabilities'], ['text', 'From a text message']])}${c.mode === 'text' ? infoText('source.text', 'Message', c.text, 3) : infoText('source.probabilities', 'Symbol and probability per line', c.probabilities, 6)}${labSelect('data-info-select', 'source.method', 'Code', c.method, [['huffman', 'Huffman (minimum variance)'], ['fano', 'Shannon–Fano']])}`;
+    const rows = chosen.codes.map((entry) => [showSymbol(entry.symbol), fmt(entry.p, 4), entry.code, String(entry.code.length), fmt(-Math.log2(entry.p), 4)]);
+    let encoded = '';
+    if (c.mode === 'text') { const bits = encodeWithCode(c.text, chosen.codes); encoded = readout('Encoded message', `${bits.length} bits (${fmt(bits.length / [...c.text].length, 4)} bits/symbol) vs ${[...c.text].length * 8} bits in 8-bit ASCII`) + `<p class="field-help mono-wrap">${esc(bits.length > 400 ? `${bits.slice(0, 400)}…` : bits)}</p>`; }
+    const steps = c.method === 'huffman' ? `<span class="panel-label">HUFFMAN REDUCTION (EACH COLUMN SORTED; THE TWO LOWEST ARE MERGED)</span>${simpleTable(huff.steps.map((_, k) => `Stage ${k + 1}`), Array.from({ length: symbols.length }, (_, row) => huff.steps.map((stage) => (stage[row] ? `${fmt(stage[row].p, 3)} ${stage[row].members.length > 1 ? '◆' : showSymbol(stage[row].members[0])}` : ''))))}` : `<span class="panel-label">SHANNON–FANO SPLITS</span>${simpleTable(['Level', 'Upper group (0)', 'Lower group (1)'], fano.splits.map((s) => [String(s.depth + 1), s.top.map(showSymbol).join(' '), s.bottom.map(showSymbol).join(' ')]))}`;
+    const body = `<div class="power-grid"><div>${simpleTable(['Symbol', 'p', 'Code word', 'Length', 'Information −log₂p'], rows)}${steps}</div>
+      <div class="analysis-readouts">${readout('Entropy H', `${fmt(chosen.entropy, 6)} bits/symbol`)}${readout('Average length L', `${fmt(chosen.averageLength, 6)} bits/symbol`)}${readout('Efficiency H/L', `${fmt(100 * chosen.efficiency, 5)} %`)}${readout('Redundancy 1 − H/L', `${fmt(100 * chosen.redundancy, 5)} %`)}${readout('Kraft sum Σ2^−l', fmt(chosen.kraft, 6))}${readout('Length variance', fmt(chosen.variance, 5))}${readout('Huffman vs Shannon–Fano', `L = ${fmt(huff.averageLength, 5)} vs ${fmt(fano.averageLength, 5)}`)}${encoded}<p class="field-help">Shannon's source-coding theorem: H ≤ L < H + 1 for the best prefix code. Huffman reaches the minimum L; with ties, the merged node is placed as high as possible, which gives the smallest variance of code lengths. ◆ marks a combined node.</p></div></div>`;
+    return { controls, body };
+  }
+  if (config.tab === 'lzw') {
+    const encoded = lzwEncode(c.text);
+    const decoded = lzwDecode(encoded.codes, encoded.alphabet);
+    const controls = infoText('lzw.text', 'Text to compress', c.text, 3);
+    const steps = encoded.output.slice(0, 80).map((item, k) => [String(k + 1), showSymbol(item.phrase).replace(/ /g, '␣'), String(item.code), encoded.added[k] ? `${encoded.added[k].code} = ${encoded.added[k].phrase.replace(/ /g, '␣')}` : '—']);
+    const body = `<div class="power-grid"><div>${simpleTable(['Step', 'Longest match w', 'Output code', 'New dictionary entry'], steps)}</div>
+      <div class="analysis-readouts">${readout('Initial dictionary', encoded.alphabet.map((ch, i) => `${i}=${showSymbol(ch)}`).join(' '))}${readout('Codes sent', encoded.codes.join(' '))}${readout('Final dictionary size', String(encoded.dictionarySize))}${readout('Bits per code (fixed width)', String(encoded.bitsPerCode))}${readout('Compressed size', `${encoded.compressedBits} bits vs ${encoded.originalBits} bits uncompressed (${fmt(encoded.originalBits / encoded.compressedBits, 4)} : 1)`)}${readout('Decoder output matches', decoded === c.text ? 'yes — lossless' : 'NO')}<p class="field-help">LZW needs no probabilities: it builds the dictionary while it reads, and the decoder rebuilds the same dictionary from the codes alone. Long repeated text compresses well; short text can even grow.</p></div></div>`;
+    return { controls, body };
+  }
+  if (config.tab === 'channel') {
+    const matrix = parseMatrix(c.matrix);
+    const inputs = parseNumberList(c.inputs, 'Input probabilities');
+    const mi = mutualInformation(matrix, inputs);
+    const cap = channelCapacity(matrix);
+    const awgn = awgnCapacity(c.bandwidth, c.snr);
+    const snrs = Array.from({ length: 81 }, (_, k) => -10 + k * 0.5);
+    const etas = Array.from({ length: 80 }, (_, k) => 0.1 + k * 0.1);
+    const controls = `${labSelect('data-info-select', 'channel.preset', 'Channel', c.preset, [...Object.entries(INFO_CHANNELS).map(([id, entry]) => [id, entry[0]]), ['custom', 'Custom']])}${infoText('channel.matrix', 'P(y|x): one row per input', c.matrix, 4)}${infoText('channel.inputs', 'Input probabilities P(x)', c.inputs)}${infoField('channel.bandwidth', 'AWGN bandwidth B', c.bandwidth, 'Hz')}${infoField('channel.snr', 'S/N', c.snr, 'dB')}`;
+    const body = `<div class="power-grid"><div>${linePlot('Shannon–Hartley: C/B = log₂(1 + S/N) against S/N in dB', snrs, [{ name: 'C/B', values: snrs.map((s) => Math.log2(1 + 10 ** (s / 10))) }], { xLabel: (x) => `${fmt(x, 3)} dB` })}${linePlot('Minimum Eb/N0 (dB) against spectral efficiency η (bit/s/Hz)', etas, [{ name: 'Eb/N0 min', values: etas.map(minimumEbN0Db) }], { xLabel: (x) => fmt(x, 3) })}</div>
+      <div class="analysis-readouts">${readout('I(X;Y) for this input', `${fmt(mi.information, 6)} bits`)}${readout('H(X), H(Y)', `${fmt(mi.hx, 5)}, ${fmt(mi.hy, 5)} bits`)}${readout('H(X|Y) equivocation', `${fmt(mi.hxGivenY, 5)} bits`)}${readout('H(Y|X) noise entropy', `${fmt(mi.hyGivenX, 5)} bits`)}${readout('Output P(y)', mi.py.map((v) => fmt(v, 4)).join(', '))}${readout('Capacity C (Blahut–Arimoto)', `${fmt(cap.capacity, 8)} bits/use`)}${readout('Capacity-achieving P(x)', cap.inputDistribution.map((v) => fmt(v, 4)).join(', '))}${readout('AWGN capacity', `${eng(awgn.capacity, 'bit/s')} (${fmt(awgn.spectralEfficiency, 5)} bit/s/Hz)`)}${readout('Shannon limit (η → 0)', `${fmt(awgn.shannonLimitDb, 5)} dB`)}<p class="field-help">C = max over P(x) of I(X;Y). Blahut–Arimoto iterates until the upper and lower bounds agree to 10⁻¹²; it reproduces 1 − Hb(p) for the BSC and 1 − ε for the BEC.</p></div></div>`;
+    return { controls, body };
+  }
+  if (config.tab === 'pn') {
+    const degree = Math.round(c.degree);
+    const taps = PRIMITIVE_TAPS[degree];
+    if (!taps) throw new RangeError('Degree must be 2 to 10.');
+    const run = lfsr(taps);
+    const props = sequenceProperties(run.sequence);
+    let gold = '';
+    if (GOLD_PAIRS[degree]) {
+      const family = goldCodes(degree);
+      const a = Math.max(0, Math.min(family.family.length - 1, Math.round(c.goldA))), b = Math.max(0, Math.min(family.family.length - 1, Math.round(c.goldB)));
+      const cross = periodicCorrelation(family.family[a], family.family[b]);
+      gold = `${stemPlot(`Cross-correlation of Gold codes ${a} and ${b}`, cross, { color: PLOT_COLORS[1] })}${readout('Gold family', `${family.family.length} codes of length ${family.length}, preferred pair x^${family.pair[0].join('+x^')}+1 and x^${family.pair[1].join('+x^')}+1`)}${readout('Cross-correlation values', `${[...new Set(cross)].sort((p, q) => p - q).join(', ')} (allowed ${family.bound.join(', ')})`)}`;
+    }
+    const controls = `${labSelect('data-info-select', 'pn.degree', 'Register length n', degree, Object.keys(PRIMITIVE_TAPS).map((d) => [d, `${d} (length ${2 ** Number(d) - 1})`]))}${GOLD_PAIRS[degree] ? `${infoField('pn.goldA', 'Gold code A (index)', c.goldA)}${infoField('pn.goldB', 'Gold code B (index)', c.goldB)}` : ''}`;
+    const runs = Object.entries(props.runs).map(([length, count]) => `${length}:${count}`).join('  ');
+    const body = `<div class="power-grid"><div>${stemPlot('Periodic autocorrelation R(τ) of the m-sequence', props.correlation)}${gold}</div>
+      <div class="analysis-readouts">${readout('Feedback polynomial', `x^${taps.join(' + x^')} + 1`)}${readout('First register states', run.states.slice(0, 8).join(' → '))}${readout('Sequence (one period)', run.sequence.slice(0, 127).join('') + (run.sequence.length > 127 ? '…' : ''))}${readout('Balance', `${props.ones} ones, ${props.zeros} zeros`)}${readout('Runs (length:count)', runs)}${readout('Off-peak autocorrelation', props.offPeak.join(', '))}<p class="field-help">The three PN properties: one more 1 than 0; half the runs have length 1, a quarter length 2, …; and the autocorrelation is N at τ = 0 and −1 everywhere else. Gold codes trade that perfect autocorrelation for a bounded cross-correlation, so many users can share a band (CDMA, GPS).</p></div></div>`;
+    return { controls, body };
+  }
+  if (config.tab === 'dsss') {
+    const run = dsss({ degree: Math.round(c.degree), bits: 4000, ebN0Db: c.ebN0, jsrDb: c.jsr, jammerFrequency: c.jammerFrequency, spread: c.spread === 'yes' });
+    const other = dsss({ degree: Math.round(c.degree), bits: 4000, ebN0Db: c.ebN0, jsrDb: c.jsr, jammerFrequency: c.jammerFrequency, spread: c.spread !== 'yes' });
+    const hop = fhss({ degree: 5, channelBits: Math.max(1, Math.min(5, Math.round(c.channelBits))), hops: Math.max(4, Math.min(200, Math.round(c.hops))) });
+    const xs = run.chips.map((_, k) => k).slice(0, 4 * run.chipsPerBit);
+    const controls = `${labSelect('data-info-select', 'dsss.degree', 'PN length', Math.round(c.degree), [3, 4, 5, 6, 7, 8].map((d) => [d, `${2 ** d - 1} chips/bit`]))}${infoField('dsss.ebN0', 'Eb/N0', c.ebN0, 'dB')}${infoField('dsss.jsr', 'Jammer-to-signal J/S', c.jsr, 'dB')}${infoField('dsss.jammerFrequency', 'Jammer frequency (cycles/chip)', c.jammerFrequency)}${labSelect('data-info-select', 'dsss.spread', 'Spreading', c.spread, [['yes', 'On (DSSS)'], ['no', 'Off (plain BPSK)']])}${infoField('dsss.channelBits', 'FHSS channel bits', c.channelBits)}${infoField('dsss.hops', 'Hops shown', c.hops)}`;
+    const body = `<div class="power-grid"><div>${linePlot('Transmitted chips and received samples (first 4 bits)', xs, [{ name: 'transmitted', values: run.chips.slice(0, xs.length) }, { name: 'received (noise + jammer)', values: run.received.slice(0, xs.length), color: '#64748b' }])}${stemPlot('Correlator output per bit (sign = decision)', run.despread.slice(0, 60), { color: PLOT_COLORS[2] })}${linePlot('FHSS hop pattern: channel against hop number', hop.pattern.map((p) => p.hop), [{ name: 'channel', values: hop.pattern.map((p) => p.channel), color: PLOT_COLORS[3] }])}</div>
+      <div class="analysis-readouts">${readout('Processing gain Gp = 10 log N', `${fmt(run.processingGainDb, 4)} dB (${run.chipsPerBit} chips/bit)`)}${readout('BER now', `${fmt(run.ber, 4)} (${run.errors}/${run.bits})`)}${readout(c.spread === 'yes' ? 'BER without spreading' : 'BER with spreading', fmt(other.ber, 4))}${readout('Theory, AWGN only', fmt(run.theoryBer, 4))}${readout('Jamming margin ≈ Gp − (Eb/N0)req', `${fmt(run.processingGainDb - 9.6, 4)} dB for BER 10⁻⁵`)}${readout('FHSS', `${hop.channels} channels, ${eng(hop.bandwidth, 'Hz')} span, Gp = ${fmt(hop.processingGainDb, 4)} dB`)}${readout('Channel use', hop.use.join(' '))}<p class="field-help">The despreader multiplies by the same PN code: the wanted signal collapses back to the data rate while the jammer is spread over N chips, so only 1/N of its power lands in the decision. Spreading does not help against white noise — the BER with jammer off equals plain BPSK.</p></div></div>`;
+    return { controls, body };
+  }
+  const channel = parseNumberList(c.channel, 'Channel taps');
+  if (!channel.length || channel.length > 64) throw new RangeError('Enter 1 to 64 channel taps.');
+  const run = ofdmLink({ subcarriers: Math.round(c.subcarriers), cp: Math.round(c.cp), scheme: c.scheme, channel, snrDb: c.snr, symbols: 30 });
+  const ks = run.channelResponseDb.map((_, k) => k);
+  const controls = `${labSelect('data-info-select', 'ofdm.subcarriers', 'Subcarriers N', Math.round(c.subcarriers), [16, 32, 64, 128, 256].map((n) => [n, String(n)]))}${infoField('ofdm.cp', 'Cyclic prefix', c.cp, 'samples')}${labSelect('data-info-select', 'ofdm.scheme', 'Mapping', c.scheme, [['qpsk', 'QPSK'], ['16qam', '16-QAM']])}${infoText('ofdm.channel', 'Multipath taps h[0], h[1], …', c.channel)}${infoField('ofdm.snr', 'Es/N0', c.snr, 'dB')}`;
+  const body = `<div class="power-grid"><div><span class="panel-label">RECEIVED SUBCARRIERS BEFORE (LEFT) AND AFTER (RIGHT) THE ONE-TAP EQUALISER</span><div class="ofdm-pair">${scatterPlane('Raw constellation', run.raw, 2.5, '#64748b')}${scatterPlane('Equalised constellation', run.equalised, 1.6)}</div>${linePlot('Channel |H(k)|² in dB across subcarriers', ks, [{ name: '|H|²', values: run.channelResponseDb }], { xLabel: (x) => fmt(x, 3) })}${linePlot('Transmitted OFDM signal (real part, three symbols with CP)', run.txPreview.map((_, k) => k), [{ name: 'Re x[n]', values: run.txPreview }])}</div>
+    <div class="analysis-readouts">${readout('BER', `${fmt(run.ber, 4)} (${run.errors}/${run.bits} bits)`)}${readout('Channel delay spread', `${run.delaySpread} samples`)}${readout('CP covers the channel', run.cpCoversChannel ? 'yes — no inter-symbol interference' : 'NO — ISI and inter-carrier interference')}${readout('CP efficiency N/(N+CP)', `${fmt(100 * run.efficiency, 4)} %`)}<p class="field-help">The IFFT puts one QAM symbol on each subcarrier. When the cyclic prefix is at least as long as the channel, linear convolution becomes circular, so each subcarrier sees just a complex gain H(k) and a single division equalises it. Shorten the CP below the delay spread to watch the constellation smear.</p></div></div>`;
+  return { controls, body };
+}
+
+function renderInfo(state) {
+  return `<div class="page scroll-page power-page sigsys-page">${pageHeader(modules.find((item) => item.id === 'info'), 'INFORMATION THEORY & SPREAD SPECTRUM', '')}${labCard('info', 'Information theory', INFO_TABS, infoLab.configuration(state), renderInfoTab)}</div>`;
+}
+
+function bindInfoEvents() {
+  bindLabControls('info', infoLab, ['mode', 'method', 'preset', 'spread', 'scheme']);
+  bindLabText('info', infoLab, (config, group) => { if (group === 'channel') config.channel.preset = 'custom'; });
+  document.querySelectorAll('[data-info-select="channel.preset"]').forEach((select) => select.addEventListener('change', () => {
+    const preset = INFO_CHANNELS[select.value];
+    if (preset) infoLab.persist((config) => { config.channel.matrix = preset[1]; config.channel.inputs = preset[2]; });
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// Analog Design Studio: design to a specification, then check with the simulators.
+
+const ANALOG_TABS = [['bias', 'BJT bias & CE amplifier'], ['oscillator', 'Oscillators'], ['filter', 'Active filters'], ['regulator', 'Regulators'], ['schmitt', 'Schmitt trigger'], ['pll', 'PLL (565)']];
+const SERIES_OPTIONS = [['E12', 'E12 (10 %)'], ['E24', 'E24 (5 %)'], ['E96', 'E96 (1 %)'], ['exact', 'Exact (no rounding)']];
+const analogLab = makeLab('analog-lab', {
+  tab: 'bias',
+  bias: { vcc: 12, ic: 2e-3, beta: 100, reFraction: 0.1, vceFraction: 0.5, stiffness: 10, rl: 10e3, fLow: 100, series: 'E24', bypass: 'yes' },
+  oscillator: { type: 'wien', frequency: 1000, c: 10e-9, l: 100e-6, ratio: 0.1, series: 'E24' },
+  filter: { kind: 'lowpass', order: 4, fc: 1000, f0: 1000, q: 5, gain: 2, c: 10e-9, series: 'E96' },
+  regulator: { kind: 'zener', vinMin: 12, vinMax: 15, vz: 5.1, izMin: 5e-3, ilMax: 20e-3, vout: 9, vin: 15, iload: 0.5, r1: 240, series: 'E24' },
+  schmitt: { kind: 'inverting', vut: 2, vlt: -1, vsat: 13, r2: 10e3, series: 'E24' },
+  pll: { rt: 10e3, ct: 10e-9, c2: 10e-6, vcc: 12, fin: 3500 },
+});
+const analogField = groupField('data-analog-field');
+const analogSelect = (path, label, value, options) => labSelect('data-analog-select', path, label, value, options);
+const partsTable = (values, units = {}) => simpleTable(['Part', 'Value'], Object.entries(values).map(([name, value]) => [name, eng(value, units[name] ?? (name.startsWith('C') ? 'F' : name.startsWith('L') ? 'H' : 'Ω'))]));
+const sweepPlot = (title, sweep) => renderPlotFrame({ title, series: [{ xs: sweep.frequencies, ys: sweep.magnitudeDb, color: PLOT_COLORS[0], primary: true }], xMin: sweep.frequencies[0], xMax: sweep.frequencies.at(-1), logX: true, xTicks: logTicks(sweep.frequencies[0], sweep.frequencies.at(-1)), yRange: niceRange(Math.max(-80, Math.min(...sweep.magnitudeDb)), Math.max(...sweep.magnitudeDb) + 1), formatY: (value) => `${fmt(value, 3)} dB` });
+function logTicks(start, stop) {
+  const a = Math.log10(start), b = Math.log10(stop);
+  return Array.from({ length: 5 }, (_, k) => ({ position: k / 4, text: eng(10 ** (a + (b - a) * k / 4), 'Hz') }));
+}
+
+function renderAnalogDesignTab(config) {
+  const c = config[config.tab];
+  if (config.tab === 'bias') {
+    const d = designBias({ vcc: c.vcc, ic: c.ic, beta: c.beta, reFraction: c.reFraction, vceFraction: c.vceFraction, stiffness: c.stiffness, rl: c.rl, fLow: c.fLow, series: c.series, bypass: c.bypass === 'yes' });
+    let sim = null;
+    try { const dc = simulateDC(d.components); sim = { ic: (dc.nodes.vcc - dc.nodes.c) / d.chosen.rc, vce: dc.nodes.c - dc.nodes.e, vbe: dc.nodes.b - dc.nodes.e }; } catch { sim = null; }
+    const vces = [0, d.loadLine.vceCut];
+    const controls = `${analogField('bias.vcc', 'VCC', c.vcc, 'V')}${analogField('bias.ic', 'Target IC', c.ic, 'A')}${analogField('bias.beta', 'β (hFE)', c.beta)}${analogField('bias.reFraction', 'VE / VCC', c.reFraction)}${analogField('bias.vceFraction', 'VCE / VCC', c.vceFraction)}${analogField('bias.stiffness', 'Divider current / IB', c.stiffness)}${analogField('bias.rl', 'Load RL', c.rl, 'Ω')}${analogField('bias.fLow', 'Lower cut-off', c.fLow, 'Hz')}${analogSelect('bias.bypass', 'Emitter bypass', c.bypass, [['yes', 'With CE (high gain)'], ['no', 'No CE (stable gain)']])}${analogSelect('bias.series', 'Resistor series', c.series, SERIES_OPTIONS)}`;
+    const body = `<div class="power-grid"><div>${renderPlotFrame({ title: 'DC load line and Q-point (IC against VCE); the stem marks the Q-point', series: [{ xs: vces, ys: [d.loadLine.icSat, 0], color: PLOT_COLORS[0], primary: true }, { xs: [d.q.vce], ys: [d.q.ic], color: '#f59e0b', stem: true }], xMin: 0, xMax: d.loadLine.vceCut, xTicks: Array.from({ length: 6 }, (_, k) => ({ position: k / 5, text: eng(d.loadLine.vceCut * k / 5, 'V') })), yRange: niceRange(0, d.loadLine.icSat), formatY: (value) => eng(value, 'A') })}
+      <span class="panel-label">CHOSEN PARTS (IDEAL VALUE → STANDARD VALUE)</span>${simpleTable(['Part', 'Ideal', 'Chosen'], [['R1', eng(d.ideal.r1, 'Ω'), eng(d.chosen.r1, 'Ω')], ['R2', eng(d.ideal.r2, 'Ω'), eng(d.chosen.r2, 'Ω')], ['RC', eng(d.ideal.rc, 'Ω'), eng(d.chosen.rc, 'Ω')], ['RE', eng(d.ideal.re, 'Ω'), eng(d.chosen.re, 'Ω')], ['CIN', '', eng(d.capacitors.cin, 'F')], ['COUT', '', eng(d.capacitors.cout, 'F')], ...(d.capacitors.ce ? [['CE', '', eng(d.capacitors.ce, 'F')]] : [])])}
+      <button class="button primary" data-analog-open>Open this amplifier in Circuit Lab →</button></div>
+      <div class="analysis-readouts">${readout('Q-point (hand analysis, VBE 0.7 V)', `IC = ${eng(d.q.ic, 'A')}, VCE = ${eng(d.q.vce, 'V')}${d.q.saturated ? ' — SATURATED' : ''}`)}${sim ? readout('Q-point (circuit simulator)', `IC = ${eng(sim.ic, 'A')}, VCE = ${eng(sim.vce, 'V')}, VBE = ${eng(sim.vbe, 'V')}`) : ''}${readout('VB, VE, VC', `${eng(d.q.vb, 'V')}, ${eng(d.q.ve, 'V')}, ${eng(d.q.vc, 'V')}`)}${readout('Thévenin VTH, RTH', `${eng(d.vth, 'V')}, ${eng(d.rth, 'Ω')}`)}${readout('Stability factor S', fmt(d.stability, 4))}${readout('re = VT/IE, rπ, gm', `${eng(d.smallSignal.re, 'Ω')}, ${eng(d.smallSignal.rpi, 'Ω')}, ${eng(d.smallSignal.gm, 'S')}`)}${readout('Input resistance', eng(d.smallSignal.rin, 'Ω'))}${readout('Voltage gain Av', `${fmt(d.smallSignal.gain, 4)} (${fmt(d.smallSignal.gainDb, 4)} dB)`)}${readout('Load line', `IC(sat) = ${eng(d.loadLine.icSat, 'A')}, VCE(cut-off) = ${eng(d.loadLine.vceCut, 'V')}`)}<p class="field-help">Design rules: VE = 0.1·VCC for thermal stability, VCE = VCC/2 for maximum symmetrical swing, divider current about 10·IB so β changes barely move the Q-point. The tool rounds to standard values, then finds the exact Q-point of those parts; the simulator line uses the full diode law for VBE, which is why it differs by a few per cent.</p></div></div>`;
+    return { controls, body, design: d };
+  }
+  if (config.tab === 'oscillator') {
+    const lc = ['colpitts', 'hartley'].includes(c.type);
+    const d = designOscillator({ type: c.type, frequency: c.frequency, c: c.c, l: c.l, ratio: c.ratio, series: c.series });
+    const controls = `${analogSelect('oscillator.type', 'Type', c.type, Object.entries(OSCILLATORS))}${c.type === 'crystal' ? '' : analogField('oscillator.frequency', 'Wanted frequency', c.frequency, 'Hz')}${['wien', 'phase'].includes(c.type) ? analogField('oscillator.c', 'Chosen C', c.c, 'F') : ''}${lc ? analogField('oscillator.l', c.type === 'hartley' ? 'Total L (L1 + L2)' : 'Chosen L', c.l, 'H') : ''}${c.type === 'hartley' ? analogField('oscillator.ratio', 'L2 / (L1 + L2)', c.ratio) : ''}${c.type === 'crystal' ? '' : analogSelect('oscillator.series', 'Part series', c.series, SERIES_OPTIONS)}`;
+    let plot = '';
+    if (d.netlist) {
+      const sweep = networkSweep(d.netlist, { start: d.actual / 20, stop: d.actual * 20, points: 241 });
+      plot = `${sweepPlot('Feedback network |β(f)| in dB', sweep)}${linePlot('Feedback network phase (degrees)', sweep.frequencies.map((f) => Math.log10(f)), [{ name: 'phase', values: sweep.phase }], { xLabel: (x) => eng(10 ** x, 'Hz') })}`;
+    }
+    const body = `<div class="power-grid"><div>${partsTable(d.values)}${plot}</div>
+      <div class="analysis-readouts">${readout('Formula', d.formula)}${readout('Frequency with these parts', eng(d.actual, 'Hz'))}${d.parallel ? readout('Parallel resonance fp', eng(d.parallel, 'Hz')) : ''}${d.q ? readout('Crystal Q', fmt(d.q, 5)) : ''}${readout('Barkhausen: required amplifier gain', `${fmt(d.requiredGain, 4)} — ${d.condition}`)}${d.feedback ? readout('Feedback β at f (phasor solver)', `${fmt(d.feedback.magnitude, 6)} ∠ ${fmt(d.feedback.phase, 4)}° (theory ${fmt(d.feedback.expected, 6)})`) : ''}<p class="field-help">An oscillator needs loop gain Aβ = 1 at 0° (or 360°). For RC types the tool builds the feedback network and solves it at the design frequency, so you can see β = 1/3 for the Wien bridge and 1/29 at 180° for the three-section phase-shift network. Make the gain slightly larger in practice so oscillation starts.</p></div></div>`;
+    return { controls, body };
+  }
+  if (config.tab === 'filter') {
+    const bp = c.kind === 'bandpass';
+    const controls = `${analogSelect('filter.kind', 'Filter', c.kind, [['lowpass', 'Sallen–Key low-pass (Butterworth)'], ['highpass', 'Sallen–Key high-pass (Butterworth)'], ['bandpass', 'MFB band-pass']])}${bp ? `${analogField('filter.f0', 'Centre frequency', c.f0, 'Hz')}${analogField('filter.q', 'Q', c.q)}${analogField('filter.gain', 'Centre gain', c.gain)}` : `${analogField('filter.order', 'Order', c.order)}${analogField('filter.fc', 'Cut-off frequency', c.fc, 'Hz')}`}${analogField('filter.c', 'Base capacitor', c.c, 'F')}${analogSelect('filter.series', 'Resistor series', c.series, SERIES_OPTIONS)}`;
+    if (bp) {
+      const d = designBandpass({ f0: c.f0, q: c.q, gain: c.gain, c: c.c, series: c.series });
+      return { controls, body: `<div class="power-grid"><div>${sweepPlot('Magnitude response (phasor solver with ideal op-amp)', d.sweep)}${partsTable(d.values)}</div><div class="analysis-readouts">${readout('Centre frequency', eng(d.f0, 'Hz'))}${readout('Q', fmt(d.q, 5))}${readout('Bandwidth f0/Q', eng(d.bandwidth, 'Hz'))}${readout('Centre gain (formula)', fmt(d.gain, 5))}${readout('Centre gain (solver)', `${fmt(d.centre.magnitude, 5)} ∠ ${fmt(d.centre.phase, 4)}°`)}<p class="field-help">MFB (Delyiannis–Friend) band-pass: R1 = Q/(G·ω0C), R2 = Q/((2Q² − G)ω0C), R3 = 2Q/(ω0C). The response is computed by solving the full circuit, so rounding errors in the parts show up in the curve.</p></div></div>` };
+    }
+    const d = designSallenKey({ kind: c.kind, order: c.order, fc: c.fc, c: c.c, series: c.series });
+    const rows = d.stages.map((stage, k) => [String(k + 1), stage.firstOrder ? '1st order' : `Q ${fmt(stage.q, 4)} → ${fmt(stage.actualQ, 4)}`, eng(stage.R1, 'Ω'), stage.R2 ? eng(stage.R2, 'Ω') : '—', eng(stage.C1, 'F'), stage.C2 ? eng(stage.C2, 'F') : '—', eng(stage.f0, 'Hz')]);
+    return { controls, body: `<div class="power-grid"><div>${sweepPlot('Magnitude response of the whole cascade (phasor solver)', d.sweep)}${simpleTable(['Stage', 'Q wanted → got', 'R1', 'R2', 'C1', 'C2', 'f0'], rows)}</div><div class="analysis-readouts">${readout('Gain at fc', `${fmt(d.atCutoffDb, 4)} dB (ideal −3.01 dB)`)}${readout('Roll-off', `${20 * d.order} dB/decade`)}${readout('Stages', `${Math.floor(d.order / 2)} second-order${d.order % 2 ? ' + 1 first-order' : ''}`)}<p class="field-help">A Butterworth filter of order n is a cascade of second-order sections with Q = 1/(2 sin((2k − 1)π/2n)). Low-pass sections fix C2 and pick C1 ≥ 4Q²·C2, then solve for R1 and R2; high-pass sections use equal capacitors. Choose E96 or Exact to see how part tolerance moves the −3 dB point.</p></div></div>` };
+  }
+  if (config.tab === 'regulator') {
+    const controls = `${analogSelect('regulator.kind', 'Regulator', c.kind, [['zener', 'Zener shunt'], ['lm317', 'LM317 adjustable']])}${c.kind === 'zener' ? `${analogField('regulator.vinMin', 'Vin min', c.vinMin, 'V')}${analogField('regulator.vinMax', 'Vin max', c.vinMax, 'V')}${analogField('regulator.vz', 'Zener voltage', c.vz, 'V')}${analogField('regulator.izMin', 'Iz min (knee)', c.izMin, 'A')}${analogField('regulator.ilMax', 'Load current max', c.ilMax, 'A')}` : `${analogField('regulator.vout', 'Wanted Vout', c.vout, 'V')}${analogField('regulator.vin', 'Vin', c.vin, 'V')}${analogField('regulator.iload', 'Load current', c.iload, 'A')}${analogField('regulator.r1', 'R1', c.r1, 'Ω')}`}${analogSelect('regulator.series', 'Resistor series', c.series, SERIES_OPTIONS.filter(([id]) => id !== 'exact' || c.kind === 'lm317'))}`;
+    if (c.kind === 'zener') {
+      const z = designZener({ vinMin: c.vinMin, vinMax: c.vinMax, vz: c.vz, izMin: c.izMin, ilMax: c.ilMax, series: c.series });
+      return { controls, body: `<div class="analysis-readouts">${readout('Series resistor Rs (rounded down)', `${eng(z.rs, 'Ω')} (ideal ${eng(z.ideal, 'Ω')})`)}${readout('Iz at Vin min, full load', `${eng(z.izAtMin, 'A')} ${z.ok ? '≥ Iz min ✓' : '< Iz min ✗'}`)}${readout('Iz max (Vin max, no load)', eng(z.izMax, 'A'))}${readout('Zener dissipation (worst)', eng(z.pz, 'W'))}${readout('Resistor dissipation (worst)', eng(z.pr, 'W'))}${readout('Suggested ratings (2× margin)', `Zener ${eng(z.ratings.zenerW, 'W')}, resistor ${eng(z.ratings.resistorW, 'W')}`)}<p class="field-help">Rs = (Vin,min − Vz)/(Iz,min + IL,max) keeps the Zener in breakdown at the worst case; rounding Rs down only adds current. The Zener must survive the other worst case: highest input with the load removed.</p></div>` };
+    }
+    const r = designLm317({ vout: c.vout, vin: c.vin, iload: c.iload, r1: c.r1, series: c.series });
+    return { controls, body: `<div class="analysis-readouts">${readout('R2', `${eng(r.r2, 'Ω')} (ideal ${eng(r.ideal, 'Ω')})`)}${readout('Actual Vout = 1.25(1 + R2/R1) + IADJ·R2', eng(r.vout, 'V'))}${readout('Dissipation (Vin − Vout)·I', eng(r.dissipation, 'W'))}${readout('Headroom', `${eng(r.headroom, 'V')} ${r.dropoutOk ? '≥ 3 V dropout ✓' : '< 3 V — will drop out ✗'}`)}${readout('Minimum load through R1', eng(r.minLoad, 'A'))}<p class="field-help">The LM317 keeps 1.25 V between OUT and ADJ, so R1 sets a fixed current and R2 lifts the output. Above about 1 W it needs a heat sink — see the thermal calculator in Product Design.</p></div>` };
+  }
+  if (config.tab === 'schmitt') {
+    const s = designSchmitt({ vut: c.vut, vlt: c.vlt, vsat: c.vsat, kind: c.kind, r2: c.r2, series: c.series });
+    const span = Math.max(Math.abs(s.vut), Math.abs(s.vlt)) * 2 + 1;
+    const vin = Array.from({ length: 201 }, (_, k) => -span + 2 * span * k / 200);
+    const inv = s.kind === 'inverting';
+    const up = vin.map((v) => (inv ? (v < s.vut ? c.vsat : -c.vsat) : (v < s.vut ? -c.vsat : c.vsat)));
+    const down = vin.map((v) => (inv ? (v > s.vlt ? -c.vsat : c.vsat) : (v > s.vlt ? c.vsat : -c.vsat)));
+    const controls = `${analogSelect('schmitt.kind', 'Type', c.kind, [['inverting', 'Inverting'], ['noninverting', 'Non-inverting']])}${analogField('schmitt.vut', 'Upper threshold VUT', c.vut, 'V')}${analogField('schmitt.vlt', 'Lower threshold VLT', c.vlt, 'V')}${analogField('schmitt.vsat', '±Vsat', c.vsat, 'V')}${analogField('schmitt.r2', 'R2', c.r2, 'Ω')}${analogSelect('schmitt.series', 'Resistor series', c.series, SERIES_OPTIONS)}`;
+    return { controls, body: `<div class="power-grid"><div>${linePlot('Transfer characteristic: Vout against Vin (rising, falling)', vin, [{ name: 'Vin rising', values: up }, { name: 'Vin falling', values: down, color: '#f97316', dashed: true }], { xLabel: (x) => eng(x, 'V') })}</div><div class="analysis-readouts">${readout('R1, R2', `${eng(s.r1, 'Ω')}, ${eng(s.r2, 'Ω')}`)}${readout('Reference voltage', eng(s.vref, 'V'))}${readout('Thresholds with these parts', `VUT = ${eng(s.vut, 'V')}, VLT = ${eng(s.vlt, 'V')}`)}${readout('Hysteresis', eng(s.hysteresis, 'V'))}<p class="field-help">${inv ? 'Inverting: the input goes to the − pin and R1/R2 feed back a fraction β = R2/(R1 + R2) of the output to the + pin.' : 'Non-inverting: the input goes through R1 to the + pin and R2 feeds the output back.'} Positive feedback makes the switching points depend on the output state, which ignores noise smaller than the hysteresis.</p></div></div>` };
+  }
+  const p = designPll({ rt: c.rt, ct: c.ct, c2: c.c2, vcc: c.vcc });
+  const locked = Math.abs(c.fin - p.f0) <= p.lockRange, capturable = Math.abs(c.fin - p.f0) <= p.captureRange;
+  const controls = `${analogField('pll.rt', 'Timing R1', c.rt, 'Ω')}${analogField('pll.ct', 'Timing C1', c.ct, 'F')}${analogField('pll.c2', 'Loop-filter C2', c.c2, 'F')}${analogField('pll.vcc', 'Total supply (+V − −V)', c.vcc, 'V')}${analogField('pll.fin', 'Input frequency', c.fin, 'Hz')}`;
+  return { controls, body: `<div class="analysis-readouts">${readout('Free-running f0 = 0.3/(R1C1)', eng(p.f0, 'Hz'))}${readout('Lock range ±fL = ±8f0/V', `±${eng(p.lockRange, 'Hz')} → ${eng(p.lockBand[0], 'Hz')} to ${eng(p.lockBand[1], 'Hz')}`)}${readout('Capture range ±fC', `±${eng(p.captureRange, 'Hz')} → ${eng(p.captureBand[0], 'Hz')} to ${eng(p.captureBand[1], 'Hz')}`)}${readout(`Input at ${eng(c.fin, 'Hz')}`, capturable ? 'inside the capture range — the loop acquires lock' : locked ? 'inside the lock range — holds lock if already locked, will not acquire from unlocked' : 'outside the lock range — no lock')}<p class="field-help">The capture range is always narrower than the lock range: a bigger loop-filter capacitor gives a cleaner VCO control voltage but a narrower capture range. Formulas from the NE565 data sheet.</p></div>` };
+}
+
+function renderAnalog(state) {
+  return `<div class="page scroll-page power-page sigsys-page">${pageHeader(modules.find((item) => item.id === 'analog'), 'ANALOG DESIGN STUDIO — DESIGN TO A SPECIFICATION', '')}${labCard('analog', 'Analog design', ANALOG_TABS, analogLab.configuration(state), renderAnalogDesignTab)}</div>`;
+}
+
+function bindAnalogEvents() {
+  bindLabControls('analog', analogLab, ['series', 'bypass', 'type', 'kind']);
+  document.querySelectorAll('[data-analog-open]').forEach((button) => button.addEventListener('click', () => {
+    const view = renderAnalogDesignTab(analogLab.configuration(getState()));
+    if (!view.design) return;
+    loadDesignedCircuit(view.design.components, view.design.analysis, view.design.trace, 'Designed CE amplifier');
+  }));
+}
+
+/** Put a generated circuit into Circuit Lab and open it. */
+function loadDesignedCircuit(components, analysis, trace, name) {
+  wireSource = null; selectedWire = null;
+  updateProject((project) => { project.circuit.components = structuredClone(components); project.circuit.wires = []; project.circuit.junctions = []; project.circuit.netLabels = []; });
+  recordExperiment({ id: 'circuit-builtin-analysis', kind: 'circuit', operation: 'builtin-analysis', inputs: { ...builtinConfiguration(getState()), source: 'V1', ...analysis } });
+  setState({ simulation: null, selectedComponentId: null, selectedComponentIds: [], circuitPlotTrace: trace, activeModule: 'circuit' });
+  notify(`${name} loaded. Press Run to simulate.`, 'success');
+}
+
+// ---------------------------------------------------------------------------
+// Electronic Measurements: AC bridges, Lissajous, errors, meter design and the Q-meter.
+
+const MEAS_TABS = [['bridge', 'AC bridges'], ['lissajous', 'Lissajous'], ['errors', 'Errors & statistics'], ['meters', 'Meter design'], ['qmeter', 'Q-meter']];
+const BRIDGE_ARMS = { maxwell: ['R1', 'C1', 'R2', 'R3'], hay: ['R1', 'C1', 'R2', 'R3'], owen: ['R2', 'C2', 'R3', 'C4'], schering: ['C2', 'R3', 'R4', 'C4'], desauty: ['C2', 'R3', 'R4'], wien: ['R1', 'R2', 'C1', 'C2', 'R4'] };
+const measLab = makeLab('meas-lab', {
+  tab: 'bridge',
+  bridge: { type: 'maxwell', mode: 'practice', seed: 1, frequency: 1000, vs: 1, R1: 400e3, C1: 0.4e-6, R2: 1000, R3: 1000, C2: 100e-12, R4: 2000, C4: 50e-9, lx: 0.5, rx: 2.1, cx: 200e-12, crx: 25e3 },
+  lissajous: { fx: 1000, fy: 2000, ax: 1, ay: 1, phase: 30 },
+  errors: { readings: '101.2 101.4 101.7 101.3 101.3 101.2 101.0 101.3 101.5 101.1', formula: 'i2r', e1: 1, e2: 2, fsd: 1, fullScale: 150, reading: 75, vs: 10, ra: 100e3, rb: 100e3, sensitivity: 20e3, range: 10 },
+  meters: { im: 1e-3, rm: 100, range: 1, ranges: '0.01 0.1 1', vrange: 10, battery: 3, halfScale: 1500 },
+  qmeter: { f1: 1e6, c1: 400e-12, c2: 95e-12, indicatedQ: 120, shuntR: 0.02 },
+});
+const measField = groupField('data-meas-field');
+const measText = labText('meas');
+const ERROR_FORMULAS = { i2r: ['P = I²R', [['I', 2], ['R', 1]]], vi: ['P = V·I', [['V', 1], ['I', 1]]], v2r: ['P = V²/R', [['V', 2], ['R', -1]]], ohm: ['R = V/I', [['V', 1], ['I', -1]]], sum: ['R = R1 + R2 (absolute errors)', null] };
+
+/** In challenge mode the unknown comes from a seed and stays hidden. */
+function bridgeUnknownValues(c) {
+  if (c.mode !== 'challenge') return c;
+  const r = (k) => { const x = Math.sin(c.seed * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x); };
+  return { ...c, lx: Number((0.1 + 0.9 * r(1)).toPrecision(3)), rx: Number((1 + 49 * r(2)).toPrecision(3)), cx: Number((50e-12 + 450e-12 * r(3)).toPrecision(3)), crx: Number((1e3 + 49e3 * r(4)).toPrecision(3)) };
+}
+
+function bridgeArms(type, raw) {
+  const c = bridgeUnknownValues(raw);
+  const f = c.frequency, z = (arm) => armImpedance(arm, f);
+  if (type === 'maxwell') return { z2: { re: c.R2, im: 0 }, z3: { re: c.R3, im: 0 }, z4: z({ r: c.R1, cap: c.C1, form: 'parallel' }), unknown: z({ r: c.rx, l: c.lx }) };
+  if (type === 'hay') return { z2: { re: c.R2, im: 0 }, z3: { re: c.R3, im: 0 }, z4: z({ r: c.R1, cap: c.C1 }), unknown: z({ r: c.rx, l: c.lx }) };
+  if (type === 'owen') return { z2: z({ r: c.R2, cap: c.C2 }), z3: { re: c.R3, im: 0 }, z4: z({ cap: c.C4 }), unknown: z({ r: c.rx, l: c.lx }) };
+  if (type === 'schering') return { z2: z({ cap: c.C2 }), z3: { re: c.R3, im: 0 }, z4: z({ r: c.R4, cap: c.C4, form: 'parallel' }), unknown: z({ r: c.crx, cap: c.cx }) };
+  if (type === 'desauty') return { z2: z({ cap: c.C2 }), z3: { re: c.R3, im: 0 }, z4: { re: c.R4, im: 0 }, unknown: z({ cap: c.cx }) };
+  return null;
+}
+
+function renderBridgeSchematic(type) {
+  const labels = { maxwell: ['Lx, Rx', 'R2', 'R3', 'R1 ∥ C1'], hay: ['Lx, Rx', 'R2', 'R3', 'R1 + C1'], owen: ['Lx, Rx', 'R2 + C2', 'R3', 'C4'], schering: ['Cx, Rx', 'C2', 'R3', 'R4 ∥ C4'], desauty: ['Cx', 'C2', 'R3', 'R4'], wien: ['R1 + C1', 'R2 ∥ C2', 'R3', 'R4'] }[type];
+  return `<svg class="bridge-svg" viewBox="0 0 300 220" role="img" aria-label="Bridge diagram"><path class="bridge-wire" d="M150 20 L40 110 L150 200 L260 110 Z M150 20 V0 M150 200 V220 M40 110 H95 M205 110 H260"/><circle class="bridge-detector" cx="150" cy="110" r="22"/><text x="150" y="115" text-anchor="middle" class="bridge-text">D</text>
+    <text x="70" y="55" class="bridge-text" text-anchor="middle">Z1: ${esc(labels[0])}</text><text x="230" y="55" class="bridge-text" text-anchor="middle">Z2: ${esc(labels[1])}</text><text x="70" y="175" class="bridge-text" text-anchor="middle">Z3: ${esc(labels[2])}</text><text x="230" y="175" class="bridge-text" text-anchor="middle">Z4: ${esc(labels[3])}</text><text x="160" y="12" class="bridge-text">AC source</text></svg>`;
+}
+
+function renderMeasTab(config) {
+  const c = config[config.tab];
+  if (config.tab === 'bridge') {
+    const info = BRIDGES[c.type];
+    const arms = BRIDGE_ARMS[c.type];
+    const units = (name) => (name.startsWith('C') ? 'F' : 'Ω');
+    const hidden = c.mode === 'challenge';
+    const unknownFields = hidden ? '' : info.measures === 'L' ? `${measField('bridge.lx', 'Hidden unknown Lx', c.lx, 'H')}${measField('bridge.rx', 'Hidden unknown Rx', c.rx, 'Ω')}` : info.measures === 'C' ? `${measField('bridge.cx', 'Hidden unknown Cx', c.cx, 'F')}${c.type === 'schering' ? measField('bridge.crx', 'Hidden unknown Rx (series)', c.crx, 'Ω') : ''}` : '';
+    const controls = `${labSelect('data-meas-select', 'bridge.type', 'Bridge', c.type, Object.entries(BRIDGES).map(([id, b]) => [id, b.name]))}${c.type === 'wien' ? '' : `${labSelect('data-meas-select', 'bridge.mode', 'Mode', c.mode, [['practice', 'Practice (unknown shown)'], ['challenge', 'Challenge (unknown hidden)']])}${hidden ? '<button class="button" data-meas-new-unknown>New hidden unknown</button>' : ''}`}${c.type === 'wien' ? '' : measField('bridge.frequency', 'Source frequency', c.frequency, 'Hz')}${arms.map((name) => measField(`bridge.${name}`, `${name} (adjust to balance)`, c[name], units(name))).join('')}${unknownFields}`;
+    const values = Object.fromEntries(arms.map((name) => [name, c[name]]));
+    const solved = solveBridge(c.type, values, c.frequency);
+    let detector = '';
+    if (c.type !== 'wien') {
+      const a = bridgeArms(c.type, c);
+      const v = bridgeDetector(a.unknown, a.z2, a.z3, a.z4, c.vs);
+      const mag = Math.hypot(v.re, v.im);
+      const level = Math.min(1, Math.log10(1 + mag * 1e4) / 4);
+      detector = `<div class="null-meter"><span class="panel-label">NULL DETECTOR</span><div class="null-bar"><i style="width:${(100 * level).toFixed(1)}%"></i></div><b>${eng(mag, 'V')}</b><small>${mag < 1e-4 * c.vs ? 'Balanced — read the unknown from the arms' : 'Not balanced — adjust the arms until the detector reads (almost) zero'}</small>${hidden && mag < 1e-3 * c.vs ? `<small>Hidden value was ${info.measures === 'L' ? `Lx = ${eng(bridgeUnknownValues(c).lx, 'H')}, Rx = ${eng(bridgeUnknownValues(c).rx, 'Ω')}` : `Cx = ${eng(bridgeUnknownValues(c).cx, 'F')}`} — well done.</small>` : ''}</div>`;
+    }
+    const answer = c.type === 'wien' ? `${readout('Balance frequency', eng(solved.frequency, 'Hz'))}${readout('Required R3/R4', fmt(solved.ratio, 6))}${readout('Detector at balance', eng(solved.detector, 'V'))}` : info.measures === 'L' ? `${readout('Lx from the arms (complex balance)', eng(solved.unknown.l ?? Number.NaN, 'H'))}${readout('Rx from the arms', eng(solved.unknown.r, 'Ω'))}${readout('Textbook formula', `Lx = ${eng(solved.closed.l, 'H')}, Rx = ${eng(solved.closed.r, 'Ω')}`)}${readout('Coil Q = ωL/R', fmt(solved.unknown.q, 5))}` : `${readout('Cx from the arms (complex balance)', eng(solved.unknown.c ?? Number.NaN, 'F'))}${readout('Rx (series)', eng(solved.unknown.r, 'Ω'))}${readout('Textbook formula', `Cx = ${eng(solved.closed.c, 'F')}${solved.closed.r !== undefined ? `, Rx = ${eng(solved.closed.r, 'Ω')}` : ''}`)}${solved.unknown.d !== undefined ? readout('Dissipation factor D', fmt(solved.unknown.d, 5)) : ''}`;
+    const body = `<div class="power-grid"><div>${renderBridgeSchematic(c.type)}${detector}</div><div class="analysis-readouts">${readout('Arms', info.arms)}${readout('Balance condition', 'Z1·Z4 = Z2·Z3 (magnitude and angle)')}${readout('Formula', info.formula)}${answer}<p class="field-help">This is a virtual bridge: a hidden unknown sits in arm Z1 and the null detector shows the real off-balance voltage. Adjust the variable arms until the detector nulls, then read the unknown from the arm values — exactly as in the lab. The unknown is computed from the general complex balance, so you can check the textbook formula against it.</p></div></div>`;
+    return { controls, body };
+  }
+  if (config.tab === 'lissajous') {
+    const fig = lissajous({ fx: c.fx, fy: c.fy, ax: c.ax, ay: c.ay, phase: c.phase });
+    const ext = Math.max(c.ax, c.ay) * 1.15;
+    const controls = `${measField('lissajous.fx', 'X (horizontal) frequency', c.fx, 'Hz')}${measField('lissajous.fy', 'Y (vertical) frequency', c.fy, 'Hz')}${measField('lissajous.ax', 'X amplitude', c.ax, 'V')}${measField('lissajous.ay', 'Y amplitude', c.ay, 'V')}${measField('lissajous.phase', 'Phase of Y', c.phase, '°')}`;
+    const body = `<div class="power-grid"><div><span class="panel-label">CRO IN X–Y MODE</span>${renderComplexPlane({ label: 'Lissajous figure', extent: ext, curves: [{ points: fig.trace.map(([x, y]) => ({ re: x, im: y })), color: PLOT_COLORS[0] }] })}</div><div class="analysis-readouts">${readout('fy : fx', fig.ratio)}${readout('Tangencies', `${fig.horizontalTangencies} on a horizontal line, ${fig.verticalTangencies} on a vertical line`)}${readout('Rule', 'fy/fx = horizontal tangencies / vertical tangencies')}${fig.ellipse ? `${readout('Y-intercept / Y-max', `${fmt(fig.ellipse.intercept, 4)} / ${fmt(fig.ellipse.ymax, 4)}`)}${readout('Phase from sin φ = y0/ymax', `${fmt(fig.ellipse.phaseFromIntercept, 5)}° (or ${fmt(180 - fig.ellipse.phaseFromIntercept, 5)}°)`)}` : ''}<p class="field-help">With equal frequencies the figure is an ellipse: a line at 0° or 180°, a circle at 90° when the amplitudes are equal. For other ratios the pattern stands still only when the ratio is a simple fraction.</p></div></div>`;
+    return { controls, body };
+  }
+  if (config.tab === 'errors') {
+    const stats = readingStatistics(parseNumberList(c.readings, 'Readings'));
+    const formula = ERROR_FORMULAS[c.formula];
+    const combined = formula[1] ? combineErrors('product', [{ value: 1, error: c.e1 / 100, power: formula[1][0][1] }, { value: 1, error: c.e2 / 100, power: formula[1][1][1] }]) : combineErrors('sum', [{ value: 0, error: c.e1 }, { value: 0, error: c.e2 }]);
+    const load = voltmeterLoading({ vs: c.vs, ra: c.ra, rb: c.rb, sensitivity: c.sensitivity, range: c.range });
+    const controls = `${measText('errors.readings', 'Repeated readings', c.readings, 3)}${labSelect('data-meas-select', 'errors.formula', 'Result', c.formula, Object.entries(ERROR_FORMULAS).map(([id, f]) => [id, f[0]]))}${measField('errors.e1', formula[1] ? `Error in ${formula[1][0][0]} (±%)` : 'Error in R1 (±Ω)', c.e1)}${measField('errors.e2', formula[1] ? `Error in ${formula[1][1][0]} (±%)` : 'Error in R2 (±Ω)', c.e2)}${measField('errors.fsd', 'Meter accuracy (±% FSD)', c.fsd)}${measField('errors.fullScale', 'Full scale', c.fullScale)}${measField('errors.reading', 'Reading', c.reading)}${measField('errors.sensitivity', 'Voltmeter sensitivity', c.sensitivity, 'Ω/V')}${measField('errors.range', 'Voltmeter range', c.range, 'V')}${measField('errors.ra', 'Divider Ra', c.ra, 'Ω')}${measField('errors.rb', 'Divider Rb (measured)', c.rb, 'Ω')}${measField('errors.vs', 'Divider supply', c.vs, 'V')}`;
+    const body = `<div class="power-grid"><div>${stemPlot('Deviation of each reading from the mean', stats.deviations, { color: PLOT_COLORS[2] })}${simpleTable(['#', 'Reading', 'Deviation d', 'd²'], stats.deviations.map((d, k) => [String(k + 1), fmt(stats.mean + d, 6), fmt(d, 4), fmt(d * d, 4)]))}</div>
+      <div class="analysis-readouts">${readout('Arithmetic mean', fmt(stats.mean, 7))}${readout('Median, range', `${fmt(stats.median, 7)}, ${fmt(stats.range, 4)}`)}${readout('Average deviation', fmt(stats.averageDeviation, 5))}${readout('Standard deviation s (n − 1)', fmt(stats.sd, 5))}${readout('Probable error 0.6745·s', fmt(stats.probableError, 5))}${readout('Standard error of the mean s/√n', fmt(stats.standardError, 5))}${readout(`Limiting error of ${formula[0]}`, formula[1] ? `worst ±${fmt(100 * combined.worst, 4)} %, RSS ±${fmt(100 * combined.rss, 4)} %` : `worst ±${fmt(combined.worst, 4)} Ω, RSS ±${fmt(combined.rss, 4)} Ω`)}${readout('±% FSD as ±% of reading', `±${fmt(fullScaleToReading(c.fsd, c.fullScale, c.reading), 4)} %`)}${readout('Voltmeter loading', `true ${eng(load.trueV, 'V')}, meter reads ${eng(load.reading, 'V')} (${fmt(load.errorPercent, 4)} %), Rm = ${eng(load.meterResistance, 'Ω')}`)}<p class="field-help">For products and quotients relative errors add (times the power); for sums absolute errors add. Worst case assumes every error has its maximum value with the same sign; RSS is the statistical estimate. A meter's ±% FSD is a fixed number of units, so it becomes a large percentage near the bottom of the scale.</p></div></div>`;
+    return { controls, body };
+  }
+  if (config.tab === 'meters') {
+    const shunt = ammeterShunt({ im: c.im, rm: c.rm, range: c.range });
+    const ayrton = ayrtonShunt({ im: c.im, rm: c.rm, ranges: parseNumberList(c.ranges, 'Ranges') });
+    const volt = voltmeterMultiplier({ im: c.im, rm: c.rm, range: c.vrange });
+    const ohm = seriesOhmmeter({ battery: c.battery, im: c.im, rm: c.rm, halfScale: c.halfScale });
+    const rxs = Array.from({ length: 121 }, (_, k) => c.halfScale * 10 ** (-2 + 4 * k / 120));
+    const controls = `${measField('meters.im', 'Movement full-scale current Im', c.im, 'A')}${measField('meters.rm', 'Movement resistance Rm', c.rm, 'Ω')}${measField('meters.range', 'Ammeter range', c.range, 'A')}${measText('meters.ranges', 'Ayrton ranges (A)', c.ranges)}${measField('meters.vrange', 'Voltmeter range', c.vrange, 'V')}${measField('meters.battery', 'Ohmmeter battery', c.battery, 'V')}${measField('meters.halfScale', 'Ohmmeter half-scale R', c.halfScale, 'Ω')}`;
+    const body = `<div class="power-grid"><div>${linePlot('Series ohmmeter scale: deflection (fraction of FSD) against log10(Rx/Rh)', rxs.map((rx) => Math.log10(rx / c.halfScale)), [{ name: 'deflection', values: rxs.map((rx) => ohm.deflection(rx)) }], { xLabel: (x) => eng(c.halfScale * 10 ** x, 'Ω'), yMin: 0, yMax: 1 })}${simpleTable(['Range', 'Tap resistance', 'Section'], ayrton.ranges.map((range, k) => [eng(range, 'A'), eng(ayrton.taps[k], 'Ω'), eng(ayrton.sections[k], 'Ω')]))}</div>
+      <div class="analysis-readouts">${readout('Ammeter shunt Rsh = Rm/(m − 1)', `${eng(shunt.shunt, 'Ω')} (m = ${fmt(shunt.multiplyingPower, 5)})`)}${readout('Ayrton total shunt', eng(ayrton.totalShunt, 'Ω'))}${readout('Voltmeter multiplier Rs = V/Im − Rm', eng(volt.multiplier, 'Ω'))}${readout('Voltmeter sensitivity 1/Im', `${eng(volt.sensitivity, 'Ω/V')}`)}${readout('Ohmmeter R1 (series), R2 (zero adjust)', `${eng(ohm.r1, 'Ω')}, ${eng(ohm.r2, 'Ω')}`)}<p class="field-help">The Ayrton shunt switches ranges without ever leaving the movement unprotected. The series ohmmeter scale is non-linear and reversed: zero ohms at full scale, half scale at Rx = Rh, infinity at zero deflection.</p></div></div>`;
+    return { controls, body };
+  }
+  const q = qMeter({ f1: c.f1, c1: c.c1, c2: c.c2, indicatedQ: c.indicatedQ, shuntR: c.shuntR });
+  const controls = `${measField('qmeter.f1', 'First resonance f1', c.f1, 'Hz')}${measField('qmeter.c1', 'Tuning C at f1', c.c1, 'F')}${measField('qmeter.c2', 'Tuning C at 2·f1', c.c2, 'F')}${measField('qmeter.indicatedQ', 'Indicated Q', c.indicatedQ)}${measField('qmeter.shuntR', 'Insertion (shunt) resistance', c.shuntR, 'Ω')}`;
+  return { controls, body: `<div class="analysis-readouts">${readout('Distributed capacitance Cd = (C1 − 4C2)/3', eng(q.distributedC, 'F'))}${readout('Coil inductance', eng(q.inductance, 'H'))}${readout('True Q = Qind(1 + Cd/C1)', fmt(q.trueQ, 5))}${readout('Coil series resistance ωL/Q', eng(q.coilResistance, 'Ω'))}${readout('Q corrected for the insertion resistance', fmt(q.correctedForShunt, 5))}<p class="field-help">The Q-meter resonates the coil with a calibrated capacitor and reads Q = Vc/Vin. The coil's own self-capacitance adds to the tuning capacitor, so it is measured by resonating at f1 and 2f1: (C2 + Cd) = (C1 + Cd)/4.</p></div>` };
+}
+
+function renderMeasurement(state) {
+  return `<div class="page scroll-page power-page sigsys-page">${pageHeader(modules.find((item) => item.id === 'measure'), 'ELECTRONIC MEASUREMENTS & INSTRUMENTATION', '')}${labCard('meas', 'Measurements', MEAS_TABS, measLab.configuration(state), renderMeasTab)}</div>`;
+}
+
+function bindMeasurementEvents() {
+  bindLabControls('meas', measLab, ['type', 'formula', 'mode']);
+  document.querySelectorAll('[data-meas-new-unknown]').forEach((button) => button.addEventListener('click', () => measLab.persist((config) => { config.bridge.seed = (config.bridge.seed % 9973) + 1; })));
+  bindLabText('meas', measLab);
+}
+
+// ---------------------------------------------------------------------------
+// Radar, satellite, antennas and microwave tubes.
+
+const RADAR_TABS = [['radar', 'Radar range'], ['doppler', 'Doppler, MTI & FMCW'], ['orbit', 'Orbits & look angles'], ['link', 'Satellite link'], ['antenna', 'Antennas'], ['tubes', 'Microwave tubes & tests']];
+const radarLab = makeLab('radar-lab', {
+  tab: 'radar',
+  radar: { pt: 1e6, gainDb: 40, frequency: 3e9, rcs: 1, bandwidth: 1e6, noiseFigureDb: 3, snrDb: 13, lossDb: 3, pulses: 1, prf: 1000, pulseWidth: 1e-6 },
+  doppler: { frequency: 10e9, velocity: 30, prf: 1000, sweepBandwidth: 150e6, sweepTime: 1e-3, beat: 50e3 },
+  orbit: { perigee: 35786e3, apogee: 35786e3, latitude: 18.52, longitude: 73.86, satelliteLongitude: 83 },
+  link: { upEirp: 75, upFrequency: 6e9, satGt: -2, downEirp: 38, downFrequency: 4e9, esGain: 45, antennaNoise: 30, feedLoss: 0.3, lnaNoise: 50, distance: 38000e3, bandwidth: 36e6, otherLoss: 1 },
+  antenna: { length: 0.5, frequency: 10e9, diameter: 1, efficiency: 0.55, ptDbm: 20, gt: 10, gr: 10, distance: 1000, linkFrequency: 2.4e9 },
+  tubes: { v0: 300, frequency: 9e9, spacing: 1e-3, mv0: 26e3, b0: 0.336, a: 0.05, b: 0.1, p1: 1, p2: 0.89, p3: 0.01, p4: 1e-5, vmax: 2, vmin: 1 },
+});
+const radarField = groupField('data-radar-field');
+
+function polarPattern(label, angles, field) {
+  const size = 300, c0 = size / 2, r0 = 130;
+  const full = [...angles.map((a, k) => [a, field[k]]), ...angles.slice(1).reverse().map((a, k) => [360 - a, field[angles.length - 2 - k]])];
+  const path = full.map(([a, v], k) => { const t = a * Math.PI / 180; return `${k ? 'L' : 'M'}${(c0 + r0 * v * Math.sin(t)).toFixed(1)} ${(c0 - r0 * v * Math.cos(t)).toFixed(1)}`; }).join('') + 'Z';
+  const rings = [0.25, 0.5, Math.SQRT1_2, 1].map((r) => `<circle class="unit-circle" cx="${c0}" cy="${c0}" r="${(r0 * r).toFixed(1)}"${r === Math.SQRT1_2 ? ' stroke-dasharray="3 3"' : ''}/>`).join('');
+  return `<svg class="pz-plot" viewBox="0 0 ${size} ${size}" role="img" aria-label="${esc(label)}">${rings}<path class="axis" d="M${c0} 10V${size - 10}M10 ${c0}H${size - 10}"/><path class="pz-curve" stroke="${PLOT_COLORS[0]}" fill="${PLOT_COLORS[0]}" fill-opacity="0.15" d="${path}"/><text class="pz-axis-label" x="${c0 + 4}" y="18">θ = 0° (antenna axis)</text></svg>`;
+}
+
+function renderRadarTab(config) {
+  const c = config[config.tab];
+  if (config.tab === 'radar') {
+    const r = radarRange(c), p = pulseRadar({ prf: c.prf, pulseWidth: c.pulseWidth, pt: c.pt });
+    const ranges = Array.from({ length: 200 }, (_, k) => r.rmax * 0.1 + r.rmax * 1.9 * k / 199);
+    const controls = `${radarField('radar.pt', 'Peak power Pt', c.pt, 'W')}${radarField('radar.gainDb', 'Antenna gain', c.gainDb, 'dB')}${radarField('radar.frequency', 'Frequency', c.frequency, 'Hz')}${radarField('radar.rcs', 'Target RCS σ', c.rcs, 'm²')}${radarField('radar.bandwidth', 'Receiver bandwidth', c.bandwidth, 'Hz')}${radarField('radar.noiseFigureDb', 'Noise figure', c.noiseFigureDb, 'dB')}${radarField('radar.snrDb', 'Required SNR', c.snrDb, 'dB')}${radarField('radar.lossDb', 'System losses', c.lossDb, 'dB')}${radarField('radar.pulses', 'Pulses integrated', c.pulses)}${radarField('radar.prf', 'PRF', c.prf, 'Hz')}${radarField('radar.pulseWidth', 'Pulse width', c.pulseWidth, 's')}`;
+    const body = `<div class="power-grid"><div>${linePlot('Received SNR (dB) against target range — the line crosses the threshold at Rmax', ranges, [{ name: 'SNR', values: ranges.map(r.snrAt) }, { name: 'threshold', values: ranges.map(() => c.snrDb), color: '#f59e0b', dashed: true }], { xLabel: (x) => eng(x, 'm') })}</div>
+      <div class="analysis-readouts">${readout('Maximum range Rmax', eng(r.rmax, 'm'))}${readout('Wavelength', eng(r.lambda, 'm'))}${readout('Noise power kT0BF', `${fmt(r.noisePowerDbm, 5)} dBm`)}${readout('Minimum detectable signal', `${fmt(r.sminDbm, 5)} dBm`)}${readout('Unambiguous range c/2PRF', eng(p.unambiguousRange, 'm'))}${readout('Range resolution cτ/2', eng(p.rangeResolution, 'm'))}${readout('Duty cycle, average power', `${fmt(100 * p.duty, 4)} %, ${eng(p.averagePower, 'W')}`)}${readout('Blind (minimum) range', eng(p.minimumRange, 'm'))}<p class="field-help">R⁴ law: doubling the range needs 16 × the power. Integrating n pulses coherently adds 10·log n dB of SNR. A target beyond c/2PRF returns after the next pulse and appears at a false, shorter range.</p></div></div>`;
+    return { controls, body };
+  }
+  if (config.tab === 'doppler') {
+    const d = doppler({ frequency: c.frequency, velocity: c.velocity, prf: c.prf });
+    const f = fmcw({ bandwidth: c.sweepBandwidth, sweepTime: c.sweepTime, beat: c.beat, frequency: c.frequency });
+    const vs = Array.from({ length: 400 }, (_, k) => 4 * d.firstBlind * k / 399);
+    const controls = `${radarField('doppler.frequency', 'Carrier frequency', c.frequency, 'Hz')}${radarField('doppler.velocity', 'Radial velocity (+ approaching)', c.velocity, 'm/s')}${radarField('doppler.prf', 'PRF', c.prf, 'Hz')}${radarField('doppler.sweepBandwidth', 'FMCW sweep bandwidth', c.sweepBandwidth, 'Hz')}${radarField('doppler.sweepTime', 'Sweep time', c.sweepTime, 's')}${radarField('doppler.beat', 'Measured beat frequency', c.beat, 'Hz')}`;
+    const body = `<div class="power-grid"><div>${linePlot('Single-delay MTI canceller response |H| = 2|sin(π fd/PRF)| against target speed', vs, [{ name: '|H|', values: vs.map((v) => doppler({ frequency: c.frequency, velocity: v, prf: c.prf }).cancellerGain) }], { xLabel: (x) => eng(x, 'm/s'), yMin: 0, yMax: 2 })}</div>
+      <div class="analysis-readouts">${readout('Doppler shift fd = 2v/λ', eng(d.fd, 'Hz'))}${readout('Blind speeds n·λ·PRF/2', d.blindSpeeds.map((v) => eng(v, 'm/s')).join(', '))}${readout('Canceller gain at this speed', fmt(d.cancellerGain, 4))}${readout('FMCW slope B/T', eng(f.slope, 'Hz/s'))}${readout('FMCW range R = c·fb/(2·slope)', eng(f.range, 'm'))}${readout('FMCW range resolution c/2B', eng(f.rangeResolution, 'm'))}<p class="field-help">The MTI filter cancels fixed clutter (fd = 0) but also any target whose Doppler is a multiple of the PRF — the blind speeds. Staggered PRFs move the blind speeds apart.</p></div></div>`;
+    return { controls, body };
+  }
+  if (config.tab === 'orbit') {
+    const o = orbit({ perigeeAltitude: c.perigee, apogeeAltitude: c.apogee });
+    const look = lookAngles({ latitude: c.latitude, longitude: c.longitude, satelliteLongitude: c.satelliteLongitude });
+    const trace = orbitTrace(o, 240);
+    const ext = Math.max(...trace.flat().map(Math.abs)) * 1.1;
+    const earth = Array.from({ length: 73 }, (_, k) => ({ re: R_EARTH * Math.cos(k * Math.PI / 36), im: R_EARTH * Math.sin(k * Math.PI / 36) }));
+    const controls = `${radarField('orbit.perigee', 'Perigee altitude', c.perigee, 'm')}${radarField('orbit.apogee', 'Apogee altitude', c.apogee, 'm')}${radarField('orbit.latitude', 'Earth-station latitude (N +)', c.latitude, '°')}${radarField('orbit.longitude', 'Earth-station longitude (E +)', c.longitude, '°')}${radarField('orbit.satelliteLongitude', 'GEO satellite longitude', c.satelliteLongitude, '°')}`;
+    const body = `<div class="power-grid"><div><span class="panel-label">ORBIT TO SCALE (EARTH SHADED)</span>${renderComplexPlane({ label: 'Orbit', extent: ext, curves: [{ points: earth, color: '#38bdf8' }, { points: trace.map(([x, y]) => ({ re: x, im: y })), color: PLOT_COLORS[0] }] })}</div>
+      <div class="analysis-readouts">${readout('Semi-major axis a', eng(o.a, 'm'))}${readout('Eccentricity', fmt(o.e, 5))}${readout('Period T = 2π√(a³/μ)', `${fmt(o.period / 3600, 6)} h`)}${readout('Speed at perigee / apogee', `${eng(o.perigeeSpeed, 'm/s')} / ${eng(o.apogeeSpeed, 'm/s')}`)}${readout('Geostationary radius', eng(o.geostationaryRadius, 'm'))}${readout('Look angles to the GEO satellite', look.visible ? `azimuth ${fmt(look.azimuth, 5)}°, elevation ${fmt(look.elevation, 5)}°` : 'below the horizon — not visible')}${readout('Slant range', eng(look.slantRange, 'm'))}${readout('Central angle γ', `${fmt(look.centralAngle, 5)}°`)}<p class="field-help">Kepler's third law gives the period from a alone. A satellite at 35 786 km above the equator turns with the Earth (one sidereal day), so a dish can stay fixed. Azimuth is measured from true north; from India GEO satellites sit to the south.</p></div></div>`;
+    return { controls, body };
+  }
+  if (config.tab === 'link') {
+    const up = satelliteLink({ eirpDbw: c.upEirp, frequency: c.upFrequency, distance: c.distance, gtDb: c.satGt, otherLossDb: c.otherLoss, bandwidth: c.bandwidth });
+    const gt = gOverT({ antennaGainDb: c.esGain, antennaNoise: c.antennaNoise, feedLossDb: c.feedLoss, lnaNoise: c.lnaNoise });
+    const down = satelliteLink({ eirpDbw: c.downEirp, frequency: c.downFrequency, distance: c.distance, gtDb: gt.gtDb, otherLossDb: c.otherLoss, bandwidth: c.bandwidth });
+    const total = combineCn(up.cn, down.cn);
+    const controls = `${radarField('link.upEirp', 'Uplink EIRP', c.upEirp, 'dBW')}${radarField('link.upFrequency', 'Uplink frequency', c.upFrequency, 'Hz')}${radarField('link.satGt', 'Satellite G/T', c.satGt, 'dB/K')}${radarField('link.downEirp', 'Satellite EIRP', c.downEirp, 'dBW')}${radarField('link.downFrequency', 'Downlink frequency', c.downFrequency, 'Hz')}${radarField('link.esGain', 'Earth-station antenna gain', c.esGain, 'dB')}${radarField('link.antennaNoise', 'Antenna noise temperature', c.antennaNoise, 'K')}${radarField('link.feedLoss', 'Feed loss', c.feedLoss, 'dB')}${radarField('link.lnaNoise', 'LNA noise temperature', c.lnaNoise, 'K')}${radarField('link.distance', 'Slant range', c.distance, 'm')}${radarField('link.bandwidth', 'Transponder bandwidth', c.bandwidth, 'Hz')}${radarField('link.otherLoss', 'Atmospheric + pointing loss', c.otherLoss, 'dB')}`;
+    const rows = [['EIRP', `${fmt(c.upEirp, 4)} dBW`, `${fmt(c.downEirp, 4)} dBW`], ['Free-space loss', `${fmt(up.fspl, 5)} dB`, `${fmt(down.fspl, 5)} dB`], ['Other losses', `${fmt(c.otherLoss, 3)} dB`, `${fmt(c.otherLoss, 3)} dB`], ['Receiver G/T', `${fmt(c.satGt, 4)} dB/K`, `${fmt(gt.gtDb, 4)} dB/K`], ['− Boltzmann', '228.6 dB', '228.6 dB'], ['C/N0', `${fmt(up.cn0, 5)} dBHz`, `${fmt(down.cn0, 5)} dBHz`], ['− 10 log B', `${fmt(10 * Math.log10(c.bandwidth), 5)} dB`, `${fmt(10 * Math.log10(c.bandwidth), 5)} dB`], ['C/N', `${fmt(up.cn, 5)} dB`, `${fmt(down.cn, 5)} dB`]];
+    const body = `<div class="power-grid"><div>${simpleTable(['Item', 'Uplink', 'Downlink'], rows)}</div><div class="analysis-readouts">${readout('Earth-station Tsys', eng(gt.tsys, 'K'))}${readout('Earth-station G/T', `${fmt(gt.gtDb, 5)} dB/K`)}${readout('Overall C/N (1/C/N = 1/up + 1/down)', `${fmt(total, 5)} dB`)}<p class="field-help">C/N0 = EIRP − path loss + G/T − 10 log k. The weaker link dominates the overall C/N; the satellite's small antenna and limited power usually make the downlink the weak one.</p></div></div>`;
+    return { controls, body };
+  }
+  if (config.tab === 'antenna') {
+    const pattern = dipolePattern(c.length, 721);
+    const d = directivity(pattern.field, pattern.angles), hp = halfPowerBeamwidth(pattern.field, pattern.angles);
+    const ap = apertureAntenna({ frequency: c.frequency, diameter: c.diameter, efficiency: c.efficiency });
+    const fr = friisLink({ ptDbm: c.ptDbm, gtDb: c.gt, grDb: c.gr, frequency: c.linkFrequency, distance: c.distance });
+    const controls = `${radarField('antenna.length', 'Dipole length (wavelengths)', c.length)}${radarField('antenna.frequency', 'Dish frequency', c.frequency, 'Hz')}${radarField('antenna.diameter', 'Dish diameter', c.diameter, 'm')}${radarField('antenna.efficiency', 'Aperture efficiency', c.efficiency)}${radarField('antenna.ptDbm', 'Friis: Pt', c.ptDbm, 'dBm')}${radarField('antenna.gt', 'Gt', c.gt, 'dBi')}${radarField('antenna.gr', 'Gr', c.gr, 'dBi')}${radarField('antenna.linkFrequency', 'Link frequency', c.linkFrequency, 'Hz')}${radarField('antenna.distance', 'Distance', c.distance, 'm')}`;
+    const body = `<div class="power-grid"><div><span class="panel-label">E-PLANE PATTERN OF THE DIPOLE (DASHED RING = HALF POWER)</span>${polarPattern('Dipole pattern', pattern.angles, pattern.field)}</div>
+      <div class="analysis-readouts">${readout('Directivity (numerical integration)', `${fmt(d, 5)} = ${fmt(10 * Math.log10(d), 4)} dBi`)}${readout('Half-power beamwidth', hp === null ? '—' : `${fmt(hp, 4)}°`)}${readout('Dish gain η(πD/λ)²', `${fmt(ap.dishGainDb, 5)} dBi`)}${readout('Dish beamwidth ≈ 70λ/D', `${fmt(ap.dishBeamwidth, 4)}°`)}${readout('Effective aperture Gλ²/4π', `${fmt(ap.effectiveArea(ap.dishGain), 4)} m²`)}${readout('Far-field distance 2D²/λ', eng(ap.farField, 'm'))}${readout('Friis: path loss, received power', `${fmt(fr.fspl, 5)} dB, ${fmt(fr.prDbm, 5)} dBm`)}<p class="field-help">The pattern comes from E(θ) = [cos(πL cosθ) − cos(πL)]/sinθ and the directivity from integrating it over the sphere: 1.5 for a short dipole, 1.64 (2.15 dBi) at λ/2, 2.41 at λ. Longer than about 1.25λ the main lobe splits.</p></div></div>`;
+    return { controls, body };
+  }
+  const rk = reflexKlystron({ v0: c.v0, frequency: c.frequency, spacing: c.spacing });
+  const mg = magnetron({ v0: c.mv0, b0: c.b0, cathodeRadius: c.a, anodeRadius: c.b });
+  const dc = directionalCoupler({ p1: c.p1, p2: c.p2, p3: c.p3, p4: c.p4 });
+  const vs = vswrMeasurement({ vmax: c.vmax, vmin: c.vmin });
+  const controls = `${radarField('tubes.v0', 'Klystron beam voltage V0', c.v0, 'V')}${radarField('tubes.frequency', 'Klystron frequency', c.frequency, 'Hz')}${radarField('tubes.spacing', 'Repeller spacing L', c.spacing, 'm')}${radarField('tubes.mv0', 'Magnetron anode voltage', c.mv0, 'V')}${radarField('tubes.b0', 'Magnetic flux density', c.b0, 'T')}${radarField('tubes.a', 'Cathode radius a', c.a, 'm')}${radarField('tubes.b', 'Anode radius b', c.b, 'm')}${radarField('tubes.p1', 'Coupler P1 (input)', c.p1, 'W')}${radarField('tubes.p2', 'P2 (through)', c.p2, 'W')}${radarField('tubes.p3', 'P3 (coupled)', c.p3, 'W')}${radarField('tubes.p4', 'P4 (isolated)', c.p4, 'W')}${radarField('tubes.vmax', 'Slotted line Vmax', c.vmax, 'V')}${radarField('tubes.vmin', 'Vmin', c.vmin, 'V')}`;
+  const body = `<div class="power-grid"><div>${simpleTable(['Mode n', 'Transit (cycles)', 'Repeller voltage', 'Max efficiency'], rk.modes.map((m) => [String(m.n), `${m.cycles}`, m.possible ? eng(m.repeller, 'V') : 'not possible', `${fmt(100 * m.efficiency, 4)} %`]))}</div>
+    <div class="analysis-readouts">${readout('Magnetron Hull cut-off field for V0', eng(mg.hullField, 'T'))}${readout('Hull cut-off voltage for B0', eng(mg.hullVoltage, 'V'))}${readout('Cyclotron frequency eB/2πm', eng(mg.cyclotron, 'Hz'))}${readout('Regime', mg.regime)}${readout('Coupler: coupling, directivity, isolation', `${fmt(dc.coupling, 4)} dB, ${fmt(dc.directivity, 4)} dB, ${fmt(dc.isolation, 4)} dB`)}${readout('Insertion loss', `${fmt(dc.insertionLoss, 4)} dB`)}${readout('VSWR, |Γ|, return loss', `${fmt(vs.vswr, 4)}, ${fmt(vs.gamma, 4)}, ${fmt(vs.returnLoss, 4)} dB`)}<p class="field-help">Reflex klystron modes need a transit time of n − ¼ cycles in the repeller space; higher modes need less repeller voltage but give less power. Isolation = coupling + directivity.</p></div></div>`;
+  return { controls, body };
+}
+
+function renderRadar(state) {
+  return `<div class="page scroll-page power-page sigsys-page">${pageHeader(modules.find((item) => item.id === 'radar'), 'RADAR, SATELLITE, ANTENNAS & MICROWAVE', '')}${labCard('radar', 'Radar & satellite', RADAR_TABS, radarLab.configuration(state), renderRadarTab)}</div>`;
+}
+
+function bindRadarEvents() { bindLabControls('radar', radarLab); }
+
+// ---------------------------------------------------------------------------
+// Speech processing.
+
+const SPEECH_TABS = [['waveform', 'Energy & ZCR'], ['pitch', 'Pitch'], ['lpc', 'LPC & formants'], ['spectrogram', 'Spectrogram'], ['mfcc', 'MFCC']];
+// Peterson & Barney (1952) average male formants F1–F3 (Hz).
+const VOWELS = { a: ['/ɑ/ as in "father"', [730, 1090, 2440]], i: ['/i/ as in "beet"', [270, 2290, 3010]], u: ['/u/ as in "boot"', [300, 870, 2240]], e: ['/ɛ/ as in "bet"', [530, 1840, 2480]], o: ['/ɔ/ as in "bought"', [570, 840, 2410]] };
+const speechLab = makeLab('speech-lab', {
+  tab: 'waveform',
+  source: { kind: 'vowel', vowel: 'a', f0: 120, frameMs: 200, order: 10 },
+  waveform: {}, pitch: {}, lpc: {}, spectrogram: {}, mfcc: {},
+});
+const speechField = groupField('data-speech-field');
+// Recorded or loaded audio lives only in memory (it is not saved into the project).
+let speechAudio = null;
+
+function speechSignal(source) {
+  if (source.kind === 'recorded' && speechAudio) return speechAudio;
+  const fs = 8000, formantsHz = VOWELS[source.vowel]?.[1] ?? VOWELS.a[1];
+  const bandwidths = [90, 110, 170];
+  const vowel = synthesizeVowel({ f0: source.f0, formants: formantsHz.map((f, k) => [f, bandwidths[k]]), fs, duration: 0.4 });
+  // Vowel, a short pause and a fricative, so every analysis has something to show.
+  return { fs, samples: [...vowel, ...new Array(800).fill(0), ...synthesizeNoise({ fs, duration: 0.15 })], label: `synthetic ${VOWELS[source.vowel]?.[0] ?? ''} at ${source.f0} Hz + pause + "s"` };
+}
+
+function heatmap(label, matrix, { xLabels = [], yLabels = [], min = null, max = null } = {}) {
+  const rows = matrix[0]?.length ?? 0, cols = matrix.length;
+  if (!rows || !cols) return '';
+  const values = matrix.flat().filter(Number.isFinite);
+  const lo = min ?? Math.min(...values), hi = max ?? Math.max(...values);
+  const w = 600, h = 220, cw = w / cols, ch = h / rows;
+  const colour = (v) => { const t = Math.max(0, Math.min(1, (v - lo) / (hi - lo || 1))); return `hsl(${(260 - 220 * t).toFixed(0)},85%,${(12 + 50 * t).toFixed(0)}%)`; };
+  const cells = matrix.map((column, x) => column.map((v, y) => `<rect x="${(x * cw).toFixed(2)}" y="${(h - (y + 1) * ch).toFixed(2)}" width="${(cw + 0.6).toFixed(2)}" height="${(ch + 0.6).toFixed(2)}" fill="${colour(v)}"/>`).join('')).join('');
+  return `<div class="circuit-plot"><span class="plot-title">${esc(label)}</span><svg class="heatmap" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="${esc(label)}">${cells}</svg><div class="heatmap-axis"><span>${esc(xLabels[0] ?? '')}</span><span>${esc(yLabels.join(' · '))}</span><span>${esc(xLabels[1] ?? '')}</span></div></div>`;
+}
+
+function renderSpeechTab(config) {
+  const s = config.source;
+  const audio = speechSignal(s);
+  const { fs, samples } = audio;
+  const frameStart = Math.max(0, Math.min(samples.length - 400, Math.round(s.frameMs / 1000 * fs)));
+  const frameLength = Math.round(0.04 * fs);
+  const frame = samples.slice(frameStart, frameStart + frameLength);
+  const sourceControls = `${labSelect('data-speech-select', 'source.kind', 'Signal', s.kind, [['vowel', 'Synthetic vowel'], ['recorded', speechAudio ? `Recorded / loaded (${fmt(speechAudio.samples.length / speechAudio.fs, 3)} s)` : 'Recorded / loaded (none yet)']])}${s.kind === 'vowel' ? `${labSelect('data-speech-select', 'source.vowel', 'Vowel', s.vowel, Object.entries(VOWELS).map(([id, v]) => [id, v[0]]))}${speechField('source.f0', 'Pitch f0', s.f0, 'Hz')}` : ''}${speechField('source.frameMs', 'Analysis frame at', s.frameMs, 'ms')}<button class="button" data-speech-record>● Record 2 s</button><label class="button file-button">Load WAV<input type="file" accept="audio/*,.wav" data-speech-file hidden></label><button class="button" data-speech-play>▶ Play</button>`;
+  const t = samples.map((_, k) => k / fs);
+  if (config.tab === 'waveform') {
+    const st = shortTimeFeatures(samples, { fs });
+    const eMax = Math.max(...st.energy, 1e-12);
+    const counts = st.label.reduce((acc, l) => ({ ...acc, [l]: (acc[l] ?? 0) + 1 }), {});
+    const body = `<div class="power-grid"><div>${linePlot(`Waveform — ${audio.label ?? 'recorded audio'}`, t, [{ name: 'x(t)', values: samples }], { xLabel: (x) => `${fmt(x * 1000, 3)} ms` })}${linePlot('Short-time energy (normalised) and zero-crossing rate per frame', st.times, [{ name: 'energy', values: st.energy.map((e) => e / eMax) }, { name: 'ZCR (crossings/sample)', values: st.zcr, color: '#f97316' }], { xLabel: (x) => `${fmt(x * 1000, 3)} ms`, yMin: 0, yMax: 1 })}<div class="vuv-strip">${st.label.map((l) => `<i class="${l}" title="${l}"></i>`).join('')}</div><div class="plot-legend"><span class="legend-chip" style="--chip:#34d399">voiced</span><span class="legend-chip" style="--chip:#f97316">unvoiced</span><span class="legend-chip" style="--chip:#475569">silence</span></div></div>
+      <div class="analysis-readouts">${readout('Sampling rate', eng(fs, 'Hz'))}${readout('Frames (25 ms every 10 ms)', String(st.label.length))}${readout('Voiced / unvoiced / silence frames', `${counts.voiced ?? 0} / ${counts.unvoiced ?? 0} / ${counts.silence ?? 0}`)}<p class="field-help">Voiced sounds (vowels) are loud and periodic, so they cross zero rarely; unvoiced sounds (s, f, sh) are noise-like with a high zero-crossing rate and low energy; silence has neither. This simple rule is the first stage of most speech systems.</p></div></div>`;
+    return { controls: sourceControls, body };
+  }
+  if (config.tab === 'pitch') {
+    const ac = pitchAutocorrelation(frame, { fs }), am = pitchAmdf(frame, { fs }), cp = cepstrum(frame, { fs });
+    const step = Math.round(0.01 * fs), track = [];
+    for (let start = 0; start + frameLength <= samples.length; start += step) {
+      const f = samples.slice(start, start + frameLength);
+      const e = f.reduce((a, v) => a + v * v, 0) / f.length;
+      const p = pitchAutocorrelation(f, { fs });
+      track.push({ t: (start + frameLength / 2) / fs, f0: e > 1e-4 && p.strength > 0.3 ? p.f0 : Number.NaN });
+    }
+    const lags = ac.autocorrelation.map((_, k) => k / fs * 1000);
+    const body = `<div class="power-grid"><div>${linePlot('Autocorrelation of the centre-clipped frame against lag (ms)', lags, [{ name: 'r(τ)', values: ac.autocorrelation }], { xLabel: (x) => `${fmt(x, 3)} ms` })}${linePlot('AMDF against lag (ms) — the dips mark the period', am.amdf.map((_, k) => k / fs * 1000), [{ name: 'AMDF', values: am.amdf, color: '#f97316' }], { xLabel: (x) => `${fmt(x, 3)} ms` })}${linePlot('Pitch track (autocorrelation), unvoiced frames blank', track.map((p) => p.t), [{ name: 'f0', values: track.map((p) => p.f0), color: PLOT_COLORS[2] }], { xLabel: (x) => `${fmt(x * 1000, 3)} ms`, unit: 'Hz' })}</div>
+      <div class="analysis-readouts">${readout('Frame', `${fmt(frameStart / fs * 1000, 4)} ms, ${frameLength} samples (40 ms)`)}${readout('Autocorrelation pitch', `${fmt(ac.f0, 5)} Hz (period ${fmt(1000 / ac.f0, 4)} ms, strength ${fmt(ac.strength, 3)})`)}${readout('AMDF pitch', `${fmt(am.f0, 5)} Hz`)}${readout('Cepstral pitch', `${fmt(cp.f0, 5)} Hz (quefrency ${cp.quefrency} samples)`)}<p class="field-help">Three classic methods: the autocorrelation peaks at the pitch period; the AMDF dips there; the cepstrum separates the fast ripple of the harmonics (pitch) from the slow envelope (vocal tract). Centre clipping removes the formant ripple that causes octave errors.</p></div></div>`;
+    return { controls: sourceControls, body };
+  }
+  if (config.tab === 'lpc') {
+    const order = Math.max(2, Math.min(24, Math.round(s.order)));
+    const model = lpc(frame.length >= 2 * order ? frame : samples.slice(0, 400), order);
+    const env = lpcSpectrum(model.a, model.gain, { fs, points: 257 });
+    const spec = powerSpectrum(frame.map((v, k) => v * hamming(frame.length)[k]), 512).map((p) => 10 * Math.log10(p + 1e-12));
+    const shift = Math.max(...env.db) - Math.max(...spec);
+    const found = formants(model.a, { fs });
+    const cp = cepstrum(frame, { fs });
+    const controls = `${sourceControls}${speechField('source.order', 'LPC order p', s.order)}`;
+    const body = `<div class="power-grid"><div>${linePlot('Frame spectrum (dB) with the LPC envelope 20 log(G/|A|) and the cepstral envelope', spec.map((_, k) => k * fs / 512), [{ name: 'FFT |X|²', values: spec.map((v) => v + shift), color: '#64748b' }, { name: 'LPC envelope', values: env.freqs.map((_, k) => env.db[Math.min(k, env.db.length - 1)]).slice(0, spec.length) }, { name: 'cepstral envelope', values: cp.envelope.map((v) => 20 * v / Math.LN10 - 20 * cp.envelope[0] / Math.LN10 + env.db[0]).filter((_, k) => k % (cp.nfft / 512) === 0).slice(0, spec.length), color: '#f59e0b', dashed: true }], { xLabel: (x) => eng(x, 'Hz') })}${simpleTable(['Formant', 'Frequency', 'Bandwidth'], found.slice(0, 5).map((f, k) => [`F${k + 1}`, eng(f.frequency, 'Hz'), eng(f.bandwidth, 'Hz')]))}</div>
+      <div class="analysis-readouts">${readout('Predictor a1 … ap', model.a.map((v) => fmt(v, 4)).join(', '))}${readout('Reflection (PARCOR) k1 … kp', model.reflection.map((v) => fmt(v, 3)).join(', '))}${readout('Prediction gain', `${fmt(10 * Math.log10(model.r[0] / model.error), 4)} dB`)}${s.kind === 'vowel' ? readout('True formants (synthesis)', VOWELS[s.vowel][1].map((f) => `${f} Hz`).join(', ')) : ''}<p class="field-help">Linear prediction models each sample as a weighted sum of the previous p samples. The Levinson–Durbin recursion solves for the weights from the autocorrelation; 1/A(z) is the all-pole vocal-tract filter and its pole angles are the formants. Rule of thumb: p = fs/1000 + 2.</p></div></div>`;
+    return { controls, body };
+  }
+  if (config.tab === 'spectrogram') {
+    const spec = spectrogram(samples, { fs, nfft: 256 });
+    const binsStep = Math.max(1, Math.floor(spec.freqs.length / 64));
+    const columns = spec.db.map((col) => col.filter((_, k) => k % binsStep === 0));
+    const maxDb = Math.max(...spec.db.flat());
+    const body = `<div class="power-grid"><div>${heatmap('Spectrogram: time → , frequency ↑ (0 to fs/2), brighter = louder', columns, { xLabels: ['0 ms', `${fmt(spec.times.at(-1) * 1000, 4)} ms`], yLabels: ['0 Hz at the bottom', `${eng(fs / 2, 'Hz')} at the top`], min: maxDb - 70, max: maxDb })}</div><div class="analysis-readouts">${readout('Window', '25 ms Hamming, 10 ms hop (wide-band would use 3–5 ms)')}${readout('Frequency resolution', eng(fs / 256, 'Hz'))}<p class="field-help">Horizontal dark bands in a vowel are the formants; the vertical striations are the glottal pulses. The fricative at the end is spread over high frequencies with no harmonic structure.</p></div></div>`;
+    return { controls: sourceControls, body };
+  }
+  const coeffs = mfcc(samples, { fs, nfft: fs > 8000 ? 512 : 256, highFreq: fs / 2 });
+  const bank = melFilterbank({ filters: 26, nfft: 256, fs: 8000 });
+  const body = `<div class="power-grid"><div>${heatmap('MFCC c1 … c12 over time (c0 = log energy omitted)', coeffs.map((row) => row.slice(1)), { xLabels: ['0 ms', `${fmt(coeffs.length * 10, 4)} ms`], yLabels: ['c1 at the bottom', 'c12 at the top'] })}${linePlot('Mel filterbank (26 triangles, 8 kHz sampling) against frequency', bank[0].map((_, k) => k * 8000 / 256), bank.filter((_, k) => k % 2 === 0).map((row, k) => ({ name: `filter ${2 * k + 1}`, values: row, color: PLOT_COLORS[k % PLOT_COLORS.length] })).slice(0, 13), { xLabel: (x) => eng(x, 'Hz'), yMin: 0, yMax: 1 })}</div>
+    <div class="analysis-readouts">${readout('Frames', String(coeffs.length))}${readout('Frame at the cursor', (coeffs[Math.min(coeffs.length - 1, Math.round(s.frameMs / 10))] ?? []).map((v) => fmt(v, 3)).join(', '))}${readout('Mel scale', 'mel = 2595·log10(1 + f/700)')}<p class="field-help">MFCCs: pre-emphasis, 25 ms frames, power spectrum, 26 mel-spaced triangular filters, log, DCT and liftering. They describe the spectral envelope compactly and are the standard input for speech recognisers. The numbers match python_speech_features.</p></div></div>`;
+  return { controls: sourceControls, body };
+}
+
+function renderSpeech(state) {
+  return `<div class="page scroll-page power-page sigsys-page">${pageHeader(modules.find((item) => item.id === 'speech'), 'SPEECH PROCESSING', '')}${labCard('speech', 'Speech processing', SPEECH_TABS, speechLab.configuration(state), renderSpeechTab)}</div>`;
+}
+
+async function decodeToMono(arrayBuffer, targetRate = 8000) {
+  const context = new (window.AudioContext || window.webkitAudioContext)();
+  const buffer = await context.decodeAudioData(arrayBuffer);
+  context.close?.();
+  const data = buffer.getChannelData(0);
+  const ratio = buffer.sampleRate / targetRate;
+  const length = Math.min(Math.floor(data.length / ratio), targetRate * 10);
+  // Average over each output sample's span (simple anti-alias low-pass).
+  const samples = Array.from({ length }, (_, k) => { const a = Math.floor(k * ratio), b = Math.max(a + 1, Math.floor((k + 1) * ratio)); let s = 0; for (let i = a; i < b; i += 1) s += data[i]; return s / (b - a); });
+  const peak = Math.max(...samples.map(Math.abs)) || 1;
+  return { fs: targetRate, samples: samples.map((v) => v / peak), label: 'your audio' };
+}
+
+function bindSpeechEvents() {
+  bindLabControls('speech', speechLab, ['kind', 'vowel']);
+  document.querySelectorAll('[data-speech-file]').forEach((input) => input.addEventListener('change', async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    try { speechAudio = await decodeToMono(await file.arrayBuffer()); speechLab.persist((config) => { config.source.kind = 'recorded'; config.source.frameMs = 200; }); notify(`Loaded ${file.name}`, 'success'); } catch (error) { notify(`Could not decode the audio: ${error.message}`, 'error'); }
+  }));
+  document.querySelectorAll('[data-speech-record]').forEach((button) => button.addEventListener('click', async () => {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') { notify('This browser cannot record audio.', 'error'); return; }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream), chunks = [];
+      recorder.ondataavailable = (event) => chunks.push(event.data);
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+        try { speechAudio = await decodeToMono(await new Blob(chunks).arrayBuffer()); speechLab.persist((config) => { config.source.kind = 'recorded'; }); notify('Recording ready', 'success'); } catch (error) { notify(`Could not decode the recording: ${error.message}`, 'error'); }
+      };
+      notify('Recording for 2 seconds — speak now', 'success');
+      recorder.start();
+      setTimeout(() => recorder.stop(), 2000);
+    } catch (error) { notify(`Microphone not available: ${error.message}`, 'error'); }
+  }));
+  document.querySelectorAll('[data-speech-play]').forEach((button) => button.addEventListener('click', () => {
+    const { fs, samples } = speechSignal(speechLab.configuration(getState()).source);
+    try {
+      const context = new (window.AudioContext || window.webkitAudioContext)();
+      const buffer = context.createBuffer(1, samples.length, fs);
+      buffer.getChannelData(0).set(samples.map((v) => 0.8 * v));
+      const node = context.createBufferSource(); node.buffer = buffer; node.connect(context.destination); node.start();
+      node.onended = () => context.close?.();
+    } catch (error) { notify(`Cannot play audio: ${error.message}`, 'error'); }
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// PLC ladder lab.
+
+const PLC_TABS = [['program', 'Ladder & live run'], ['timing', 'Timing diagram']];
+const plcLab = makeLab('plc-lab', {
+  tab: 'program',
+  program: { example: 'motor', text: LADDER_EXAMPLES.motor[1], script: LADDER_EXAMPLES.motor[2], duration: 10, scanMs: 10 },
+  timing: {},
+});
+const plcText = labText('plc');
+let plcLive = null;
+
+const plcValue = (plc, name) => (/^T/.test(name) ? Boolean(plc?.timers[name]?.done) : /^C/.test(name) ? Boolean(plc?.counters[name]?.done) : Boolean(plc?.bits[name]));
+
+function renderLadder(rungs, plc = null) {
+  const CW = 92, RH = 46, left = 24;
+  let svg = '', y = 14;
+  const wire = (x1, y1, x2, y2, on) => `<path class="ladder-wire${on ? ' on' : ''}" d="M${x1} ${y1}L${x2} ${y2}"/>`;
+  const contactState = (node) => (plc ? (node.negated ? !plcValue(plc, node.name) : plcValue(plc, node.name)) : false);
+  const draw = (node, x, top) => {
+    if (node.kind === 'always') return wire(x, top + RH / 2, x + CW, top + RH / 2, Boolean(plc));
+    if (node.kind === 'contact') {
+      const cy = top + RH / 2, on = contactState(node);
+      return `${wire(x, cy, x + 32, cy, on)}${wire(x + 60, cy, x + CW, cy, on)}<path class="ladder-contact${on ? ' on' : ''}" d="M${x + 32} ${cy - 11}V${cy + 11}M${x + 60} ${cy - 11}V${cy + 11}${node.negated ? `M${x + 36} ${cy + 10}L${x + 56} ${cy - 10}` : ''}"/><text class="ladder-label" x="${x + 46}" y="${cy - 15}" text-anchor="middle">${node.edge ? '↑' : ''}${esc(node.name)}</text>`;
+    }
+    if (node.kind === 'and') { let out = '', cx = x; for (const item of node.items) { out += draw(item, cx, top); cx += item.w * CW; } return out; }
+    let out = '', ty = top;
+    const width = node.w * CW;
+    for (const item of node.items) {
+      out += draw(item, x, ty);
+      if (item.w < node.w) out += wire(x + item.w * CW, ty + RH / 2, x + width, ty + RH / 2, false);
+      ty += item.h * RH;
+    }
+    const lastMid = ty - node.items.at(-1).h * RH + RH / 2;
+    return `${out}${wire(x, top + RH / 2, x, lastMid, false)}${wire(x + width, top + RH / 2, x + width, lastMid, false)}`;
+  };
+  const maxW = Math.max(...rungs.map((r) => layoutCondition(r.condition).w));
+  const coilX = left + maxW * CW + 30, rail = coilX + 150;
+  rungs.forEach((rung, index) => {
+    const box = layoutCondition(rung.condition);
+    const rows = Math.max(box.h, rung.outputs.length);
+    svg += `<text class="ladder-rung-no" x="4" y="${y + RH / 2 + 4}">${index + 1}</text>`;
+    svg += draw(box, left, y);
+    const powered = plc ? plcLive?.powered?.[index] : false;
+    svg += wire(left + box.w * CW, y + RH / 2, coilX, y + RH / 2, powered);
+    rung.outputs.forEach((out, k) => {
+      const cy = y + k * RH + RH / 2;
+      if (k > 0) svg += wire(coilX, y + RH / 2, coilX, cy, powered);
+      const label = { coil: '( )', set: '(S)', reset: '(R)', ton: 'TON', tof: 'TOF', tp: 'TP', ctu: 'CTU', ctd: 'CTD', res: 'RES' }[out.kind];
+      const active = plc && plcValue(plc, out.name);
+      const detail = out.preset !== undefined ? (out.kind.startsWith('ct') ? ` ${plc?.counters[out.name]?.count ?? 0}/${out.preset}` : ` ${fmt(plc?.timers[out.name]?.elapsed ?? 0, 3)}/${fmt(out.preset, 3)} s`) : '';
+      svg += `${wire(coilX, cy, coilX + 30, cy, powered)}<rect class="ladder-coil${active ? ' on' : ''}" x="${coilX + 30}" y="${cy - 13}" width="64" height="26" rx="13"/><text class="ladder-label" x="${coilX + 62}" y="${cy + 4}" text-anchor="middle">${esc(label)}</text><text class="ladder-label" x="${coilX + 100}" y="${cy + 4}">${esc(out.name)}${esc(detail)}</text>${wire(coilX + 94, cy, coilX + 96, cy, false)}`;
+    });
+    y += rows * RH + 10;
+  });
+  const height = y + 4;
+  return `<svg class="ladder-svg" style="max-width:${Math.round((rail + 60) * 1.25)}px" viewBox="0 0 ${rail + 60} ${height}" role="img" aria-label="Ladder diagram"><path class="ladder-rail" d="M${left} 4V${height - 4}M${rail + 50} 4V${height - 4}"/>${svg}</svg>`;
+}
+
+function renderPlcLivePanel(rungs) {
+  const list = operands(rungs);
+  const plc = plcLive?.plc;
+  const lamp = (name) => `<span class="plc-lamp ${plcValue(plc, name) ? 'on' : ''}"><i></i>${esc(name)}</span>`;
+  return `<div class="plc-io"><div><span class="panel-label">INPUTS (CLICK TO TOGGLE)</span><div class="plc-buttons">${list.inputs.map((name) => `<button class="plc-input ${plcLive?.inputs?.[name] ? 'on' : ''}" data-plc-input="${name}">${esc(name)}</button>`).join('') || '<small>no inputs</small>'}</div></div><div><span class="panel-label">OUTPUTS</span><div class="plc-buttons">${list.outputs.map(lamp).join('') || '<small>none</small>'}</div></div><div><span class="panel-label">MEMORY, TIMERS, COUNTERS</span><div class="plc-buttons">${[...list.memory, ...list.timers, ...list.counters].map(lamp).join('') || '<small>none</small>'}</div></div><small>${plcLive?.running ? `Running · ${fmt(plc.time, 4)} s · ${plc.scans} scans` : 'Stopped'}</small></div>${renderLadder(rungs, plc ?? null)}`;
+}
+
+function renderPlcTab(config) {
+  const c = config.program;
+  const rungs = parseLadder(c.text);
+  const controls = `${labSelect('data-plc-select', 'program.example', 'Example', c.example, [...Object.entries(LADDER_EXAMPLES).map(([id, e]) => [id, e[0]]), ['custom', 'Custom']])}${plcText('program.text', 'Ladder program (one rung per line)', c.text, 7)}`;
+  if (config.tab === 'program') {
+    const body = `<div class="plc-actions"><button class="button run" data-plc-live="start">▶ Run live</button><button class="button" data-plc-live="stop">■ Stop</button><button class="button" data-plc-live="reset">Reset</button></div><div data-plc-panel>${renderPlcLivePanel(rungs)}</div><p class="field-help">Syntax: <code>(I0.0 | Q0.0) /I0.1 -&gt; Q0.0</code> — a space means series (AND), <code>|</code> means parallel (OR), <code>/</code> is a normally closed contact and <code>^</code> a rising-edge contact. Outputs: a coil (<code>Q0.0</code>, <code>M0.0</code>), <code>S</code>/<code>R</code> latch and unlatch, <code>TON</code>/<code>TOF</code>/<code>TP Tn 2s</code>, <code>CTU</code>/<code>CTD Cn 5</code> and <code>RES</code>. The PLC scans every 10 ms: it reads the inputs, solves the rungs top to bottom and writes the outputs, so rung order matters.</p>`;
+    return { controls, body };
+  }
+  const result = runLadder(rungs, { events: parseInputScript(c.script), duration: c.duration, scanTime: c.scanMs / 1000 });
+  const rowH = 26, w = 600, names = result.names, tMax = result.times.at(-1) || 1;
+  const rows = names.map((name, k) => {
+    const tr = result.traces[name];
+    const y0 = k * rowH + 20;
+    const path = tr.map((v, i) => `${i ? 'L' : 'M'}${(result.times[i] / tMax * w).toFixed(1)} ${(y0 - v * 14).toFixed(1)}`).join('');
+    return `<text class="ladder-label" x="-6" y="${y0 - 3}" text-anchor="end">${esc(name)}</text><path class="timing-trace" d="${path}"/>`;
+  }).join('');
+  const ticks = Array.from({ length: 6 }, (_, k) => `<text class="ladder-label" x="${(k / 5 * w).toFixed(1)}" y="${names.length * rowH + 22}" text-anchor="middle">${fmt(tMax * k / 5, 3)} s</text><path class="timing-grid" d="M${(k / 5 * w).toFixed(1)} 0V${names.length * rowH + 8}"/>`).join('');
+  const body = `<div class="power-grid"><div><span class="panel-label">TIMING DIAGRAM FROM THE INPUT SCRIPT</span><svg class="timing-svg" viewBox="-60 -4 ${w + 70} ${names.length * rowH + 30}">${ticks}${rows}</svg></div><div class="analysis-readouts">${readout('Scans simulated', String(result.plc.scans))}${readout('Final outputs', operands(rungs).outputs.map((n) => `${n}=${plcValue(result.plc, n) ? 1 : 0}`).join(' '))}<p class="field-help">The input script lists events as <code>time I0.0=1</code> separated by semicolons. Timers count in whole scans, so a 2 s TON at a 10 ms scan finishes exactly 200 scans after its input turns on.</p></div></div>`;
+  return { controls: `${controls}${plcText('program.script', 'Input script (time input=0/1; …)', c.script, 3)}${groupField('data-plc-field')('program.duration', 'Run for', c.duration, 's')}${groupField('data-plc-field')('program.scanMs', 'Scan time', c.scanMs, 'ms')}`, body };
+}
+
+function renderPlc(state) {
+  return `<div class="page scroll-page power-page sigsys-page">${pageHeader(modules.find((item) => item.id === 'plc'), 'PLC, LADDER LOGIC & AUTOMATION', '')}${labCard('plc', 'PLC ladder', PLC_TABS, plcLab.configuration(state), renderPlcTab)}</div>`;
+}
+
+function stopPlcLive() { if (plcLive?.timer) clearInterval(plcLive.timer); if (plcLive) { plcLive.running = false; plcLive.timer = null; } }
+
+function bindPlcEvents() {
+  bindLabControls('plc', plcLab, ['example']);
+  bindLabText('plc', plcLab, (config, group, key) => { if (key === 'text') { config.program.example = 'custom'; stopPlcLive(); plcLive = null; } });
+  document.querySelectorAll('[data-plc-select="program.example"]').forEach((select) => select.addEventListener('change', () => {
+    const example = LADDER_EXAMPLES[select.value];
+    if (example) { stopPlcLive(); plcLive = null; plcLab.persist((config) => { config.program.text = example[1]; config.program.script = example[2]; }); }
+  }));
+  const panel = document.querySelector('[data-plc-panel]');
+  if (!panel) { stopPlcLive(); return; }
+  let rungs;
+  try { rungs = parseLadder(plcLab.configuration(getState()).program.text); } catch { return; }
+  const refresh = () => { const target = document.querySelector('[data-plc-panel]'); if (!target) { stopPlcLive(); return; } target.innerHTML = renderPlcLivePanel(rungs); };
+  panel.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-plc-input]');
+    if (!button) return;
+    plcLive ??= { plc: createPlc(), inputs: {}, running: false, timer: null, powered: [] };
+    plcLive.inputs[button.dataset.plcInput] = !plcLive.inputs[button.dataset.plcInput];
+    if (!plcLive.running) plcLive.powered = scan(plcLive.plc, rungs, plcLive.inputs, 0);
+    refresh();
+  });
+  document.querySelectorAll('[data-plc-live]').forEach((button) => button.addEventListener('click', () => {
+    const action = button.dataset.plcLive;
+    if (action === 'reset') { stopPlcLive(); plcLive = null; refresh(); return; }
+    if (action === 'stop') { stopPlcLive(); refresh(); return; }
+    plcLive ??= { plc: createPlc(), inputs: {}, running: false, timer: null, powered: [] };
+    if (plcLive.running) return;
+    plcLive.running = true;
+    plcLive.timer = setInterval(() => { for (let k = 0; k < 10; k += 1) plcLive.powered = scan(plcLive.plc, rungs, plcLive.inputs, 0.01); refresh(); }, 100);
+    refresh();
+  }));
+  if (plcLive?.running) { stopPlcLive(); plcLive.running = true; plcLive.timer = setInterval(() => { for (let k = 0; k < 10; k += 1) plcLive.powered = scan(plcLive.plc, rungs, plcLive.inputs, 0.01); refresh(); }, 100); }
+}
+
+// ---------------------------------------------------------------------------
+// Electrical machines and power devices.
+
+const MACH_TABS = [['transformer', 'Transformer'], ['dc', 'DC motors'], ['induction', 'Induction motor'], ['scr', 'SCR triggering & protection']];
+const machLab = makeLab('mach-lab', {
+  tab: 'transformer',
+  transformer: { kva: 20, hv: 2500, lv: 250, ocV: 250, ocI: 1.4, ocP: 105, scV: 104, scI: 8, scP: 320, pf: 0.8, lagging: 'lag', cycle: '6 1 0.8\n10 0.5 0.8\n8 0 1' },
+  dc: { v: 220, ra: 0.5, ratedIa: 20, ratedRpm: 1500, extraRa: 0, fieldFraction: 1, rse: 0.2 },
+  induction: { vLine: 460, r1: 0.641, x1: 1.106, xm: 26.3, r2: 0.332, x2: 0.464, poles: 4, frequency: 60, slip: 0.022, rotationalLoss: 1100 },
+  scr: { vbb: 20, eta: 0.63, r: 20e3, cap: 0.1e-6, vm: 325, gateR: 20e3, igt: 1e-3, vs: 300, l: 50e-6, dvdt: 50e6, stringV: 10e3, n: 6, vbm: 2e3, deltaIb: 10e-3, deltaQ: 20e-6, device: 'mosfet', swV: 400, swI: 10, swF: 50e3 },
+});
+const machField = groupField('data-mach-field');
+
+function renderMachTab(config) {
+  const c = config[config.tab];
+  if (config.tab === 'transformer') {
+    const t = transformerTests({ kva: c.kva, hv: c.hv, lv: c.lv, oc: { v: c.ocV, i: c.ocI, p: c.ocP }, sc: { v: c.scV, i: c.scI, p: c.scP } });
+    const cycle = String(c.cycle).split('\n').map((l) => l.trim()).filter(Boolean).map((l, k) => { const v = parseNumberList(l, `Cycle line ${k + 1}`); if (v.length !== 3) throw new RangeError(`Cycle line ${k + 1}: hours, load fraction, pf.`); return v; });
+    const day = allDayEfficiency(t, cycle);
+    const xs = Array.from({ length: 101 }, (_, k) => 0.02 + 1.23 * k / 100);
+    const controls = `${machField('transformer.kva', 'Rating', c.kva, 'kVA')}${machField('transformer.hv', 'HV', c.hv, 'V')}${machField('transformer.lv', 'LV', c.lv, 'V')}${machField('transformer.ocV', 'OC test (LV): V', c.ocV, 'V')}${machField('transformer.ocI', 'I', c.ocI, 'A')}${machField('transformer.ocP', 'P', c.ocP, 'W')}${machField('transformer.scV', 'SC test (HV): V', c.scV, 'V')}${machField('transformer.scI', 'I', c.scI, 'A')}${machField('transformer.scP', 'P', c.scP, 'W')}${machField('transformer.pf', 'Load power factor', c.pf)}${labSelect('data-mach-select', 'transformer.lagging', 'pf type', c.lagging, [['lag', 'Lagging'], ['lead', 'Leading']])}${labText('mach')('transformer.cycle', 'Daily cycle: hours, load fraction, pf', c.cycle, 3)}`;
+    const body = `<div class="power-grid"><div>${linePlot('Efficiency (%) against load (fraction of full load)', xs, [{ name: `pf ${c.pf}`, values: xs.map((x) => 100 * t.efficiency(x, c.pf)) }, { name: 'pf 1', values: xs.map((x) => 100 * t.efficiency(x, 1)), color: '#f59e0b', dashed: true }], { xLabel: (x) => fmt(x, 3) })}${linePlot('Regulation (%) against power factor angle (lag positive)', Array.from({ length: 91 }, (_, k) => k), [{ name: 'lagging', values: Array.from({ length: 91 }, (_, k) => 100 * t.regulation(1, Math.cos(k * Math.PI / 180), true)) }, { name: 'leading', values: Array.from({ length: 91 }, (_, k) => 100 * t.regulation(1, Math.cos(k * Math.PI / 180), false)), color: '#f97316' }], { xLabel: (x) => `${fmt(x, 3)}°` })}</div>
+      <div class="analysis-readouts">${readout('No-load pf, Iw, Iμ', `${fmt(t.pf0, 4)}, ${eng(t.iw, 'A')}, ${eng(t.imu, 'A')}`)}${readout('R0, X0 (LV side)', `${eng(t.r0, 'Ω')}, ${eng(t.x0, 'Ω')}`)}${readout('R01, X01, Z01 (HV side)', `${eng(t.rEq, 'Ω')}, ${eng(t.xEq, 'Ω')}, ${eng(t.zEq, 'Ω')}`)}${readout('Per-unit impedance', `${fmt(t.percentImpedance, 4)} %`)}${readout('Full-load copper loss', eng(t.copperFull, 'W'))}${readout(`Full-load efficiency at pf ${c.pf}`, `${fmt(100 * t.efficiency(1, c.pf), 5)} %`)}${readout('Full-load regulation', `${fmt(100 * t.regulation(1, c.pf, c.lagging === 'lag'), 5)} %`)}${readout('Maximum efficiency', `${fmt(100 * t.maxEfficiency, 5)} % at ${fmt(100 * t.maxEfficiencyLoad, 4)} % load (copper = core loss)`)}${readout('All-day efficiency', `${fmt(100 * day.efficiency, 5)} % (${eng(day.output, 'Wh')} out, ${eng(day.copper + day.core, 'Wh')} lost)`)}<p class="field-help">The open-circuit test gives the core branch (R0, X0) and core loss; the short-circuit test gives the series impedance and full-load copper loss. Distribution transformers are designed for high all-day efficiency because their core is energised all day.</p></div></div>`;
+    return { controls, body };
+  }
+  if (config.tab === 'dc') {
+    const shunt = dcShuntMotor(c), series = dcSeriesMotor({ v: c.v, ra: c.ra, rse: c.rse, ratedIa: c.ratedIa, ratedRpm: c.ratedRpm });
+    const tMax = 2 * shunt.ratedTorque;
+    const ts = Array.from({ length: 101 }, (_, k) => tMax * (k + 0.5) / 101);
+    const controls = `${machField('dc.v', 'Supply V', c.v, 'V')}${machField('dc.ra', 'Armature Ra', c.ra, 'Ω')}${machField('dc.ratedIa', 'Rated armature current', c.ratedIa, 'A')}${machField('dc.ratedRpm', 'Rated speed', c.ratedRpm, 'rpm')}${machField('dc.extraRa', 'Extra armature resistance', c.extraRa, 'Ω')}${machField('dc.fieldFraction', 'Field flux (fraction of rated)', c.fieldFraction)}${machField('dc.rse', 'Series field Rse', c.rse, 'Ω')}`;
+    const body = `<div class="power-grid"><div>${linePlot('Speed (rpm) against load torque (N·m)', ts, [{ name: 'shunt', values: ts.map((t) => Math.max(0, shunt.speedAt(t))) }, { name: 'series', values: ts.map((t) => Math.min(4 * c.ratedRpm, series.atTorque(t).rpm)), color: '#f97316' }], { xLabel: (x) => fmt(x, 3) })}</div>
+      <div class="analysis-readouts">${readout('Shunt: back EMF at rated load', eng(shunt.backEmfRated, 'V'))}${readout('kΦ (with field setting)', `${fmt(shunt.kPhi, 5)} V·s/rad`)}${readout('Rated torque', `${fmt(shunt.ratedTorque, 5)} N·m`)}${readout('No-load speed', `${fmt(shunt.noLoadRpm, 5)} rpm`)}${readout('Starting current without a starter', eng(shunt.startingCurrent, 'A'))}${readout('Series: torque constant K', fmt(series.k, 5))}${readout('Series: starting torque', `${fmt(series.startingTorque, 5)} N·m`)}<p class="field-help">A shunt motor's speed falls only slightly with load (nearly constant speed); a series motor's torque grows as Ia², so it starts heavy loads (traction) but races dangerously at no load. Adding armature resistance lowers speed; weakening the field raises it.</p></div></div>`;
+    return { controls, body };
+  }
+  if (config.tab === 'induction') {
+    const m = inductionMotor(c);
+    const op = m.operating(c.slip);
+    const slips = Array.from({ length: 200 }, (_, k) => 1 - 0.995 * k / 199);
+    const controls = `${machField('induction.vLine', 'Line voltage (star)', c.vLine, 'V')}${machField('induction.r1', 'R1', c.r1, 'Ω')}${machField('induction.x1', 'X1', c.x1, 'Ω')}${machField('induction.xm', 'Xm', c.xm, 'Ω')}${machField('induction.r2', "R2'", c.r2, 'Ω')}${machField('induction.x2', "X2'", c.x2, 'Ω')}${machField('induction.poles', 'Poles', c.poles)}${machField('induction.frequency', 'Frequency', c.frequency, 'Hz')}${machField('induction.slip', 'Operating slip', c.slip)}${machField('induction.rotationalLoss', 'Friction, windage & core loss', c.rotationalLoss, 'W')}`;
+    const body = `<div class="power-grid"><div>${linePlot('Torque (N·m) against speed (rpm)', slips.map((s) => m.ns * (1 - s)), [{ name: 'T(s)', values: slips.map((s) => m.torque(s)) }], { xLabel: (x) => fmt(x, 4) })}</div>
+      <div class="analysis-readouts">${readout('Synchronous speed', `${fmt(m.ns, 5)} rpm`)}${readout('Thévenin Vth, Rth, Xth', `${eng(m.vth, 'V')}, ${eng(m.rth, 'Ω')}, ${eng(m.xth, 'Ω')}`)}${readout('Slip at maximum torque', fmt(m.sMax, 5))}${readout('Pull-out torque', `${fmt(m.tMax, 5)} N·m at ${fmt(m.ns * (1 - m.sMax), 5)} rpm`)}${readout('Starting torque', `${fmt(m.startingTorque, 5)} N·m`)}${readout(`At s = ${c.slip}`, `${fmt(op.rpm, 5)} rpm, I = ${eng(op.current, 'A')}, pf ${fmt(op.pf, 4)}`)}${readout('Power flow', `Pin ${eng(op.pin, 'W')} → Pag ${eng(op.airGap, 'W')} → Pconv ${eng(op.converted, 'W')} → Pout ${eng(op.output, 'W')}`)}${readout('Efficiency, load torque', `${fmt(100 * op.efficiency, 4)} %, ${fmt(op.loadTorque, 5)} N·m`)}<p class="field-help">Rotor copper loss is s × air-gap power, so a motor running at high slip wastes power. Doubling R2' (wound rotor) moves the pull-out torque to a higher slip without changing its size — that is how slip-ring motors get high starting torque.</p></div></div>`;
+    return { controls, body };
+  }
+  const u = ujtOscillator({ vbb: c.vbb, eta: c.eta, r: c.r, cap: c.cap });
+  const fire = resistanceFiring({ vm: c.vm, r: c.gateR, igt: c.igt });
+  const sn = snubber({ vs: c.vs, l: c.l, dvdt: c.dvdt });
+  const str = seriesString({ vs: c.stringV, n: Math.round(c.n), vbm: c.vbm, deltaIb: c.deltaIb, deltaQ: c.deltaQ });
+  const sw = switchingLoss({ device: c.device, v: c.swV, i: c.swI, frequency: c.swF });
+  const tt = Array.from({ length: 400 }, (_, k) => 3 * u.period * k / 399);
+  const vc = tt.map((t) => { const local = t % u.period; return c.vbb * (1 - Math.exp(-local / (c.r * c.cap))) * (u.vp / (c.vbb * (1 - Math.exp(-u.period / (c.r * c.cap))))); });
+  const controls = `${machField('scr.vbb', 'UJT VBB', c.vbb, 'V')}${machField('scr.eta', 'Intrinsic stand-off η', c.eta)}${machField('scr.r', 'Timing R', c.r, 'Ω')}${machField('scr.cap', 'Timing C', c.cap, 'F')}${machField('scr.vm', 'R-trigger supply peak', c.vm, 'V')}${machField('scr.gateR', 'Gate resistor', c.gateR, 'Ω')}${machField('scr.igt', 'Gate trigger current', c.igt, 'A')}${machField('scr.vs', 'Snubber: supply', c.vs, 'V')}${machField('scr.l', 'Source inductance', c.l, 'H')}${machField('scr.dvdt', 'dv/dt rating', c.dvdt, 'V/s')}${machField('scr.stringV', 'String voltage', c.stringV, 'V')}${machField('scr.n', 'SCRs in series', c.n)}${machField('scr.vbm', 'SCR blocking voltage', c.vbm, 'V')}${labSelect('data-mach-select', 'scr.device', 'Switch', c.device, [['mosfet', 'MOSFET'], ['igbt', 'IGBT']])}${machField('scr.swV', 'Switched voltage', c.swV, 'V')}${machField('scr.swI', 'Current', c.swI, 'A')}${machField('scr.swF', 'Switching frequency', c.swF, 'Hz')}`;
+  const body = `<div class="power-grid"><div>${linePlot('UJT capacitor voltage (sawtooth) — each drop is a trigger pulse', tt, [{ name: 'Vc', values: vc }], { xLabel: (x) => eng(x, 's'), unit: 'V' })}</div>
+    <div class="analysis-readouts">${readout('UJT peak voltage Vp = ηVBB + VD', eng(u.vp, 'V'))}${readout('Trigger frequency 1/(RC ln(1/(1−η)))', eng(u.frequency, 'Hz'))}${readout('Timing R must lie between', `${eng(u.rMin, 'Ω')} and ${eng(u.rMax, 'Ω')} ${u.oscillates ? '✓' : '✗ (no oscillation)'}`)}${readout('R triggering: firing angle', fire.fires ? `${fmt(fire.alpha, 4)}° (range 0–90°)` : 'never fires — gate current too small')}${readout('Snubber Rs, Cs (ζ = 0.65)', `${eng(sn.rs, 'Ω')}, ${eng(sn.cs, 'F')}`)}${readout('Series string: Rs, Cs, efficiency', `${eng(str.r, 'Ω')}, ${eng(str.c, 'F')}, ${fmt(100 * str.efficiency, 4)} %`)}${readout(`${c.device.toUpperCase()} losses`, `switching ${eng(sw.switching, 'W')} + conduction ${eng(sw.conduction, 'W')} = ${eng(sw.total, 'W')}`)}<p class="field-help">R triggering can only delay firing up to 90°; RC and UJT triggering give the full range. The snubber limits dv/dt so the SCR is not falsely turned on. In a series string, resistors share the static voltage and capacitors share it during switching.</p></div></div>`;
+  return { controls, body };
+}
+
+function renderMachines(state) {
+  return `<div class="page scroll-page power-page sigsys-page">${pageHeader(modules.find((item) => item.id === 'machines'), 'ELECTRICAL MACHINES & POWER DEVICES', '')}${labCard('mach', 'Machines', MACH_TABS, machLab.configuration(state), renderMachTab)}</div>`;
+}
+function bindMachinesEvents() { bindLabControls('mach', machLab, ['lagging', 'device']); bindLabText('mach', machLab); }
+
+// ---------------------------------------------------------------------------
+// Electronic product design.
+
+const PRODUCT_TABS = [['thermal', 'Heat sink'], ['reliability', 'Reliability & MTBF'], ['trace', 'PCB trace width'], ['battery', 'Battery life']];
+const productLab = makeLab('product-lab', {
+  tab: 'thermal',
+  thermal: { power: 10, tjMax: 125, ambient: 40, thetaJc: 1.5, thetaCs: 0.5, thetaSa: 4, margin: 0.9 },
+  reliability: { parts: 'resistor 20\nceramic capacitor 15\nelectrolytic capacitor 3\nmicrocontroller 1\nIC (small) 3\nconnector 2\ncrystal 1', hours: 8760, redundant: 1, factor: 1 },
+  trace: { current: 2, riseC: 10, copperOz: 1, layer: 'external', lengthMm: 50 },
+  battery: { capacityMah: 2000, activeMa: 50, sleepUa: 20, dutyPercent: 2, derating: 0.8, peukert: 1 },
+});
+const productField = groupField('data-product-field');
+
+function renderProductTab(config) {
+  const c = config[config.tab];
+  if (config.tab === 'thermal') {
+    const h = heatsink(c);
+    const controls = `${productField('thermal.power', 'Power dissipated', c.power, 'W')}${productField('thermal.tjMax', 'Max junction temperature', c.tjMax, '°C')}${productField('thermal.ambient', 'Ambient', c.ambient, '°C')}${productField('thermal.thetaJc', 'θjc (data sheet)', c.thetaJc, '°C/W')}${productField('thermal.thetaCs', 'θcs (pad/grease)', c.thetaCs, '°C/W')}${productField('thermal.thetaSa', 'θsa of chosen sink', c.thetaSa, '°C/W')}${productField('thermal.margin', 'Design margin (× Tj max)', c.margin)}`;
+    const powers = Array.from({ length: 101 }, (_, k) => 2 * c.power * k / 100);
+    const body = `<div class="power-grid"><div>${linePlot('Junction temperature against power with the chosen sink', powers, [{ name: 'Tj', values: powers.map((p) => heatsink({ ...c, power: Math.max(p, 1e-6) }).tj) }, { name: 'limit', values: powers.map(() => c.margin * c.tjMax), color: '#ef4444', dashed: true }], { xLabel: (x) => eng(x, 'W') })}</div><div class="analysis-readouts">${readout('Required sink θsa', h.possible ? `≤ ${fmt(h.requiredSa, 4)} °C/W` : 'impossible — even an ideal sink is not enough')}${readout('With the chosen sink: Tj, Tcase, Tsink', `${fmt(h.tj, 4)} °C, ${fmt(h.tc, 4)} °C, ${fmt(h.ts, 4)} °C ${h.ok ? '✓' : '✗ too hot'}`)}${readout('Total θja', `${fmt(h.totalTheta, 4)} °C/W`)}${readout('Max power with this sink', eng(h.maxPowerWithSink, 'W'))}<p class="field-help">Heat flows like current through thermal resistances: ΔT = P × θ. Keep Tj below about 90 % of its rating for long life — every 10 °C cooler roughly doubles component life.</p></div></div>`;
+    return { controls, body };
+  }
+  if (config.tab === 'reliability') {
+    const parts = String(c.parts).split('\n').map((l) => l.trim()).filter(Boolean).map((l, k) => { const match = /^(.*?)\s+(\d+)(?:\s+([\d.]+))?$/.exec(l); if (!match) throw new RangeError(`Part line ${k + 1}: "type quantity [FIT]".`); return { type: match[1], quantity: Number(match[2]), fit: match[3] ? Number(match[3]) : undefined }; });
+    const r = reliability(parts, { hours: c.hours, redundant: Math.max(1, Math.round(c.redundant)), factor: c.factor });
+    const years = Array.from({ length: 101 }, (_, k) => 20 * k / 100);
+    const controls = `${labText('product')('reliability.parts', `Parts: type quantity [FIT] (known types: ${Object.keys(PART_FIT).join(', ')})`, c.parts, 6)}${productField('reliability.hours', 'Mission time', c.hours, 'h')}${productField('reliability.redundant', 'Units in parallel', c.redundant)}${productField('reliability.factor', 'Environment factor πE', c.factor)}`;
+    const body = `<div class="power-grid"><div>${linePlot('Reliability R(t) against years in service', years, [{ name: 'single', values: years.map((y) => Math.exp(-r.lambda * y * 8760)) }, { name: `${Math.round(c.redundant)} in parallel`, values: years.map((y) => 1 - (1 - Math.exp(-r.lambda * y * 8760)) ** Math.max(1, Math.round(c.redundant))), color: '#f59e0b' }], { xLabel: (x) => `${fmt(x, 3)} y`, yMin: 0, yMax: 1 })}${simpleTable(['Part', 'Qty', 'FIT each', 'FIT total'], parts.map((p) => { const each = p.fit ?? PART_FIT[p.type] ?? 0; return [p.type, String(p.quantity), fmt(each, 4), fmt(each * p.quantity * c.factor, 4)]; }))}</div><div class="analysis-readouts">${readout('Total failure rate', `${fmt(r.fit, 5)} FIT (${r.lambda.toExponential(3)} /h)`)}${readout('MTBF = 1/λ', `${fmt(r.mtbf, 5)} h = ${fmt(r.mtbf / 8760, 4)} years`)}${readout(`Reliability after ${fmt(c.hours, 5)} h`, `${fmt(100 * r.reliability, 5)} %`)}${readout('With redundancy', `${fmt(100 * r.redundantReliability, 5)} %, MTBF ${fmt(r.redundantMtbf / 8760, 4)} years`)}${readout('Failures per 1000 units per year', fmt(r.failuresPerThousandPerYear, 4))}<p class="field-help">Parts-count method: in a series system every failure stops the product, so failure rates add. FIT values here are typical ballpark figures; use the manufacturer's data or MIL-HDBK-217 / IEC 61709 for a real prediction.</p></div></div>`;
+    return { controls, body };
+  }
+  if (config.tab === 'trace') {
+    const t = traceWidth(c);
+    const currents = Array.from({ length: 100 }, (_, k) => 0.1 + 9.9 * k / 99);
+    const controls = `${productField('trace.current', 'Current', c.current, 'A')}${productField('trace.riseC', 'Allowed temperature rise', c.riseC, '°C')}${productField('trace.copperOz', 'Copper weight', c.copperOz, 'oz')}${labSelect('data-product-select', 'trace.layer', 'Layer', c.layer, [['external', 'External (outer)'], ['internal', 'Internal']])}${productField('trace.lengthMm', 'Trace length', c.lengthMm, 'mm')}`;
+    const body = `<div class="power-grid"><div>${linePlot('Required width (mm) against current (A)', currents, [{ name: 'external', values: currents.map((i) => traceWidth({ ...c, current: i, layer: 'external' }).widthMm) }, { name: 'internal', values: currents.map((i) => traceWidth({ ...c, current: i, layer: 'internal' }).widthMm), color: '#f97316' }], { xLabel: (x) => eng(x, 'A') })}</div><div class="analysis-readouts">${readout('Minimum width', `${fmt(t.widthMm, 4)} mm (${fmt(t.widthMil, 4)} mil)`)}${readout('Cross-section', `${fmt(t.areaMil2, 4)} mil²`)}${readout('Resistance of the trace', eng(t.resistance, 'Ω'))}${readout('Voltage drop, power loss', `${eng(t.drop, 'V')}, ${eng(t.loss, 'W')}`)}<p class="field-help">IPC-2221: I = k·ΔT^0.44·A^0.725 with k = 0.048 outside and 0.024 inside (inner layers cannot shed heat to air). The PCB Studio DRC can check your board against this width.</p></div></div>`;
+    return { controls, body };
+  }
+  const b = batteryLife(c);
+  const duties = Array.from({ length: 100 }, (_, k) => 0.1 + 99.9 * k / 99);
+  const controls = `${productField('battery.capacityMah', 'Capacity', c.capacityMah, 'mAh')}${productField('battery.activeMa', 'Active current', c.activeMa, 'mA')}${productField('battery.sleepUa', 'Sleep current', c.sleepUa, 'µA')}${productField('battery.dutyPercent', 'Active time', c.dutyPercent, '%')}${productField('battery.derating', 'Usable fraction', c.derating)}${productField('battery.peukert', 'Peukert exponent (1 = ideal)', c.peukert)}`;
+  const body = `<div class="power-grid"><div>${linePlot('Battery life (days, log10) against active duty cycle (%)', duties, [{ name: 'life', values: duties.map((d) => Math.log10(batteryLife({ ...c, dutyPercent: d }).days)) }], { xLabel: (x) => `${fmt(x, 3)} %` })}</div><div class="analysis-readouts">${readout('Average current', eng(b.averageMa / 1000, 'A'))}${readout('Battery life', `${fmt(b.hours, 5)} h = ${fmt(b.days, 4)} days = ${fmt(b.years, 4)} years`)}<p class="field-help">For IoT nodes the sleep current often decides battery life: at a 1 % duty cycle a 20 µA sleep current can matter as much as the active current. The plot's y-axis is log10(days).</p></div></div>`;
+  return { controls, body };
+}
+
+function renderProduct(state) {
+  return `<div class="page scroll-page power-page sigsys-page">${pageHeader(modules.find((item) => item.id === 'product'), 'ELECTRONIC PRODUCT DESIGN', '')}${labCard('product', 'Product design', PRODUCT_TABS, productLab.configuration(state), renderProductTab)}</div>`;
+}
+function bindProductEvents() { bindLabControls('product', productLab, ['layer']); bindLabText('product', productLab); }
+
+// ---------------------------------------------------------------------------
+// Fault Hunt: find the hidden fault with a virtual multimeter.
+
+const faultLab = makeLab('fault-lab', {
+  tab: 'hunt',
+  hunt: { board: 'divider', seed: 1, mode: 'v', red: 'a', black: '0', log: [], wrong: 0, peeked: false, solved: false, guessPart: '', guessKind: 'open', best: {}, gaveUp: false },
+});
+const faultSolve = (components) => simulateDC(components);
+const PART_GLYPH = { resistor: 'R', capacitor: 'C', diode: 'D', led: 'LED', npn: 'NPN', pnp: 'PNP', nmos: 'N-MOS', pmos: 'P-MOS', opamp: 'OP', voltage: 'V' };
+
+function renderBoard(board) {
+  const xs = board.components.map((p) => p.x), ys = board.components.map((p) => p.y);
+  const minX = Math.min(...xs) - 70, minY = Math.min(...ys) - 50, w = Math.max(...xs) - minX + 70, h = Math.max(...ys) - minY + 60;
+  const parts = board.components.map((p) => {
+    const nets = [p.n1, p.n2, p.n3].filter((n) => n !== undefined).map((n) => (n === '0' ? 'GND' : n)).join(' · ');
+    const value = p.type === 'voltage' ? `${fmt(p.value, 4)} V` : p.type === 'npn' || p.type === 'pnp' ? `β ${p.value}` : p.type === 'opamp' ? `±${p.value} V` : eng(p.value, p.unit === 'Vf' ? 'V' : p.unit);
+    return `<g class="fh-part ${p.type === 'voltage' ? 'source' : ''}"><rect x="${p.x - 52}" y="${p.y - 26}" width="104" height="52" rx="8"/><text x="${p.x}" y="${p.y - 8}" text-anchor="middle" class="fh-id">${esc(p.id)} <tspan class="fh-glyph">${esc(PART_GLYPH[p.type] ?? p.type)}</tspan></text><text x="${p.x}" y="${p.y + 7}" text-anchor="middle" class="fh-value">${esc(value)}</text><text x="${p.x}" y="${p.y + 20}" text-anchor="middle" class="fh-nets">${esc(nets)}</text></g>`;
+  }).join('');
+  return `<svg class="fh-board" viewBox="${minX} ${minY} ${w} ${h}" role="img" aria-label="Circuit board"><rect class="fh-pcb" x="${minX + 4}" y="${minY + 4}" width="${w - 8}" height="${h - 8}" rx="14"/>${parts}</svg>`;
+}
+
+function renderFaultHunt(state) {
+  const config = faultLab.configuration(state), c = config.hunt;
+  const board = BOARDS[c.board] ?? BOARDS.divider;
+  let fault, body;
+  try {
+    fault = chooseFault(board, c.seed, faultSolve);
+    const faulty = applyFault(board.components, fault);
+    const nets = boardNets(board);
+    const netOptions = nets.map((n) => [n, n === '0' ? 'GND (0)' : n]);
+    const rows = c.log.map((entry, k) => {
+      const healthy = c.peeked ? (entry.mode === 'v' ? faultMeasureVoltage(board.components, entry.red, entry.black, faultSolve) : faultMeasureResistance(board.components, entry.red, entry.black, faultSolve)) : null;
+      const show = (v) => (entry.mode === 'v' ? `${fmt(v, 4)} V` : Number.isFinite(v) ? eng(v, 'Ω') : 'OL (open)');
+      return [String(k + 1), entry.mode === 'v' ? 'DC volts (power on)' : 'Ohms (power off)', `${entry.red === '0' ? 'GND' : entry.red} → ${entry.black === '0' ? 'GND' : entry.black}`, show(entry.value), healthy === null ? '—' : show(healthy)];
+    });
+    const parts = board.components.filter((p) => faultsFor(p.type).length);
+    const guessPart = parts.find((p) => p.id === c.guessPart) ?? parts[0];
+    const kinds = faultsFor(guessPart.type);
+    const points = faultScore({ measurements: c.log.length, wrongGuesses: c.wrong, peeked: c.peeked, solved: c.solved });
+    const finished = c.solved || c.gaveUp;
+    const debriefTable = finished ? `<span class="panel-label">DEBRIEF — WHAT THE FAULT DID TO EVERY NODE</span>${simpleTable(['Net', 'Good board', 'Faulty board', 'Change'], debrief(board, fault, faultSolve).map((row) => [row.net, `${fmt(row.healthy, 4)} V`, `${fmt(row.faulty, 4)} V`, `${row.change >= 0 ? '+' : ''}${fmt(row.change, 4)} V`]))}` : '';
+    body = `<div class="fh-layout"><div><span class="panel-label">${esc(board.level.toUpperCase())} BOARD — ${esc(board.name.toUpperCase())}</span>${renderBoard(board)}<p class="field-help">${esc(board.description)} One part on this board has a hidden fault. Measure like you would on a real bench, then name the part and the fault.</p>
+      <div class="dsp-controls fh-meter"><span class="panel-label">MULTIMETER</span>${labSelect('data-fault-select', 'hunt.mode', 'Mode', c.mode, [['v', 'DC volts — power on'], ['r', 'Ohms — power off']])}${labSelect('data-fault-select', 'hunt.red', 'Red probe', c.red, netOptions)}${labSelect('data-fault-select', 'hunt.black', 'Black probe', c.black, netOptions)}<button class="button run" data-fault-measure ${finished ? 'disabled' : ''}>Measure</button></div>
+      ${simpleTable(['#', 'Mode', 'Probes', 'Reading', c.peeked ? 'Good board' : 'Good board (hidden)'], rows.length ? rows : [['—', 'No measurements yet', '', '', '']])}</div>
+      <div class="fh-side"><div class="fh-score"><span>SCORE</span><b>${finished ? (c.solved ? points : 0) : faultScore({ measurements: c.log.length, wrongGuesses: c.wrong, peeked: c.peeked, solved: true })}</b><small>${finished ? (c.solved ? 'Solved!' : 'Answer shown') : 'if you solve it now'}</small></div>
+      <div class="analysis-readouts">${readout('Measurements', String(c.log.length))}${readout('Wrong diagnoses', String(c.wrong))}${readout('Best on this board', c.best?.[c.board] !== undefined ? String(c.best[c.board]) : '—')}</div>
+      ${finished ? `<div class="quiz-feedback ${c.solved ? 'ok' : 'bad'}"><b>${c.solved ? 'Correct!' : 'The answer'}</b> — ${esc(fault.id)}: ${esc(FAULT_TYPES[fault.kind])}${fault.kind === 'high' || fault.kind === 'low' ? ` (×${fault.kind === 'high' ? fault.factor : `1/${fault.factor}`})` : ''}.</div>${debriefTable}` : `<div class="dsp-controls"><span class="panel-label">DIAGNOSIS</span>${labSelect('data-fault-select', 'hunt.guessPart', 'Faulty part', guessPart.id, parts.map((p) => [p.id, `${p.id} (${PART_GLYPH[p.type] ?? p.type})`]))}${labSelect('data-fault-select', 'hunt.guessKind', 'Fault', kinds.includes(c.guessKind) ? c.guessKind : kinds[0], kinds.map((k) => [k, FAULT_TYPES[k]]))}<button class="button primary" data-fault-diagnose>Submit diagnosis</button></div>`}
+      <div class="fh-actions"><button class="button" data-fault-peek ${c.peeked || finished ? 'disabled' : ''}>Compare with a good board (−20)</button><button class="button" data-fault-giveup ${finished ? 'disabled' : ''}>Show the answer</button><button class="button run" data-fault-new>New fault</button></div>
+      <p class="field-help">Scoring: 100 points, minus 4 for every measurement after the fifth, 25 for each wrong diagnosis and 20 for looking at the good board. Tips: start with the supply, then follow the signal; in ohms mode the power is off, so you see the parts themselves (but parallel paths still count).</p></div></div>`;
+  } catch (error) { body = labError('fault', 'Fault Hunt', error); }
+  const boardTabs = `<div class="logic-tabs" role="tablist">${Object.entries(BOARDS).map(([id, b]) => `<button role="tab" aria-selected="${id === c.board}" class="${id === c.board ? 'active' : ''}" data-fault-board="${id}">${esc(b.name)}</button>`).join('')}</div>`;
+  return `<div class="page scroll-page power-page sigsys-page">${pageHeader(modules.find((item) => item.id === 'faulthunt'), 'TROUBLESHOOTING PRACTICE', '')}${boardTabs}<div class="dsp-card">${body}</div></div>`;
+}
+
+function bindFaultHuntEvents() {
+  document.querySelectorAll('[data-fault-reset]').forEach((button) => button.addEventListener('click', () => faultLab.persist((config) => { config.hunt = { ...structuredClone(faultLab.defaults.hunt), best: config.hunt.best }; })));
+  const fresh = (config, extra = {}) => { Object.assign(config.hunt, { seed: Math.floor(Math.random() * 1e6) + 1, log: [], wrong: 0, peeked: false, solved: false, gaveUp: false, ...extra }); };
+  document.querySelectorAll('[data-fault-board]').forEach((button) => button.addEventListener('click', () => faultLab.persist((config) => { fresh(config, { board: button.dataset.faultBoard, red: boardNets(BOARDS[button.dataset.faultBoard])[1] ?? '0', black: '0', guessPart: '' }); })));
+  document.querySelectorAll('[data-fault-select]').forEach((select) => select.addEventListener('change', () => { const [, key] = select.dataset.faultSelect.split('.'); faultLab.persist((config) => { config.hunt[key] = select.value; }); }));
+  document.querySelectorAll('[data-fault-new]').forEach((button) => button.addEventListener('click', () => faultLab.persist((config) => fresh(config))));
+  document.querySelectorAll('[data-fault-measure]').forEach((button) => button.addEventListener('click', () => {
+    const c = faultLab.configuration(getState()).hunt, board = BOARDS[c.board];
+    try {
+      const faulty = applyFault(board.components, chooseFault(board, c.seed, faultSolve));
+      const value = c.mode === 'v' ? faultMeasureVoltage(faulty, c.red, c.black, faultSolve) : faultMeasureResistance(faulty, c.red, c.black, faultSolve);
+      faultLab.persist((config) => { config.hunt.log = [...config.hunt.log, { mode: c.mode, red: c.red, black: c.black, value: Number.isFinite(value) ? value : null }].slice(-40); });
+    } catch (error) { notify(error.message, 'error'); }
+  }));
+  document.querySelectorAll('[data-fault-peek]').forEach((button) => button.addEventListener('click', () => faultLab.persist((config) => { config.hunt.peeked = true; })));
+  document.querySelectorAll('[data-fault-giveup]').forEach((button) => button.addEventListener('click', () => faultLab.persist((config) => { config.hunt.gaveUp = true; })));
+  document.querySelectorAll('[data-fault-diagnose]').forEach((button) => button.addEventListener('click', () => {
+    const c = faultLab.configuration(getState()).hunt, board = BOARDS[c.board];
+    const fault = chooseFault(board, c.seed, faultSolve);
+    const parts = board.components.filter((p) => faultsFor(p.type).length);
+    const part = parts.find((p) => p.id === c.guessPart) ?? parts[0];
+    const kinds = faultsFor(part.type), kind = kinds.includes(c.guessKind) ? c.guessKind : kinds[0];
+    if (part.id === fault.id && kind === fault.kind) {
+      faultLab.persist((config) => { config.hunt.solved = true; const points = faultScore({ measurements: c.log.length, wrongGuesses: c.wrong, peeked: c.peeked, solved: true }); config.hunt.best = { ...config.hunt.best, [c.board]: Math.max(points, config.hunt.best?.[c.board] ?? 0) }; });
+      notify('Correct diagnosis!', 'success');
+    } else {
+      faultLab.persist((config) => { config.hunt.wrong += 1; });
+      notify(part.id === fault.id ? 'Right part, wrong kind of fault — measure again.' : 'Not that one — keep measuring.', 'error');
+    }
+  }));
+}
+
+// ---------------------------------------------------------------------------
 // Cellular planning.
 
 const CELL_TABS = [['traffic', 'Traffic & Erlang'], ['reuse', 'Frequency reuse'], ['pathloss', 'Path loss & cell size'], ['handoff', 'Handoff']];
@@ -4301,7 +5235,7 @@ function bindLearningHubEvents() {
 // AI lab partner (OpenAI-compatible). Settings and the API key live only in this browser's
 // localStorage — never in the project file.
 
-const EXPERIMENT_MODULES = { 'signals-fft': 'dsp', 'dsp-lab': 'dsp', 'control-step': 'iot', 'control-lab': 'iot', 'comm-lab': 'communication', 'qpsk-ber': 'communication', 'rx-lab': 'communication', 'rf-touchstone': 'rf', 'rf-lab': 'rf', 'calc-lab': 'calc', 'pcb-board': 'pcb', 'mcu-lab': 'mcu', 'bench-lab': 'bench', 'lab-record': 'record', 'power-lab': 'power', 'adc-lab': 'adc', 'sensor-lab': 'sensors', 'ev-lab': 'ev', 'vlsi-lab': 'vlsi', 'rtos-lab': 'rtos', 'network-lab': 'theory', 'sigsys-lab': 'sigsys', 'em-lab': 'em', 'cell-lab': 'cellular', 'netproto-lab': 'network', 'crypto-lab': 'crypto', 'wsn-lab': 'wsn', 'sdr-lab': 'sdr', 'dip-lab': 'dip', 'bio-lab': 'biomed', 'nn-lab': 'neural', 'console-lab': 'console', 'learn-lab': 'learn', 'topology-metrics': 'network', 'vcd-import': 'fpga' };
+const EXPERIMENT_MODULES = { 'signals-fft': 'dsp', 'dsp-lab': 'dsp', 'control-step': 'iot', 'control-lab': 'iot', 'comm-lab': 'communication', 'qpsk-ber': 'communication', 'rx-lab': 'communication', 'rf-touchstone': 'rf', 'rf-lab': 'rf', 'calc-lab': 'calc', 'pcb-board': 'pcb', 'mcu-lab': 'mcu', 'bench-lab': 'bench', 'lab-record': 'record', 'power-lab': 'power', 'adc-lab': 'adc', 'sensor-lab': 'sensors', 'ev-lab': 'ev', 'vlsi-lab': 'vlsi', 'rtos-lab': 'rtos', 'network-lab': 'theory', 'sigsys-lab': 'sigsys', 'em-lab': 'em', 'cell-lab': 'cellular', 'netproto-lab': 'network', 'crypto-lab': 'crypto', 'wsn-lab': 'wsn', 'sdr-lab': 'sdr', 'dip-lab': 'dip', 'bio-lab': 'biomed', 'nn-lab': 'neural', 'console-lab': 'console', 'learn-lab': 'learn', 'info-lab': 'info', 'analog-lab': 'analog', 'meas-lab': 'measure', 'radar-lab': 'radar', 'speech-lab': 'speech', 'plc-lab': 'plc', 'mach-lab': 'machines', 'product-lab': 'product', 'fault-lab': 'faulthunt', 'topology-metrics': 'network', 'vcd-import': 'fpga' };
 const ASSISTANT_STORAGE = 'openentc.assistant.v1';
 const assistantDefaults = { provider: 'openai', baseUrl: '', model: '', apiKey: '', mode: 'explain', language: 'en', shareLab: true, consented: false };
 const assistant = { open: false, view: 'chat', draft: '', history: [], shown: [], busy: false, status: '', error: '', controller: null, focus: false };
@@ -5533,6 +6467,15 @@ function bindEvents() {
   bindNetworkTheoryEvents();
   bindSigsysEvents();
   bindEmEvents();
+  bindFaultHuntEvents();
+  bindMachinesEvents();
+  bindProductEvents();
+  bindPlcEvents();
+  bindSpeechEvents();
+  bindRadarEvents();
+  bindMeasurementEvents();
+  bindAnalogEvents();
+  bindInfoEvents();
   bindReceiverEvents();
   bindCellularEvents();
   bindNetprotoEvents();
@@ -7293,3 +8236,19 @@ window.addEventListener('keydown', (event) => {
 
 subscribe(render);
 render();
+
+// Offline support: register the service worker in a normal browser (not in the desktop shell,
+// which already has every file locally). The first visit caches the studio for offline use.
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && !globalThis.__TAURI__) {
+  window.addEventListener('load', () => {
+    const firstInstall = !navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('./sw.js').then((registration) => {
+      if (!firstInstall) return;
+      registration.addEventListener('updatefound', () => {
+        const worker = registration.installing;
+        worker?.addEventListener('statechange', () => { if (worker.state === 'activated') notify('OpenENTC Studio is saved on this device and now works offline.', 'success'); });
+      });
+    }).catch(() => {});
+  });
+  window.addEventListener('offline', () => notify('You are offline — everything keeps working from the saved copy.', 'info'));
+}

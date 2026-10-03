@@ -422,6 +422,86 @@
       "plannedPhase": 9
     },
     {
+      "id": "info.coding-spread-spectrum",
+      "surface": "Information & Coding: entropy, Huffman and Shannon–Fano codes with reduction tables, LZW, mutual information and channel capacity (Blahut–Arimoto, Shannon–Hartley), m-sequences and Gold codes, DSSS with a tone jammer, FHSS hop patterns and an OFDM link with cyclic prefix and multipath",
+      "state": "built-in",
+      "evidence": ["packages/infotheory/src/index.mjs", "src/app.js#renderInfo", "tests/infotheory.test.mjs"],
+      "limitations": "Binary codes only (no ternary Huffman, arithmetic or adaptive coding); LZW uses fixed-width codes with an unbounded dictionary seeded from the message's own alphabet. Channel capacity is for discrete memoryless channels and the band-limited AWGN formula. DSSS and FHSS are baseband BPSK models with ideal chip and hop synchronisation; the jammer is a single tone. OFDM uses real channel taps, perfect channel knowledge and a zero-forcing one-tap equaliser, without coding, pilots, synchronisation or PAPR handling. Huffman optimality, PN run/autocorrelation properties, Gold three-valued cross-correlation and BPSK BER are checked against closed-form results in the tests.",
+      "plannedPhase": 9
+    },
+    {
+      "id": "analog.design-studio",
+      "surface": "Analog Design: design-to-specification for voltage-divider BJT bias and CE amplifiers (with one-click open in Circuit Lab), Wien/RC phase-shift/Colpitts/Hartley/crystal oscillators, Butterworth Sallen–Key low/high-pass filters of order 1–10, MFB band-pass, Zener and LM317 regulators, Schmitt triggers and the 565 PLL",
+      "state": "built-in",
+      "evidence": ["packages/analogdesign/src/index.mjs", "src/app.js#renderAnalog", "tests/analogdesign.test.mjs"],
+      "limitations": "Hand-analysis models: BJT bias uses a fixed VBE (0.7 V) and β, small-signal figures ignore ro and the Early effect; the Circuit Lab check uses the built-in Ebers–Moll model and lands within a few per cent. Filters and oscillator feedback networks are verified with the phasor MNA solver and an ideal op-amp (VCVS gain 10⁷), so slew rate, GBW and output limits are not modelled; only Butterworth alignments are generated. LC oscillators ignore transistor loading and mutual inductance; the PLL uses the NE565 data-sheet formulas. Regulator designs are steady-state (no ripple rejection or transient response).",
+      "plannedPhase": 9
+    },
+    {
+      "id": "measure.instrumentation-lab",
+      "surface": "Measurements: virtual AC bridges with a live null detector and a hidden-unknown challenge mode (Maxwell, Hay, Owen, Schering, De Sauty, Wien), Lissajous figures, reading statistics and limiting-error propagation, voltmeter loading, ammeter shunt / Ayrton shunt / voltmeter multiplier / series ohmmeter design and the Q-meter",
+      "state": "built-in",
+      "evidence": ["packages/measurement/src/index.mjs", "src/app.js#renderMeasurement", "tests/measurement.test.mjs"],
+      "limitations": "Bridges use ideal components, an ideal source and an infinite-impedance detector (no stray capacitance, Wagner earth or detector loading). Lissajous figures assume pure sinusoids and identify ratios with denominators up to 12. Error propagation is first order; the Q-meter correction uses the double-frequency method for distributed capacitance. Every bridge result is computed from the general complex balance and checked against the textbook closed forms in the tests.",
+      "plannedPhase": 9
+    },
+    {
+      "id": "radar.satellite-microwave",
+      "surface": "Radar & Satellite: radar range equation with pulse integration, pulse timing, Doppler, MTI canceller and blind speeds, FMCW ranging; Kepler orbits, GEO look angles and uplink/downlink budgets with G/T; thin-dipole patterns with numerical directivity and beamwidth, dish/horn gain and Friis; reflex klystron modes, two-cavity bunching, magnetron Hull cut-off, directional coupler and VSWR",
+      "state": "built-in",
+      "evidence": ["packages/radarsat/src/index.mjs", "src/app.js#renderRadar", "tests/radarsat.test.mjs"],
+      "limitations": "Radar uses the free-space monostatic equation (no clutter, multipath, atmospheric attenuation or Swerling fluctuation; integration is ideal coherent). Orbits are two-body Keplerian with a spherical Earth; look angles are for geostationary satellites. Dipole patterns assume a sinusoidal current on a thin wire; aperture gains use a fixed efficiency. Tube formulas are the small-signal textbook (Liao) relations. Directivity of λ/2, short and full-wave dipoles, GEO radius and period, and the radar/link equations are checked against reference values in the tests.",
+      "plannedPhase": 9
+    },
+    {
+      "id": "speech.processing-lab",
+      "surface": "Speech Processing: microphone recording, WAV loading or synthetic vowels; short-time energy, zero-crossing rate and voiced/unvoiced/silence labels; pitch by autocorrelation, AMDF and cepstrum with a pitch track; LPC by Levinson–Durbin with formants from the polynomial roots and LPC/cepstral envelopes; spectrogram and MFCCs",
+      "state": "built-in",
+      "evidence": ["packages/speech/src/index.mjs", "src/app.js#renderSpeech", "tests/speech.test.mjs", "tests/fixtures/speech/psf-mfcc.json"],
+      "limitations": "Audio is resampled to 8 kHz mono by simple averaging and kept only in memory (it is not saved into project files); at most 10 s is analysed. The voiced/unvoiced rule uses fixed energy and zero-crossing thresholds. Formants come from a single analysis frame without tracking. No speech recognition or synthesis beyond the source–filter vowel model. MFCCs match python_speech_features 0.6 frame for frame; LPC satisfies the Toeplitz normal equations; formants and pitch of synthetic vowels are recovered within a few per cent.",
+      "plannedPhase": 9
+    },
+    {
+      "id": "plc.ladder-lab",
+      "surface": "PLC & Automation: a text ladder language (series/parallel contacts, normally closed and rising-edge contacts, coils, set/reset, TON/TOF/TP timers, CTU/CTD counters, RES) drawn as a ladder diagram with live power flow, a live scan-cycle run with clickable inputs and output lamps, scripted timing diagrams and industrial examples (seal-in, interlock, traffic light, star–delta, counter, alarm)",
+      "state": "built-in",
+      "evidence": ["packages/plc/src/index.mjs", "src/app.js#renderPlc", "tests/plc.test.mjs"],
+      "limitations": "A teaching subset of IEC 61131-3 ladder: Boolean bits I/Q/M 0.0–7.7, 16 timers and 16 counters; no analog I/O, math, compare or move blocks, subroutines, function blocks, structured text or SCADA/HMI and fieldbus. Timers count in whole scans of a fixed simulated scan time. Live mode runs in the browser at 10 scans per 100 ms tick; the scan semantics (top-to-bottom solve, results visible to later rungs, edge memory per scan) are checked in the tests.",
+      "plannedPhase": 9
+    },
+    {
+      "id": "machines.power-devices",
+      "surface": "Machines & Devices: transformer equivalent circuit from OC/SC tests with efficiency, regulation, maximum and all-day efficiency; DC shunt and series motor speed–torque; induction-motor Thévenin torque–slip, pull-out and starting torque and power flow; UJT relaxation and R triggering, RC snubber, series SCR strings and MOSFET/IGBT losses",
+      "state": "built-in",
+      "evidence": ["packages/machines/src/index.mjs", "src/app.js#renderMachines", "tests/machines.test.mjs"],
+      "limitations": "Steady-state, linear models: no magnetic saturation (series motor assumes Φ ∝ Ia), no armature reaction, constant parameters with temperature; transformer regulation uses the approximate (Kapp) formula. The induction motor uses the IEEE per-phase circuit without deep-bar or skin effects. SCR triggering and snubber formulas are textbook (Rashid/Bimbhra) design equations, not device simulations. Results match the Theraja 20 kVA transformer and Chapman example 6-5 within the stated tolerances.",
+      "plannedPhase": 9
+    },
+    {
+      "id": "product.design-calculators",
+      "surface": "Product Design: heat-sink thermal path and required θsa, parts-count reliability with MTBF and parallel redundancy, IPC-2221 PCB trace width with trace resistance and loss, duty-cycled battery life with optional Peukert exponent",
+      "state": "built-in",
+      "evidence": ["packages/productdesign/src/index.mjs", "src/app.js#renderProduct", "tests/machines.test.mjs"],
+      "limitations": "Steady-state thermal model (no transient thermal impedance or airflow); default failure rates are ballpark FIT values, not a MIL-HDBK-217 or IEC 61709 prediction with stress factors. IPC-2221 is the legacy chart fit (IPC-2152 gives more accurate widths); battery life ignores temperature and self-discharge.",
+      "plannedPhase": 9
+    },
+    {
+      "id": "faulthunt.troubleshooting",
+      "surface": "Fault Hunt: five practice boards (resistor network, LED transistor switch, CE bias, inverting op-amp, shunt reference) each given one hidden fault (open, short, drifted value, dead or shorted transistor, leaky capacitor, dead op-amp); a virtual multimeter measures DC volts with power on and ohms with power off; diagnosis, scoring, good-board comparison and a node-by-node debrief",
+      "state": "built-in",
+      "evidence": ["packages/faulthunt/src/index.mjs", "src/app.js#renderFaultHunt", "tests/faulthunt.test.mjs"],
+      "limitations": "DC faults only (no waveform, frequency-response or intermittent faults); one fault per board. Faults are modelled as resistances (open = 1 GΩ, short = 1 mΩ) or removed device paths, solved with the built-in MNA engine; the ohmmeter drives 1 mA with every source disconnected and a 100 MΩ meter input on each net. Faults are chosen only if they move a node voltage by more than 50 mV.",
+      "plannedPhase": 10
+    },
+    {
+      "id": "app.offline-pwa",
+      "surface": "Offline app: a service worker caches the whole browser studio on the first visit (network first, cache fallback) and a web-app manifest lets it be installed on a phone or laptop",
+      "state": "built-in",
+      "evidence": ["sw.js", "manifest.webmanifest", "src/app.js#serviceWorker", "tests/offline.test.mjs"],
+      "limitations": "Needs one online visit over HTTP(S) to fill the cache; not registered in the desktop shell, which already has every file locally. Only same-origin files are cached, so AI providers and other online services still need a connection. The icon is SVG, so very old browsers may not offer installation.",
+      "plannedPhase": 11
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",

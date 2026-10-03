@@ -47,3 +47,6 @@ verification suite and a push.
 - [x] Phase 8 — Learning Hub: 36 lessons in six tracks linked to the labs, quizzes with fresh numbers, viva practice
 
 All eight phases (30 items) are built, validated and documented.
+
+Phases 9–11 (subject gaps, Fault Hunt, offline app) came from a second gap analysis against the
+syllabus and existing tools — see [GAP-ANALYSIS.md](GAP-ANALYSIS.md).

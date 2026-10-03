@@ -18,6 +18,9 @@ for (const name of nativeEvidenceNames) {
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
 await cp(resolve(root, 'index.html'), resolve(output, 'index.html'));
+// Offline support: the service worker and web-app manifest live next to index.html.
+await cp(resolve(root, 'sw.js'), resolve(output, 'sw.js'));
+await cp(resolve(root, 'manifest.webmanifest'), resolve(output, 'manifest.webmanifest'));
 await cp(resolve(root, 'src'), resolve(output, 'src'), { recursive: true });
 // src/app.js imports ../packages/<name>/src/*.mjs, so the preview must ship those modules.
 for (const entry of await readdir(resolve(root, 'packages'), { withFileTypes: true })) {
