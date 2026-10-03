@@ -9,7 +9,7 @@ after(stop);
 /** Read every "V(node)" / "I(part)" readout in the results panel as numbers with units. */
 async function readResults(page) {
   await page.waitForSelector('.results .result-summary');
-  return page.$$eval('.results .result-value', (rows) => Object.fromEntries(rows.map((row) => [row.querySelector('span').textContent, row.querySelector('b').textContent])));
+  return page.evaluate(() => Object.fromEntries([...document.querySelectorAll('.results .result-value')].map((row) => [row.querySelector('span').textContent, row.querySelector('b').textContent])));
 }
 
 async function setPartField(page, id, field, value) {
