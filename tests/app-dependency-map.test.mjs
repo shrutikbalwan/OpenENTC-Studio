@@ -44,3 +44,12 @@ test('every workspace module in renderWorkspace is mapped to a renderer', async 
   assert.ok(Object.keys(app.workspaces).length >= 40);
   for (const [id, w] of Object.entries(app.workspaces)) assert.match(w.renderer, /^render/, id);
 });
+
+test('UI module check: no unresolved names, no import cycles, no unused shared exports', async () => {
+  const { diagnose, findCycles: fileCycles, importGraph, uiFiles, unusedExports } = await import('../scripts/check-ui-modules.mjs');
+  const graph = await importGraph();
+  assert.deepEqual(fileCycles(graph), []);
+  assert.deepEqual(fileCycles({ 'a.js': ['b.js'], 'b.js': ['a.js'] }), [['a.js', 'b.js', 'a.js']]);
+  assert.deepEqual(await unusedExports(graph), []);
+  assert.deepEqual(diagnose(await uiFiles()).unresolved, []);
+});

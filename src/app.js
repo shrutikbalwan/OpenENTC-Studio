@@ -82,10 +82,16 @@ import { applyFault, BOARDS, boardNets, chooseFault, debrief, FAULT_TYPES, fault
 import { adcToVolts, compareDivider, compareRc, explainDifference, parseTwinOutput, rcCharge, TWIN_BANNER, TWIN_BAUD } from '../packages/twin/src/index.mjs';
 import { GROUP_COLORS, parseMintermNotation, renderGateDiagram, renderKarnaugh, renderTimingDiagram } from './core/logic-view.js';
 import { digitalSignalGroups, filterDigitalSignals, measureDigitalCursors, normalizeDigitalWaveformView, sampleDigitalSignal, serializeDigitalCsv, transformDigitalWaveformView } from './core/digital-waveform-view.js';
+import { complexText, decibels, eng, fmt, lines, numericText, ohms, rect } from './shared/formatting.js';
+import { engineeringInput, parseNumberList } from './shared/parsing.js';
+import { comparisonRow, comparisonTable, readout, simpleTable } from './components/tables.js';
+import { indexTicks, linePlot, planeExtent, PLOT_COLORS, renderComplexPlane, renderPlotFrame, scatterPlane, stemPlot } from './components/plots.js';
+import { groupField, labSelect, labTabs, labText } from './components/forms.js';
+import { labCard, labError, pageHeader } from './components/layout.js';
+import { bindLabControls, bindLabText, makeLab } from './controllers/lab-controls.js';
 
 const app = document.querySelector('#app');
 const importInput = document.querySelector('#project-import');
-const fmt = (value, digits = 3) => Number(value).toLocaleString(undefined, { maximumFractionDigits: digits });
 let wireSource = null;
 let selectedWire = null;
 let clipboardParts = [];
@@ -226,10 +232,6 @@ function renderWorkspace(state, active) {
   if (active.id === 'embedded') return renderEmbedded(state);
   if (active.id === 'learn') return renderLearningHub(state);
   return renderEngineeringModule(active);
-}
-
-function pageHeader(module, eyebrow, actions = '') {
-  return `<div class="page-heading"><div><span class="eyebrow">${eyebrow}</span><h1>${module.name}</h1><p>${module.description}</p></div><div class="heading-actions">${actions}</div></div>`;
 }
 
 function renderHome(state) {
@@ -453,9 +455,6 @@ const BUILTIN_ANALYSES = Object.freeze({
   ac: { label: 'AC sweep', button: 'AC sweep' },
 });
 const BUILTIN_STIMULI = Object.freeze({ step: 'Step', sine: 'Sine', pulse: 'Square pulse', dc: 'Constant (DC)' });
-const PLOT_COLORS = ['#5eead4', '#60a5fa', '#f59e0b', '#fb7185', '#a78bfa', '#4ade80', '#f97316', '#22d3ee'];
-const eng = (value, unit = '') => formatEngineeringValue(Math.abs(value) < 1e-15 ? 0 : value, unit, { digits: 4 }).trim();
-const decibels = (value) => `${fmt(Math.abs(value) < 0.005 ? 0 : value, 2)} dB`;
 const isDcResult = (simulation) => Boolean(simulation?.nodes && simulation?.currents && !simulation.kind);
 
 function builtinConfiguration(state) {
@@ -498,24 +497,6 @@ function renderBuiltinConfiguration(state) {
   }
   return `<div class="signal-controls"><span class="panel-label">BUILT-IN SIMULATOR</span><label>Analysis<select data-builtin-field="analysis">${Object.entries(BUILTIN_ANALYSES).map(([value, { label }]) => `<option value="${value}" ${value === config.analysis ? 'selected' : ''}>${label}</option>`).join('')}</select></label>${fields}</div>`;
 }
-
-function renderPlotFrame({ title, series, xMin, xMax, logX = false, xTicks, yRange, formatY }) {
-  const width = 600, height = 150;
-  const yPosition = (value) => (1 - (value - yRange.min) / (yRange.max - yRange.min || 1));
-  const grid = yRange.ticks.map((tick) => `<line x1="0" x2="${width}" y1="${(yPosition(tick) * height).toFixed(2)}" y2="${(yPosition(tick) * height).toFixed(2)}"/>`).join('')
-    + xTicks.map((tick) => `<line y1="0" y2="${height}" x1="${(tick.position * width).toFixed(2)}" x2="${(tick.position * width).toFixed(2)}"/>`).join('');
-  const stemPath = (entry) => {
-    const zero = Math.min(1, Math.max(0, yPosition(0))) * height;
-    return entry.xs.map((x, index) => { const px = ((x - xMin) / (xMax - xMin || 1) * width).toFixed(2); return Number.isFinite(entry.ys[index]) ? `M${px} ${zero.toFixed(2)}V${(yPosition(entry.ys[index]) * height).toFixed(2)}` : ''; }).join('');
-  };
-  const paths = [...series].reverse().map((entry) => entry.stem
-    ? `<path class="plot-stem" stroke="${entry.color}" d="${stemPath(entry)}"/><path class="plot-stem-head" stroke="${entry.color}" d="${entry.xs.map((x, index) => Number.isFinite(entry.ys[index]) ? `M${((x - xMin) / (xMax - xMin || 1) * width).toFixed(2)} ${(yPosition(entry.ys[index]) * height).toFixed(2)}h0` : '').join('')}"/>`
-    : `<path class="plot-trace${entry.primary ? ' primary' : ''}${entry.dashed ? ' dashed' : ''}" stroke="${entry.color}" d="${linePath(entry.xs, entry.ys, { width, height, xMin, xMax, yMin: yRange.min, yMax: yRange.max, logX })}"/>`).join('');
-  const xLabel = (tick) => `<span style="left:${(tick.position * 100).toFixed(2)}%;transform:translateX(${tick.position <= 0.001 ? '0' : tick.position >= 0.999 ? '-100%' : '-50%'})">${esc(tick.text)}</span>`;
-  return `<div class="circuit-plot"><span class="plot-title">${esc(title)}</span><div class="plot-body"><div class="plot-y">${yRange.ticks.map((tick) => `<span style="top:${(yPosition(tick) * 100).toFixed(2)}%">${esc(formatY(tick))}</span>`).join('')}</div><div class="plot-area"><svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="${esc(title)}"><g class="plot-grid">${grid}</g>${paths}</svg><div class="plot-x">${xTicks.map(xLabel).join('')}</div></div></div></div>`;
-}
-
-const readout = (label, value) => `<div class="result-value"><span>${esc(label)}</span><b>${esc(value)}</b></div>`;
 
 function renderTransientResult(result, state) {
   const traces = circuitTraces(result);
@@ -876,32 +857,8 @@ function persistDsp(patch) {
 }
 
 const labField = (attribute, name, label, value, unit = '', attributes = 'type="number" step="any"') => `<label>${label}<input ${attributes} ${attribute}="${name}" value="${esc(value)}">${unit ? `<span>${unit}</span>` : ''}</label>`;
-const labSelect = (attribute, name, label, value, options) => `<label>${label}<select ${attribute}="${name}">${options.map(([key, text]) => `<option value="${esc(key)}" ${String(key) === String(value) ? 'selected' : ''}>${esc(text)}</option>`).join('')}</select></label>`;
 const dspField = (...args) => labField('data-dsp-lab-field', ...args);
 const dspSelect = (...args) => labSelect('data-dsp-lab-field', ...args);
-const labTabs = (tabs, active, attribute) => `<div class="logic-tabs" role="tablist">${tabs.map(([id, label]) => `<button role="tab" aria-selected="${active === id}" class="${active === id ? 'active' : ''}" ${attribute}="${id}">${label}</button>`).join('')}</div>`;
-const complexText = (value) => (Math.abs(value.im) < 1e-12 ? fmt(value.re, 4) : `${fmt(value.re, 4)} ${value.im < 0 ? '−' : '+'} j${fmt(Math.abs(value.im), 4)}`);
-const indexTicks = (first, last) => { const span = Math.max(1, last - first); const step = Math.max(1, Math.ceil(span / 8)); const ticks = []; for (let n = first; n <= last; n += step) ticks.push({ position: (n - first) / span, text: String(n) }); return ticks; };
-
-/** s- or z-plane plot: optional unit circle, curves, poles (×), zeros (○) and highlighted points. */
-function renderComplexPlane({ label, extent, unitCircle = false, curves = [], poles = [], zeros = [], marks = [], criticalPoint = false }) {
-  const size = 300, centre = size / 2, scale = 130 / extent;
-  const x = (re) => Math.max(-5e3, Math.min(5e3, centre + re * scale)).toFixed(2);
-  const y = (im) => Math.max(-5e3, Math.min(5e3, centre - im * scale)).toFixed(2);
-  const group = (points) => points.reduce((list, point) => { const same = list.find((entry) => Math.hypot(entry.re - point.re, entry.im - point.im) < extent * 1e-3); if (same) same.count += 1; else list.push({ ...point, count: 1 }); return list; }, []);
-  const multiplicity = (point) => (point.count > 1 ? `<text class="pz-count" x="${(Number(x(point.re)) + 7).toFixed(1)}" y="${(Number(y(point.im)) - 7).toFixed(1)}">${point.count}</text>` : '');
-  const tick = Number((extent / 2).toPrecision(1));
-  const axisLabels = `<text class="pz-axis-label" x="${x(tick)}" y="${centre + 12}">${fmt(tick, 3)}</text><text class="pz-axis-label" x="${centre + 4}" y="${y(tick)}">j${fmt(tick, 3)}</text>`;
-  const curvePaths = curves.map((curve) => `<path class="pz-curve${curve.dashed ? ' dashed' : ''}" stroke="${curve.color}" d="${curve.points.map((point, index) => `${index ? 'L' : 'M'}${x(point.re)} ${y(point.im)}`).join('')}"/>`).join('');
-  return `<svg class="pz-plot" viewBox="0 0 ${size} ${size}" role="img" aria-label="${esc(label)}"><path class="axis" d="M${centre} 4V${size - 4}M4 ${centre}H${size - 4}"/>${unitCircle ? `<circle class="unit-circle" cx="${centre}" cy="${centre}" r="${scale}"/>` : ''}${axisLabels}${curvePaths}
-    ${criticalPoint ? `<circle class="pz-critical" cx="${x(-1)}" cy="${y(0)}" r="4"/><text class="pz-axis-label" x="${Number(x(-1)) - 14}" y="${centre - 8}">−1</text>` : ''}
-    ${group(zeros).map((zero) => `<circle class="pz-zero" cx="${x(zero.re)}" cy="${y(zero.im)}" r="5"/>${multiplicity(zero)}`).join('')}
-    ${group(poles).map((pole) => `<path class="pz-pole" d="M${Number(x(pole.re)) - 5} ${Number(y(pole.im)) - 5}l10 10m0 -10l-10 10"/>${multiplicity(pole)}`).join('')}
-    ${marks.map((mark) => `<rect class="pz-mark" x="${Number(x(mark.re)) - 3.5}" y="${Number(y(mark.im)) - 3.5}" width="7" height="7"/>`).join('')}</svg>`;
-}
-
-const planeExtent = (points, minimum = 1) => { const values = points.flatMap((point) => [Math.abs(point.re), Math.abs(point.im)]).filter(Number.isFinite); return Math.max(minimum, ...values) * 1.25; };
-
 function designFromConfig(config) {
   const band = config.filterType === 'bandpass' || config.filterType === 'bandstop';
   const cutoff = band ? [Number(config.cutoff), Number(config.cutoffHigh)] : Number(config.cutoff);
@@ -1282,11 +1239,6 @@ const engText = 'type="text" spellcheck="false" maxlength="24"';
 const finiteEng = (value, unit = '') => (Number.isFinite(value) ? eng(value, unit) : '∞');
 const impedanceText = (z) => `${fmt(z.re, 4)} ${z.im < 0 ? '−' : '+'} j${fmt(Math.abs(z.im), 4)} Ω`;
 
-function engineeringInput(value, label) {
-  try { const number = parseEngineeringValue(String(value)); if (!Number.isFinite(number)) throw new Error(); return number; }
-  catch { throw new RangeError(`${label}: enter a number such as 100M, 2.4G or 4.7k.`); }
-}
-
 /** Smith chart: constant-resistance circles and constant-reactance arcs in the Γ plane. */
 function renderSmithChart({ label, points = [], traces = [] }) {
   const size = 320, c = size / 2, radius = 140;
@@ -1451,7 +1403,6 @@ const calcBlock = (title, controls, render) => {
   try { content = render(); } catch (error) { content = `<div class="diagnostic error"><b>${esc(title)}</b><span>${esc(error.message)}</span></div>`; }
   return `<div class="coding-block"><span class="panel-label">${esc(title.toUpperCase())}</span><div class="dsp-controls">${controls}</div>${content}</div>`;
 };
-const ohms = (value) => (Number.isFinite(value) ? eng(value, 'Ω') : '∞');
 const blankOr = (value, label) => (String(value).trim() === '' ? null : engineeringInput(value, label));
 
 function renderResistorSvg(names) {
@@ -2343,7 +2294,6 @@ function persistRecord(patch) {
   recordExperiment({ id: 'lab-record', kind: 'report', operation: 'lab-record', inputs: next });
 }
 
-const lines = (text) => String(text || '').split('\n').map((line) => line.trim()).filter(Boolean);
 const PART_UNITS = { voltage: 'V', current: 'A', resistor: 'Ω', capacitor: 'F', inductor: 'H' };
 
 /** Parse the observation text: first line is the header, cells split by | , or tab. */
@@ -2543,8 +2493,6 @@ const powerField = (path, label, value, unit = '') => `<label>${label}<input typ
 const powerSelect = (path, label, value, options) => labSelect('data-power-select', path, label, value, options);
 const degreeTicks = () => Array.from({ length: 9 }, (_, k) => ({ position: k / 8, text: `${k * 45}°` }));
 const timeTicks = (stop) => Array.from({ length: 6 }, (_, k) => ({ position: k / 5, text: eng(stop * k / 5, 's') }));
-const comparisonRow = (label, simulated, theory, unit, digits = 4) => `<tr><td>${esc(label)}</td><td>${simulated === null || simulated === undefined || !Number.isFinite(simulated) ? '—' : esc(unit === '%' ? `${fmt(simulated * 100, 2)} %` : unit ? eng(simulated, unit) : fmt(simulated, digits))}</td><td>${theory === null || theory === undefined || !Number.isFinite(theory) ? '—' : esc(unit === '%' ? `${fmt(theory * 100, 2)} %` : unit ? eng(theory, unit) : fmt(theory, digits))}</td><td>${Number.isFinite(simulated) && Number.isFinite(theory) && Math.abs(theory) > 1e-12 ? `${fmt((simulated - theory) / Math.abs(theory) * 100, 2)} %` : ''}</td></tr>`;
-const comparisonTable = (rows, note) => `<table class="truth-table comm-table power-table"><thead><tr><th>Quantity</th><th>Simulated</th><th>Formula</th><th>Difference</th></tr></thead><tbody>${rows.join('')}</tbody></table>${note ? `<p class="field-help">${esc(note)}</p>` : ''}`;
 const powerPlot = (title, xs, series, { xMin, xMax, xTicks, unit = 'V' }) => {
   const prepared = series.map((entry, index) => ({ ...decimate(xs, entry.values, 1600), color: entry.color ?? PLOT_COLORS[index], primary: index === 0, dashed: entry.dashed }));
   const values = prepared.flatMap((entry) => entry.ys);
@@ -2766,41 +2714,6 @@ function bindAdcEvents() {
 // ---------------------------------------------------------------------------
 // Sensors & instrumentation and EV engineering.
 
-const numericText = (value) => String(Number(Number(value).toPrecision(6)));
-const groupField = (attribute) => (path, label, value, unit = '') => `<label>${label}<input type="text" spellcheck="false" ${attribute}="${path}" value="${esc(numericText(value))}">${unit ? `<span>${unit}</span>` : ''}</label>`;
-const linePlot = (title, xs, series, { xLabel = (value) => fmt(value, 3), unit = '', yMin = null, yMax = null } = {}) => {
-  const prepared = series.map((entry, index) => ({ ...decimate(xs, entry.values, 1200), color: entry.color ?? PLOT_COLORS[index], primary: index === 0, dashed: entry.dashed }));
-  const values = prepared.flatMap((entry) => entry.ys).filter(Number.isFinite);
-  const xMin = xs[0], xMax = xs.at(-1);
-  return `${renderPlotFrame({ title, series: prepared, xMin, xMax, xTicks: Array.from({ length: 6 }, (_, k) => ({ position: k / 5, text: xLabel(xMin + (xMax - xMin) * k / 5) })), yRange: niceRange(yMin ?? Math.min(...values), yMax ?? Math.max(...values)), formatY: (value) => (unit ? eng(value, unit) : fmt(value, 3)) })}${series.length > 1 ? `<div class="plot-legend">${series.map((entry, index) => `<span class="legend-chip" style="--chip:${entry.color ?? PLOT_COLORS[index]}">${esc(entry.name)}</span>`).join('')}</div>` : ''}`;
-};
-function makeLab(id, defaults) {
-  const configuration = (state) => {
-    const saved = state.project.experiments.find((experiment) => experiment?.id === id)?.inputs || {};
-    const merged = structuredClone(defaults);
-    if (saved.tab) merged.tab = saved.tab;
-    for (const key of Object.keys(defaults)) if (key !== 'tab') Object.assign(merged[key], saved[key] || {});
-    return merged;
-  };
-  const persist = (update) => { const config = configuration(getState()); update(config); recordExperiment({ id, kind: 'calculator', operation: id, inputs: config }); };
-  return { configuration, persist, defaults };
-}
-/** Error panel with a button that restores the current tab's example inputs. */
-const labError = (prefix, title, error) => `<div class="diagnostic error"><b>${title}</b><span>${esc(error.message)}</span><button class="button" data-${prefix}-reset>Reset this tab to its example</button></div>`;
-function bindLabControls(prefix, lab, stringKeys = []) {
-  document.querySelectorAll(`[data-${prefix}-reset]`).forEach((button) => button.addEventListener('click', () => lab.persist((config) => { config[config.tab] = structuredClone(lab.defaults[config.tab]); })));
-  document.querySelectorAll(`[data-${prefix}-tab]`).forEach((button) => button.addEventListener('click', () => lab.persist((config) => { config.tab = button.dataset[`${prefix}Tab`]; })));
-  document.querySelectorAll(`[data-${prefix}-field]`).forEach((input) => input.addEventListener('change', () => {
-    const [group, key] = input.dataset[`${prefix}Field`].split('.');
-    let value;
-    try { value = engineeringInput(input.value, input.closest('label')?.firstChild?.textContent || 'Value'); } catch (error) { notify(error.message, 'error'); return; }
-    lab.persist((config) => { config[group][key] = value; });
-  }));
-  document.querySelectorAll(`[data-${prefix}-select]`).forEach((select) => select.addEventListener('change', () => {
-    const [group, key] = select.dataset[`${prefix}Select`].split('.');
-    lab.persist((config) => { config[group][key] = stringKeys.includes(key) || Number.isNaN(Number(select.value)) ? select.value : Number(select.value); });
-  }));
-}
 
 const SENSOR_TABS = [['thermocouple', 'Thermocouples'], ['resistive', 'RTD & thermistor'], ['bridge', 'Bridges & LVDT'], ['chain', 'Measurement chain']];
 const sensorLab = makeLab('sensor-lab', {
@@ -3047,7 +2960,6 @@ const phasor = (value, unit) => {
   if (magnitude < 1e-15) return `0 ${unit}`;
   return Math.abs(value[1]) < 1e-12 * Math.max(1, magnitude) ? eng(value[0], unit) : `${eng(magnitude, unit)} ∠ ${fmt(angle, 2)}°`;
 };
-const rect = (value, unit) => (Math.abs(value[1]) < 1e-12 * Math.max(1, C.abs(value)) ? eng(value[0], unit) : `${eng(value[0], unit)} ${value[1] >= 0 ? '+' : '−'} j${eng(Math.abs(value[1]), unit)}`);
 const matrixHtml = (label, m, units) => `<div class="matrix-card"><b>${label}</b><table class="truth-table matrix"><tbody>${m.map((row, i) => `<tr>${row.map((value, j) => `<td>${esc(rect(value, units[i][j]))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 
 function renderNetworkTheory(state) {
@@ -3401,30 +3313,6 @@ function bindEmEvents() {
 
 // ---------------------------------------------------------------------------
 // Shared helpers for the Phase 9 labs.
-
-const labText = (prefix) => (path, label, value, rows = 0) => (rows ? `<label class="em-text">${label}<textarea rows="${rows}" spellcheck="false" data-${prefix}-text="${path}">${esc(value)}</textarea></label>` : `<label>${label}<input type="text" spellcheck="false" data-${prefix}-text="${path}" value="${esc(value)}"></label>`);
-function bindLabText(prefix, lab, after = null) {
-  document.querySelectorAll(`[data-${prefix}-text]`).forEach((input) => input.addEventListener('change', () => {
-    const [group, key] = input.dataset[`${prefix}Text`].split('.');
-    lab.persist((config) => { config[group][key] = input.value; after?.(config, group, key); });
-  }));
-}
-const labCard = (prefix, title, tabs, config, renderTab) => {
-  let view;
-  try { view = renderTab(config); } catch (error) { view = { controls: '', body: labError(prefix, title, error) }; }
-  return `${labTabs(tabs, config.tab, `data-${prefix}-tab`)}<div class="dsp-card"><div class="dsp-controls">${view.controls}</div>${view.body}</div>`;
-};
-const simpleTable = (headers, rows) => `<table class="truth-table comm-table power-table"><thead><tr>${headers.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${esc(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
-const stemPlot = (title, values, { color = PLOT_COLORS[0] } = {}) => {
-  const xs = values.map((_, k) => k), xMax = Math.max(1, xs.length - 1);
-  return renderPlotFrame({ title, series: [{ xs, ys: values, color, stem: true, primary: true }], xMin: 0, xMax, xTicks: Array.from({ length: 6 }, (_, k) => ({ position: k / 5, text: fmt(xMax * k / 5, 3) })), yRange: niceRange(Math.min(0, ...values), Math.max(0, ...values)), formatY: (value) => fmt(value, 3) });
-};
-const parseNumberList = (text, label) => String(text).split(/[\s,;]+/).filter(Boolean).map((token) => engineeringInput(token, label));
-const scatterPlane = (label, points, extent = 1.6, color = PLOT_COLORS[0]) => {
-  const size = 300, centre = size / 2, scale = 130 / extent;
-  const dots = points.slice(0, 1500).map((p) => `<circle cx="${(centre + Math.max(-extent, Math.min(extent, p.re)) * scale).toFixed(1)}" cy="${(centre - Math.max(-extent, Math.min(extent, p.im)) * scale).toFixed(1)}" r="1.6" fill="${color}" fill-opacity="0.65"/>`).join('');
-  return `<svg class="pz-plot" viewBox="0 0 ${size} ${size}" role="img" aria-label="${esc(label)}"><path class="axis" d="M${centre} 4V${size - 4}M4 ${centre}H${size - 4}"/>${dots}</svg>`;
-};
 
 // ---------------------------------------------------------------------------
 // Information theory, source coding and spread spectrum.

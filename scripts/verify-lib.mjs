@@ -5,6 +5,7 @@ export const verificationSteps = [
   ['format', ['run', 'format:check']],
   ['lint', ['run', 'lint']],
   ['type contracts', ['run', 'typecheck']],
+  ['UI module structure', ['run', 'ui:check']],
   ['python worker', ['run', 'worker:check']],
   ['browser build', ['run', 'build']],
   ['tests', ['test']]
