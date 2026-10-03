@@ -34,6 +34,7 @@ import { POLICIES, PROTOCOLS, responseTimeAnalysis, RTOS_EXAMPLES, simulateSched
 import { C, deltaToStar, loadedTwoPort, NETWORK_EXAMPLES, parseNetlist as parseTheoryNetlist, powerTransferCurve, solveNetwork, starToDelta, superposition, thevenin, twoPortAnalysis } from '../packages/network/src/index.mjs';
 import { amplifierStability, cascade, chargeField, circularWaveguide, fieldMap, fresnel, fresnelCurve, fromPolar, gaussFlux, planeWave, polarization, rectangularModePattern, rectangularWaveguide, sToZ, sweepCascade, TWO_PORT_ELEMENTS } from '../packages/em/src/index.mjs';
 import { aesDecryptBlock, aesEncryptBlock, blocksToText, bytesToHex, caesar, crackCaesar, crackVigenere, crt, desBlock, diffieHellman, discreteLog, ENGLISH_FREQUENCIES, extendedEuclid, generateRsa, hexToBytes, hill, hmacSha256, indexOfCoincidence, letterCounts, lettersOnly, millerRabin, modInverse, modPow, playfair, railFence, rsaDecrypt, rsaEncrypt, rsaKey, sha256, textToBlocks, toBig, vigenere } from '../packages/cryptolab/src/index.mjs';
+import { chat as assistantChat, LANGUAGES, MODES, PROVIDERS, validateBaseUrl } from '../packages/assistant/src/index.mjs';
 import { findLesson, lessonIndex, TRACKS } from '../packages/learning/src/courseware.mjs';
 import { instantiate, scoreQuiz } from '../packages/learning/src/quiz.mjs';
 import { createSession as createConsoleSession, describe as describeConsole, format as formatConsole, run as runConsole } from '../packages/mathconsole/src/index.mjs';
@@ -157,6 +158,7 @@ function render() {
       <main class="workspace" style="--active-color:${active.color}">
         ${renderWorkspace(state, active)}
       </main>
+      ${renderAssistant(state)}
       ${state.toast ? `<div class="toast ${state.toast.tone}" role="${state.toast.tone === 'error' ? 'alert' : 'status'}" aria-live="${state.toast.tone === 'error' ? 'assertive' : 'polite'}"><span>${state.toast.tone === 'success' ? '✓' : state.toast.tone === 'error' ? '!' : 'i'}</span>${esc(state.toast.message)}</div>` : ''}
       <div class="modal-layer" hidden></div>
     </div>`;
@@ -4295,6 +4297,122 @@ function bindLearningHubEvents() {
   })));
 }
 
+// ---------------------------------------------------------------------------
+// AI lab partner (OpenAI-compatible). Settings and the API key live only in this browser's
+// localStorage — never in the project file.
+
+const EXPERIMENT_MODULES = { 'signals-fft': 'dsp', 'dsp-lab': 'dsp', 'control-step': 'iot', 'control-lab': 'iot', 'comm-lab': 'communication', 'qpsk-ber': 'communication', 'rx-lab': 'communication', 'rf-touchstone': 'rf', 'rf-lab': 'rf', 'calc-lab': 'calc', 'pcb-board': 'pcb', 'mcu-lab': 'mcu', 'bench-lab': 'bench', 'lab-record': 'record', 'power-lab': 'power', 'adc-lab': 'adc', 'sensor-lab': 'sensors', 'ev-lab': 'ev', 'vlsi-lab': 'vlsi', 'rtos-lab': 'rtos', 'network-lab': 'theory', 'sigsys-lab': 'sigsys', 'em-lab': 'em', 'cell-lab': 'cellular', 'netproto-lab': 'network', 'crypto-lab': 'crypto', 'wsn-lab': 'wsn', 'sdr-lab': 'sdr', 'dip-lab': 'dip', 'bio-lab': 'biomed', 'nn-lab': 'neural', 'console-lab': 'console', 'learn-lab': 'learn', 'topology-metrics': 'network', 'vcd-import': 'fpga' };
+const ASSISTANT_STORAGE = 'openentc.assistant.v1';
+const assistantDefaults = { provider: 'openai', baseUrl: '', model: '', apiKey: '', mode: 'explain', language: 'en', shareLab: true, consented: false };
+const assistant = { open: false, view: 'chat', draft: '', history: [], shown: [], busy: false, status: '', error: '', controller: null, focus: false };
+function assistantSettings() {
+  try { return { ...assistantDefaults, ...JSON.parse(localStorage.getItem(ASSISTANT_STORAGE) || '{}') }; } catch { return { ...assistantDefaults }; }
+}
+function saveAssistantSettings(patch) {
+  const next = { ...assistantSettings(), ...patch };
+  try { localStorage.setItem(ASSISTANT_STORAGE, JSON.stringify(next)); } catch { notify('Could not save assistant settings in this browser.', 'error'); }
+  return next;
+}
+
+function assistantLabContext(state) {
+  const active = modules.find((item) => item.id === state.activeModule) ?? modules[0];
+  const context = { lab: active.name, labPurpose: active.description, savedInputs: state.project.experiments.filter((e) => EXPERIMENT_MODULES[e?.id] === active.id).map((e) => ({ experiment: e.id, inputs: e.inputs })) };
+  if (['circuit', 'bench', 'record'].includes(active.id) && state.project.circuit.components.length) {
+    try { context.circuitSpiceNetlist = buildSpiceNetlist(state.project.circuit.components, state.project.circuit.wires, { title: state.project.name, netLabels: state.project.circuit.netLabels }); } catch (error) { context.circuitProblem = error.message; }
+  }
+  if (state.simulation?.kind) {
+    const text = JSON.stringify(state.simulation, (key, value) => (Array.isArray(value) && value.length > 40 ? `[${value.length} values]` : value));
+    context.lastSimulation = text.length > 3000 ? `${text.slice(0, 3000)}…` : text;
+  }
+  return context;
+}
+
+/** Minimal, escape-first formatting: code blocks, inline code, bold, bullets and line breaks. */
+function formatAssistantText(text) {
+  const blocks = String(text ?? '').split(/```(?:\w+)?\n?/);
+  return blocks.map((block, index) => (index % 2 ? `<pre class="ai-code">${esc(block.trim())}</pre>` : esc(block)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+    .replace(/^#{1,4}\s*(.+)$/gm, '<b>$1</b>')
+    .replace(/^\s*[-*]\s+(.+)$/gm, '• $1')
+    .replace(/\n/g, '<br>'))).join('');
+}
+
+function renderAssistant(state) {
+  const settings = assistantSettings();
+  if (!assistant.open) return `<button class="ai-fab" data-ai-open title="Ask the AI lab partner">✦ Ask AI</button>`;
+  const provider = PROVIDERS[settings.provider] ?? PROVIDERS.custom;
+  const active = modules.find((item) => item.id === state.activeModule) ?? modules[0];
+  const ready = settings.consented && (!provider.needsKey || settings.apiKey);
+  const settingsView = `<div class="ai-settings">
+      <label>Provider<select data-ai-setting="provider">${Object.entries(PROVIDERS).map(([id, p]) => `<option value="${id}" ${id === settings.provider ? 'selected' : ''}>${esc(p.label)}</option>`).join('')}</select></label>
+      <label>API base URL<input type="text" spellcheck="false" data-ai-setting="baseUrl" value="${esc(settings.baseUrl)}" placeholder="${esc(provider.baseUrl || 'https://your-server/v1')}"></label>
+      <label>Model<input type="text" spellcheck="false" data-ai-setting="model" value="${esc(settings.model)}" placeholder="${esc(provider.model || 'model name')}"></label>
+      <label>API key${provider.needsKey ? '' : ' (optional)'}<input type="password" autocomplete="off" data-ai-setting="apiKey" value="${esc(settings.apiKey)}" placeholder="${provider.needsKey ? 'sk-…' : 'not needed'}"></label>
+      <label>How should it help?<select data-ai-setting="mode">${Object.entries(MODES).map(([id, label]) => `<option value="${id}" ${id === settings.mode ? 'selected' : ''}>${esc(label)}</option>`).join('')}</select></label>
+      <label>Reply language<select data-ai-setting="language">${Object.entries(LANGUAGES).map(([id, label]) => `<option value="${id}" ${id === settings.language ? 'selected' : ''}>${esc(label)}</option>`).join('')}</select></label>
+      <label class="ai-check"><input type="checkbox" data-ai-setting="shareLab" ${settings.shareLab ? 'checked' : ''}> Let the AI read my current lab's inputs and results</label>
+      <label class="ai-check"><input type="checkbox" data-ai-setting="consented" ${settings.consented ? 'checked' : ''}> I understand my questions${settings.shareLab ? ' and lab inputs' : ''} are sent to ${esc(provider.label)}</label>
+      <p class="field-help">The key is kept only in this browser (localStorage), never in your project file or exports. Free option: install Ollama, run <code>OLLAMA_ORIGINS=* ollama serve</code> and pull a model such as llama3.1. Every number the AI states is meant to come from OpenENTC's own tested engines — open "Checked with" under a reply to see the calculations.</p>
+      <button class="button primary" data-ai-view="chat">Done</button></div>`;
+  const messages = assistant.shown.map((m) => `<div class="ai-msg ${m.role}">${m.role === 'user' ? esc(m.text).replace(/\n/g, '<br>') : formatAssistantText(m.text)}${m.trace?.length ? `<details class="ai-trace"><summary>Checked with ${m.trace.length} tool call${m.trace.length > 1 ? 's' : ''}</summary>${m.trace.map((t) => `<div><b>${esc(t.tool)}</b><pre>${esc(t.args.code ?? t.args.netlist ?? t.args.query ?? JSON.stringify(t.args))}</pre><pre class="out">${esc(t.output)}</pre></div>`).join('')}</details>` : ''}</div>`).join('');
+  const suggestions = [`Explain what this ${active.name} page does`, 'Why is my result like this?', settings.mode === 'viva' ? 'Start my viva' : 'Quiz me on this topic'];
+  const chatView = `<div class="ai-messages" data-ai-messages>${messages || `<div class="ai-empty"><b>Hi! I am your lab partner.</b><p>Ask about ${esc(active.name)} or any ENTC topic. I calculate with OpenENTC's simulators before I answer.</p></div>`}${assistant.busy ? `<div class="ai-msg assistant busy">${esc(assistant.status || 'Thinking…')}</div>` : ''}${assistant.error ? `<div class="ai-msg error">${esc(assistant.error)}</div>` : ''}</div>
+    ${ready ? '' : `<div class="ai-setup">${settings.consented ? `Add your ${esc(provider.label)} API key` : 'Set up a provider'} to start. <button class="button subtle" data-ai-view="settings">Open settings</button></div>`}
+    <div class="ai-suggestions">${suggestions.map((s) => `<button data-ai-suggest="${esc(s)}" ${assistant.busy || !ready ? 'disabled' : ''}>${esc(s)}</button>`).join('')}</div>
+    <div class="ai-input"><textarea rows="2" placeholder="Ask anything… (Enter to send, Shift+Enter for a new line)" data-ai-draft ${assistant.busy || !ready ? 'disabled' : ''}>${esc(assistant.draft)}</textarea>${assistant.busy ? '<button class="button" data-ai-stop>Stop</button>' : `<button class="button primary" data-ai-send ${ready ? '' : 'disabled'}>Send</button>`}</div>`;
+  return `<aside class="ai-panel" aria-label="AI lab partner"><header><b>✦ AI lab partner</b><span>${esc(provider.label)} · ${esc(MODES[settings.mode] ?? '')}</span><div><button class="icon-button" data-ai-view="${assistant.view === 'settings' ? 'chat' : 'settings'}" title="Settings">⚙</button><button class="icon-button" data-ai-clear title="New conversation">⟲</button><button class="icon-button" data-ai-close title="Close">✕</button></div></header>${assistant.view === 'settings' ? settingsView : chatView}</aside>`;
+}
+
+async function sendToAssistant(text) {
+  const question = String(text).trim();
+  if (!question || assistant.busy) return;
+  const settings = assistantSettings(), state = getState();
+  const active = modules.find((item) => item.id === state.activeModule) ?? modules[0];
+  assistant.draft = ''; assistant.error = ''; assistant.busy = true; assistant.status = 'Thinking…';
+  assistant.shown.push({ role: 'user', text: question });
+  assistant.history.push({ role: 'user', content: question });
+  assistant.controller = new AbortController();
+  render();
+  const vivaBank = TRACKS.flatMap((track) => track.viva);
+  try {
+    const result = await assistantChat({ settings, messages: assistant.history, signal: assistant.controller.signal, context: { labName: active.name, lab: () => (settings.shareLab ? assistantLabContext(getState()) : { note: 'The student chose not to share lab inputs.' }), lessons: lessonIndex(), viva: vivaBank } });
+    // Keep the history compact: user/assistant text turns only (tool steps are re-derived each time).
+    assistant.history.push({ role: 'assistant', content: result.reply });
+    if (assistant.history.length > 24) assistant.history = assistant.history.slice(-24);
+    assistant.shown.push({ role: 'assistant', text: result.reply, trace: result.trace });
+  } catch (error) {
+    assistant.history.pop();
+    assistant.error = assistant.controller?.signal.aborted ? 'Stopped.' : error.message;
+  } finally {
+    assistant.busy = false; assistant.status = ''; assistant.controller = null; assistant.focus = true;
+    render();
+  }
+}
+
+function bindAssistantEvents() {
+  document.querySelector('[data-ai-open]')?.addEventListener('click', () => { assistant.open = true; assistant.focus = true; if (!assistantSettings().consented) assistant.view = 'settings'; render(); });
+  document.querySelector('[data-ai-close]')?.addEventListener('click', () => { assistant.open = false; render(); });
+  document.querySelector('[data-ai-clear]')?.addEventListener('click', () => { assistant.history = []; assistant.shown = []; assistant.error = ''; render(); });
+  document.querySelectorAll('[data-ai-view]').forEach((b) => b.addEventListener('click', () => { assistant.view = b.dataset.aiView; render(); }));
+  document.querySelectorAll('[data-ai-setting]').forEach((input) => input.addEventListener('change', () => {
+    const key = input.dataset.aiSetting;
+    const value = input.type === 'checkbox' ? input.checked : input.value.trim();
+    if (key === 'baseUrl' && value) { try { validateBaseUrl(value); } catch (error) { notify(error.message, 'error'); return; } }
+    saveAssistantSettings(key === 'provider' ? { provider: value, baseUrl: '', model: '' } : { [key]: value });
+    render();
+  }));
+  const draft = document.querySelector('[data-ai-draft]');
+  draft?.addEventListener('input', () => { assistant.draft = draft.value; });
+  draft?.addEventListener('keydown', (event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendToAssistant(draft.value); } });
+  document.querySelector('[data-ai-send]')?.addEventListener('click', () => sendToAssistant(draft?.value ?? assistant.draft));
+  document.querySelector('[data-ai-stop]')?.addEventListener('click', () => assistant.controller?.abort());
+  document.querySelectorAll('[data-ai-suggest]').forEach((b) => b.addEventListener('click', () => sendToAssistant(b.dataset.aiSuggest)));
+  const list = document.querySelector('[data-ai-messages]');
+  if (list) list.scrollTop = list.scrollHeight;
+  if (assistant.focus && assistant.view === 'chat' && !assistant.busy && draft) { assistant.focus = false; draft.focus({ preventScroll: true }); }
+}
+
 function renderMcu(state) {
   const module = modules.find((item) => item.id === 'mcu');
   const config = mcuConfiguration(state);
@@ -5357,7 +5475,7 @@ function bindEvents() {
   document.querySelector('[data-action="help"]')?.addEventListener('click', showHelp);
   document.querySelector('[data-action="command"]')?.addEventListener('click', showCommandPalette);
   document.querySelector('[data-action="engine-info"]')?.addEventListener('click', showEngineInfo);
-  const experimentModules = { 'signals-fft': 'dsp', 'dsp-lab': 'dsp', 'control-step': 'iot', 'control-lab': 'iot', 'comm-lab': 'communication', 'qpsk-ber': 'communication', 'rf-touchstone': 'rf', 'rf-lab': 'rf', 'calc-lab': 'calc', 'pcb-board': 'pcb', 'mcu-lab': 'mcu', 'bench-lab': 'bench', 'lab-record': 'record', 'power-lab': 'power', 'adc-lab': 'adc', 'sensor-lab': 'sensors', 'ev-lab': 'ev', 'vlsi-lab': 'vlsi', 'rtos-lab': 'rtos', 'network-lab': 'theory', 'sigsys-lab': 'sigsys', 'em-lab': 'em', 'cell-lab': 'cellular', 'netproto-lab': 'network', 'crypto-lab': 'crypto', 'wsn-lab': 'wsn', 'sdr-lab': 'sdr', 'dip-lab': 'dip', 'bio-lab': 'biomed', 'nn-lab': 'neural', 'console-lab': 'console', 'learn-lab': 'learn', 'rx-lab': 'communication', 'topology-metrics': 'network', 'vcd-import': 'fpga' };
+  const experimentModules = EXPERIMENT_MODULES;
   document.querySelectorAll('.experiment-list .engine-row').forEach((row) => {
     const id = row.querySelector('b')?.textContent?.trim();
     const module = experimentModules[id];
@@ -5426,6 +5544,7 @@ function bindEvents() {
   bindNnEvents();
   bindConsoleEvents();
   bindLearningHubEvents();
+  bindAssistantEvents();
   bindControlEvents();
   bindNetworkEvents();
   bindDigitalEvents();

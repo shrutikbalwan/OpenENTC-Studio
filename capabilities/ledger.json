@@ -414,6 +414,14 @@
       "plannedPhase": 8
     },
     {
+      "id": "assistant.ai-lab-partner",
+      "surface": "AI lab partner: chat panel on every page using any OpenAI-compatible API (OpenAI, Ollama, OpenRouter, Groq, Gemini), with tools backed by the Math Console, the MNA circuit solver, the current lab's inputs and the Learning Hub",
+      "state": "built-in",
+      "evidence": ["packages/assistant/src/index.mjs", "src/app.js#renderAssistant", "tests/assistant.test.mjs"],
+      "limitations": "Needs the user's own API key or a local Ollama server; nothing is sent until the user enables it and agrees to share. The model is instructed to compute every number with the built-in tools and each reply shows the tool calls it made, but language models can still misread a question or ignore an instruction — the shown calculations are the checkable part. Settings and the key are stored only in browser localStorage, never in project files. Tested against a mock OpenAI-compatible server; no live provider is contacted in CI.",
+      "plannedPhase": 9
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",
