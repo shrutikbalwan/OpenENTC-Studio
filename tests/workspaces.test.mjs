@@ -41,6 +41,7 @@ export const WORKSPACES = [
   { module: 'radar', path: '../src/workspaces/rf/radar.js', render: 'renderRadar', bind: 'bindRadarEvents', expect: [] },
   { module: 'twin', path: '../src/workspaces/embedded/twin.js', render: 'renderTwin', bind: 'bindTwinEvents', expect: [] },
   { module: 'pcb', path: '../src/workspaces/pcb/pcb.js', render: 'renderPcb', bind: 'bindPcbEvents', expect: [] },
+  { module: 'calc', path: '../src/workspaces/tools/calculators.js', render: 'renderCalculators', bind: 'bindCalculatorEvents', expect: [] },
 ];
 
 for (const workspace of WORKSPACES) {
