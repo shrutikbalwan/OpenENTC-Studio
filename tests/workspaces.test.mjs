@@ -26,6 +26,7 @@ export const WORKSPACES = [
   { module: 'dsp', path: '../src/workspaces/signals/dsp.js', render: 'renderDsp', bind: 'bindDspLabEvents', expect: [] },
   { module: 'speech', path: '../src/workspaces/signals/speech.js', render: 'renderSpeech', bind: 'bindSpeechEvents', expect: [] },
   { module: 'dip', path: '../src/workspaces/signals/dip.js', render: 'renderDip', bind: 'bindDipEvents', expect: [] },
+  { module: 'biomed', path: '../src/workspaces/signals/biomed.js', render: 'renderBio', bind: 'bindBioEvents', expect: [] },
 ];
 
 for (const workspace of WORKSPACES) {
