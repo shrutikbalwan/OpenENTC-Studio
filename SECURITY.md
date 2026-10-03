@@ -14,4 +14,13 @@ The optional AI lab partner sends the user's questions — and, only if they all
 
 ## Reporting a vulnerability
 
-Do not disclose security vulnerabilities in a public issue or attach sensitive projects, captures, credentials or device data. Use GitHub private vulnerability reporting when it is enabled for this repository. If it is not available, ask the maintainers for a private reporting channel without including exploit details in the public request. A dedicated security contact has not yet been published; this is a known release-process gap, not an invitation to report publicly.
+Do not disclose security vulnerabilities in a public issue, and do not attach sensitive projects, captures, credentials or device data.
+
+Report privately through GitHub: open the repository's **Security** tab and choose **Report a vulnerability** (private vulnerability reporting). The repository owner must enable this feature under *Settings → Code security*. Until it is confirmed enabled, open a public issue that only asks for a private contact, with no technical details. We aim to acknowledge reports within 7 days and to agree a disclosure date with the reporter.
+
+## Secrets
+
+- Never commit tokens, API keys, signing certificates or passwords. Signing material belongs only in the protected release environment (see `docs/governance/RELEASE-POLICY.md`).
+- The repository owner should enable GitHub **secret scanning** and **push protection** (*Settings → Code security*). These are owner settings and cannot be enabled from source.
+- If a secret is committed, treat it as compromised: revoke and rotate it first, then remove it from history. Removing it from history alone is not enough.
+- CI workflows run with read-only `contents` permission, check out without persisting credentials, and use no repository secrets. Pull requests from forks therefore cannot reach any credential.
