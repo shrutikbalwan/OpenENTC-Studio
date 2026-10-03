@@ -18,6 +18,7 @@ export const WORKSPACES = [
   { module: 'product', path: '../src/workspaces/electrical/product.js', render: 'renderProduct', bind: 'bindProductEvents', expect: [] },
   { module: 'measure', path: '../src/workspaces/electrical/measure.js', render: 'renderMeasurement', bind: 'bindMeasurementEvents', expect: [] },
   { module: 'theory', path: '../src/workspaces/circuit/theory.js', render: 'renderNetworkTheory', bind: 'bindNetworkTheoryEvents', expect: [] },
+  { module: 'faulthunt', path: '../src/workspaces/circuit/faulthunt.js', render: 'renderFaultHunt', bind: 'bindFaultHuntEvents', expect: [] },
 ];
 
 for (const workspace of WORKSPACES) {
