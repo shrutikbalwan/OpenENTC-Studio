@@ -48,6 +48,9 @@ export const WORKSPACES = [
   { module: 'mcu', path: '../src/workspaces/embedded/mcu.js', render: 'renderMcu', bind: 'bindMcuEvents', expect: [] },
   { module: 'bench', path: '../src/workspaces/circuit/bench.js', render: 'renderBench', bind: 'bindBenchEvents', expect: [] },
   { module: 'record', path: '../src/workspaces/records/records.js', render: 'renderRecords', bind: 'bindRecordEvents', expect: [] },
+  { module: 'circuit', path: '../src/workspaces/circuit/circuit.js', render: 'renderCircuit', bind: 'bindCircuitEvents', expect: [] },
+  { module: 'analog', path: '../src/workspaces/circuit/analog.js', render: 'renderAnalog', bind: 'bindAnalogEvents', expect: [] },
+  { module: 'embedded', path: '../src/workspaces/embedded/embedded.js', render: 'renderEmbedded', bind: 'bindEmbeddedEvents', expect: [] },
 ];
 
 for (const workspace of WORKSPACES) {
@@ -56,7 +59,7 @@ for (const workspace of WORKSPACES) {
     assert.equal(typeof mod[workspace.render], 'function');
     assert.equal(typeof mod[workspace.bind], 'function');
     const html = mod[workspace.render](store.getState());
-    assert.match(html, /class="page-heading"/);
+    assert.match(html, /<h1>[^<]+<\/h1>/, 'the workspace renders its title');
     for (const pattern of workspace.expect) assert.match(html, pattern);
     assert.doesNotMatch(html, /\bundefined\b/);
     // The binder only queries the DOM; with no matching elements it must do nothing.
