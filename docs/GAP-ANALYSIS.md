@@ -84,3 +84,9 @@ subject labs.
   [Falstad vs SPICE accuracy (EEVblog)](https://www.eevblog.com/forum/beginners/simulation-of-a-blinking-circuit-(falstad)/msg3412558/)
 - [Instructor-induced faults in training simulators (US11417239B1)](https://patents.google.com/patent/US11417239);
   [industrial troubleshooting simulators](https://www.tpctraining.com/pages/electrical-troubleshooting-simulation-skill-set)
+
+## Phase 12 — Real + Virtual Bench
+
+One firmware runs on a real Arduino over USB (Web Serial) and, unchanged, on the simulated Uno
+wired to the same circuit, so students compare hardware, simulation and theory on one plot. No
+free tool listed in section 1 connects real hardware and its simulated twin this way.

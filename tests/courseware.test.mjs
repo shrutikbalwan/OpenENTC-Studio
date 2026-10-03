@@ -6,6 +6,13 @@ import { modules } from '../src/data/modules.js';
 import { freeSpaceLoss, offeredTraffic, reusePlan } from '../packages/cellular/src/index.mjs';
 import { sensitivity, superhet } from '../packages/commsys/src/index.mjs';
 import { rectangularWaveguide } from '../packages/em/src/index.mjs';
+import { awgnCapacity, binaryEntropy } from '../packages/infotheory/src/index.mjs';
+import { solveBridge, ammeterShunt } from '../packages/measurement/src/index.mjs';
+import { doppler, orbit, pulseRadar, satelliteLink } from '../packages/radarsat/src/index.mjs';
+import { hzToMel } from '../packages/speech/src/index.mjs';
+import { designOscillator } from '../packages/analogdesign/src/index.mjs';
+import { ujtOscillator } from '../packages/machines/src/index.mjs';
+import { heatsink } from '../packages/productdesign/src/index.mjs';
 
 test('answer parsing understands engineering notation', () => {
   assert.equal(parseAnswer('4.7k'), 4700); assert.equal(parseAnswer('2.2 µF'), 2.2e-6); assert.equal(parseAnswer('-12.5 V'), -12.5);
@@ -14,8 +21,8 @@ test('answer parsing understands engineering notation', () => {
   assert.deepEqual(drawParameters({ a: [1, 5, 1], b: { choices: ['x', 'y'] }, c: 7 }, 3), drawParameters({ a: [1, 5, 1], b: { choices: ['x', 'y'] }, c: 7 }, 3));
 });
 
-test('six tracks, each lesson complete, every lab link points to a real module', () => {
-  assert.equal(TRACKS.length, 6);
+test('eight tracks, each lesson complete, every lab link points to a real module', () => {
+  assert.equal(TRACKS.length, 8);
   const moduleIds = new Set(modules.map((m) => m.id));
   const ids = new Set();
   for (const track of TRACKS) {
@@ -27,7 +34,8 @@ test('six tracks, each lesson complete, every lab link points to a real module',
     }
   }
   assert.equal(findLesson('divider').trackTitle, 'Circuit foundations');
-  assert.ok(lessonIndex().length >= 36);
+  assert.ok(lessonIndex().length >= 49);
+  for (const module of ['info', 'analog', 'measure', 'radar', 'speech', 'plc', 'machines', 'product', 'faulthunt']) assert.ok(lessonIndex().some((lesson) => lesson.lab.module === module), `a lesson links to ${module}`);
 });
 
 test('every question instantiates with finite answers for many seeds and accepts its own answer', () => {
@@ -57,6 +65,37 @@ test('quiz answers agree with the lab engines', () => {
     assert.ok(Math.abs(fspl.answer - freeSpaceLoss(fspl.params.f, fspl.params.d)) < 0.01);
     const traffic = answer('cellular', 'erlang', seed);
     assert.ok(Math.abs(traffic.answer - offeredTraffic({ users: traffic.params.users, callsPerHour: traffic.params.calls, holdingSeconds: traffic.params.minutes * 60 })) < 1e-9);
+  }
+});
+
+test('new-track quiz answers agree with the new lab engines', () => {
+  const answer = (lessonId, questionId, seed) => instantiate(findLesson(lessonId).questions.find((q) => q.id === questionId), seed);
+  const close = (actual, expected, label) => assert.ok(Math.abs(actual - expected) <= 1e-9 * Math.max(1, Math.abs(expected)), `${label}: ${actual} vs ${expected}`);
+  for (let seed = 1; seed <= 10; seed += 1) {
+    const m = answer('bridges', 'maxwell-l', seed);
+    close(m.answer, solveBridge('maxwell', { R1: 1e5, C1: m.params.c1, R2: m.params.r2, R3: m.params.r3 }).unknown.l, 'Maxwell');
+    const sh = answer('meters', 'shunt', seed);
+    close(sh.answer, ammeterShunt({ im: sh.params.im, rm: sh.params.rm, range: sh.params.range }).shunt, 'shunt');
+    const u = answer('power-devices', 'ujt', seed);
+    close(u.answer, ujtOscillator({ r: u.params.r, cap: u.params.c, eta: u.params.eta }).frequency, 'UJT');
+    const h = answer('product', 'theta-sa', seed);
+    close(h.answer, heatsink({ power: h.params.p, tjMax: h.params.tj, ambient: h.params.ta, thetaJc: h.params.jc, thetaCs: 0.5, margin: 1 }).requiredSa, 'θsa');
+    const hb = answer('entropy-huffman', 'hb', seed);
+    close(hb.answer, binaryEntropy(hb.params.p), 'Hb');
+    const cap = answer('entropy-huffman', 'capacity', seed);
+    close(cap.answer, awgnCapacity(cap.params.b, cap.params.snr).capacity, 'capacity');
+    const w = answer('analog-design', 'wien-f', seed);
+    close(w.answer, designOscillator({ type: 'wien', frequency: w.answer, c: w.params.c, series: 'exact' }).actual, 'Wien');
+    const r = answer('radar', 'runamb', seed);
+    close(r.answer, pulseRadar({ prf: r.params.prf }).unambiguousRange, 'Runamb');
+    const d = answer('radar', 'doppler', seed);
+    close(d.answer, doppler({ frequency: d.params.f, velocity: d.params.v }).fd, 'Doppler');
+    const f = answer('satellite', 'fspl-sat', seed);
+    close(f.answer, satelliteLink({ frequency: f.params.f, distance: f.params.d }).fspl, 'FSPL');
+    const t = answer('satellite', 'period', seed);
+    close(t.answer, orbit({ perigeeAltitude: t.params.alt }).period, 'period');
+    const mel = answer('speech', 'mel', seed);
+    close(mel.answer, hzToMel(mel.params.f), 'mel');
   }
 });
 

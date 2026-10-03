@@ -407,7 +407,7 @@
     },
     {
       "id": "learning.courseware",
-      "surface": "Learning Hub: six tracks of 36 lessons linked to the labs, quizzes with seeded numeric and multiple-choice questions, viva practice with self-marking, and the verified lab checkpoints",
+      "surface": "Learning Hub: eight tracks of 49 lessons linked to the labs (including every Phase 9–10 lab), quizzes with seeded numeric and multiple-choice questions, viva practice with self-marking, and the verified lab checkpoints",
       "state": "built-in",
       "evidence": ["packages/learning/src/courseware.mjs", "packages/learning/src/quiz.mjs", "src/app.js#renderLearningHub", "tests/courseware.test.mjs"],
       "limitations": "Short lessons, not a full textbook; quizzes check numeric answers to a relative tolerance (2 % unless stated) and accept engineering notation but not expressions. Progress is stored in the project file, not in an account. Selected answers are cross-checked against the cellular, receiver, waveguide and link-budget engines.",
@@ -500,6 +500,14 @@
       "evidence": ["sw.js", "manifest.webmanifest", "src/app.js#serviceWorker", "tests/offline.test.mjs"],
       "limitations": "Needs one online visit over HTTP(S) to fill the cache; not registered in the desktop shell, which already has every file locally. Only same-origin files are cached, so AI providers and other online services still need a connection. The icon is SVG, so very old browsers may not offer installation.",
       "plannedPhase": 11
+    },
+    {
+      "id": "twin.real-virtual-bench",
+      "surface": "Real + Virtual Bench: the OpenENTC Twin firmware (an Arduino sketch compiled with the official core) runs on a real Uno over Web Serial and, unchanged, on the simulated ATmega328P co-simulated with the same circuit; RC step response with τ fitting and implied capacitance, divider DC test and live streaming, compared with theory",
+      "state": "built-in",
+      "evidence": ["packages/twin/src/index.mjs", "packages/mcu/src/avr/sketches/twin_bench.ino", "src/app.js#renderTwin", "tests/twin.test.mjs"],
+      "limitations": "Real hardware needs a browser with Web Serial (Chrome or Edge on desktop) and an Arduino Uno-compatible board running the supplied firmware at 115200 baud; other boards need the sketch adapted. Experiments are limited to an RC step on D8/A0, a divider on A1 and a 50-sample stream; the RC fit assumes a single-pole exponential. The real-hardware path is tested with a mocked Web Serial port; the simulated path runs the real compiled firmware in the AVR simulator and is checked against R·C and the divider ratio.",
+      "plannedPhase": 12
     },
     {
       "id": "circuit.builtin-transient",

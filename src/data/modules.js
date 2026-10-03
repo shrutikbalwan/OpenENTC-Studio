@@ -15,6 +15,7 @@ export const modules = [
   { id: 'sensors', name: 'Sensors & Instrumentation', short: 'Sensors', icon: '♨', color: '#fb923c', description: 'Thermocouples (NIST tables), RTDs, thermistors, strain-gauge bridges, LVDTs and complete sensor → amplifier → ADC chains.' },
   { id: 'ev', name: 'EV Engineering', short: 'EV', icon: '⚡', color: '#a3e635', description: 'Battery-pack sizing, road load and range, motor torque–speed and acceleration, and charging time.' },
   { id: 'mcu', name: 'Microcontroller Lab', short: 'MCU', icon: '⌗', color: '#fbbf24', description: '8051 and Arduino Uno (ATmega328P) simulators with virtual boards, serial terminals and debugging.' },
+  { id: 'twin', name: 'Real + Virtual Bench', short: 'Twin', icon: '⇄', color: '#2dd4bf', description: 'Run one firmware on a real Arduino over USB and on the simulated Uno wired to the same circuit, and compare both with theory: RC step response, divider and live streaming.' },
   { id: 'pcb', name: 'PCB Studio', short: 'PCB', icon: '▤', color: '#34d399', description: 'Schematic-to-board design workflow.' },
   { id: 'product', name: 'Product Design', short: 'Product', icon: '◰', color: '#a78bfa', description: 'Heat-sink thermal design, parts-count reliability and MTBF with redundancy, IPC-2221 PCB trace width and duty-cycled battery life.' },
   { id: 'fpga', name: 'FPGA & Digital', short: 'FPGA', icon: '◇', color: '#a78bfa', description: 'Design, synthesize and verify digital logic.' },
@@ -42,7 +43,7 @@ export const modules = [
   { id: 'wsn', name: 'Sensor Networks', short: 'WSN', icon: '⁂', color: '#a3e635', description: 'Random and grid deployments, radio connectivity and k-coverage, and network lifetime with direct, multi-hop and LEACH clustering on the first-order radio model.' },
   { id: 'crypto', name: 'Cryptography', short: 'Crypto', icon: '⚿', color: '#f472b6', description: 'Caesar, Vigenère, Playfair, Hill and rail fence; modular arithmetic, RSA and Diffie–Hellman; AES, DES and SHA-256 round by round.' },
   { id: 'record', name: 'Lab Records', short: 'Record', icon: '✎', color: '#fda4af', description: 'Write your practical journal and download it as a PDF with circuit, oscilloscope captures, graphs and programs.' },
-  { id: 'learn', name: 'Learning Hub', short: 'Learn', icon: '◫', color: '#facc15', description: 'Six ENTC tracks of short lessons linked to the labs, quizzes with fresh numbers every attempt, viva practice and verified lab checkpoints.' }
+  { id: 'learn', name: 'Learning Hub', short: 'Learn', icon: '◫', color: '#facc15', description: 'Eight ENTC tracks of short lessons linked to the labs, quizzes with fresh numbers every attempt, viva practice and verified lab checkpoints.' }
 ];
 
 const legacyComponentPalette = [

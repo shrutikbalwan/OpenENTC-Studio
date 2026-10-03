@@ -54,6 +54,7 @@ const META = {
   shift_register: { name: '74HC595 shift register (SPI)', board: { leds: [], buttons: [], pots: [], lcd: null, shift595: { latch: 10 } } },
   pwm_dac: { name: 'PWM DAC with RC filter (co-simulation)', board: { leds: [], buttons: [], pots: [], lcd: null } },
   rc_timer: { name: 'RC time-constant meter (co-simulation)', board: { leds: [], buttons: [], pots: [], lcd: null } },
+  twin_bench: { name: 'OpenENTC Twin firmware (Real + Virtual Bench)', board: { leds: [], buttons: [], pots: [], lcd: null } },
 };
 
 const examples = [];
