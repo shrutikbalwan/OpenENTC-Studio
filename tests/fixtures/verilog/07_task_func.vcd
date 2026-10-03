@@ -1,0 +1,43 @@
+$date
+	Fri Oct  2 09:18:37 2026
+$end
+$version
+	Icarus Verilog
+$end
+$timescale
+	1s
+$end
+$scope module tb $end
+$var reg 8 ! x [7:0] $end
+$var reg 16 " y [15:0] $end
+$scope function clog2 $end
+$var integer 32 # t [31:0] $end
+$var integer 32 $ value [31:0] $end
+$upscope $end
+$scope function square $end
+$var reg 8 % v [7:0] $end
+$upscope $end
+$scope task show $end
+$var reg 8 & v [7:0] $end
+$upscope $end
+$upscope $end
+$enddefinitions $end
+$comment Show the parameter values. $end
+$dumpall
+$end
+#0
+$dumpvars
+b101 &
+b1100 %
+bx $
+bx #
+b10010000 "
+b1100 !
+$end
+#2
+b11111010 &
+b101 %
+#4
+b0 #
+b10001 $
+b11111010 %

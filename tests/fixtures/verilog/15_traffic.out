@@ -1,0 +1,5 @@
+12 state=0 ns=001 ew=100
+85 state=1 ns=010 ew=100
+115 state=2 ns=100 ew=001
+195 state=3 ns=100 ew=010
+225 state=0 ns=001 ew=100

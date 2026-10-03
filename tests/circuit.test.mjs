@@ -101,6 +101,13 @@ test('transient stimulus drives sine and pulse waveforms through the selected so
   const pulse = stimulusWaveform({ shape: 'pulse', frequency: 1000, amplitude: 3 });
   assert.deepEqual([0, 0.2e-3, 0.5e-3, 0.7e-3, 1.2e-3].map(pulse), [0, 3, 3, 0, 3]);
   assert.equal(stimulusWaveform({ shape: 'step', offset: 1 }, 4)(1e-9), 5);
+  const square = stimulusWaveform({ shape: 'square', frequency: 1000, amplitude: 2, offset: 1, duty: 0.25 });
+  assert.deepEqual([0.1e-3, 0.3e-3, 0.9e-3, 1.2e-3].map(square), [3, -1, -1, 3]);
+  const triangle = stimulusWaveform({ shape: 'triangle', frequency: 1000, amplitude: 2 });
+  assert.deepEqual([0, 0.25e-3, 0.5e-3, 0.75e-3].map((t) => Math.round(triangle(t) * 1e9) / 1e9), [0, 2, 0, -2]);
+  const saw = stimulusWaveform({ shape: 'sawtooth', frequency: 1000, amplitude: 1 });
+  assert.deepEqual([0, 0.25e-3, 0.5e-3].map((t) => Math.round(saw(t) * 1e9) / 1e9), [-1, -0.5, 0]);
+  assert.throws(() => stimulusWaveform({ shape: 'pulse', duty: 1.5 }), /Duty cycle/);
   assert.throws(() => stimulusWaveform({ shape: 'saw' }), /Stimulus shape/);
   assert.throws(() => simulateTransient([part('V1', 'voltage', 1, 'a', '0'), part('R1', 'resistor', 1, 'a', '0')], [], [], { stopTime: 1, timeStep: 1e-6 }), new RegExp(String(MAX_TRANSIENT_POINTS)));
   assert.throws(() => simulateTransient([part('V1', 'voltage', 1, 'a', '0'), part('R1', 'resistor', 1, 'a', '0')], [], [], { stopTime: 1e-3, timeStep: 1e-5, stimulus: { sourceId: 'V9' } }), /not an independent source/);
@@ -144,4 +151,16 @@ test('rejects malformed project component numbers', () => {
   const project = createProject('Invalid project');
   project.circuit.components[0].x = Number.NaN;
   assert.throws(() => validateProject(project), /invalid x/);
+});
+
+// Reference: ngspice 42 on the exported netlist (PULSE source, adaptive steps) gives V(c) = 3.8789 V
+// 0.5 ms after the transistor switches off. Integrating trapezoidally straight across the edge
+// rang up to ~5.4 V; backward Euler after each stimulus edge matches SPICE's breakpoint handling.
+test('transient restarts with backward Euler at stimulus edges (BJT turn-off matches ngspice)', () => {
+  const comps = [part('V1', 'voltage', 5, 'vcc', '0'), part('RL', 'resistor', 220, 'vcc', 'a'), part('D1', 'led', 2, 'a', 'c'), { id: 'Q1', type: 'npn', label: 'Q1', value: 100, n1: 'c', n2: 'b', n3: '0' }, part('RB', 'resistor', 1025, 'd13', 'b'), part('VG', 'voltage', 5, 'd13', '0')];
+  const result = simulateTransient(comps, [], [], { stopTime: 0.01, timeStep: 5e-6, stimulus: { sourceId: 'VG', shape: 'pulse', frequency: 100, amplitude: 5 } });
+  const at = (t) => result.nodes.c[result.time.findIndex((time) => time >= t)];
+  near(at(0.004), 0.0435, 2e-3, 'saturated');
+  near(at(0.0055), 3.8789, 5e-3, 'off, LED leakage');
+  assert.ok(Math.max(...result.nodes.c) < 5, 'no overshoot above the supply');
 });

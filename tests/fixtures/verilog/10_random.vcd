@@ -1,0 +1,22 @@
+$date
+	Fri Oct  2 09:18:37 2026
+$end
+$version
+	Icarus Verilog
+$end
+$timescale
+	1s
+$end
+$scope module tb $end
+$var reg 8 ! r [7:0] $end
+$var integer 32 " i [31:0] $end
+$upscope $end
+$enddefinitions $end
+$comment Show the parameter values. $end
+$dumpall
+$end
+#0
+$dumpvars
+b110 "
+b1110110 !
+$end

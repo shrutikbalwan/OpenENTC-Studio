@@ -85,3 +85,5 @@ export function reflectionCoefficient(impedance, referenceImpedance = 50) {
   if (!impedance || !Number.isFinite(impedance.real) || !Number.isFinite(impedance.imaginary) || !Number.isFinite(referenceImpedance) || referenceImpedance <= 0) throw new TypeError('RF impedance and reference impedance are invalid.');
   return div(sub(impedance, { real: referenceImpedance, imaginary: 0 }), add(impedance, { real: referenceImpedance, imaginary: 0 }));
 }
+
+export * from './rf-tools.mjs';

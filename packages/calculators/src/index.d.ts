@@ -1,0 +1,25 @@
+export interface ColorBand { name: string; digit: number | null; multiplier: number | null; tolerance: number | null; tempco: number | null; hex: string }
+export declare const COLOR_BANDS: readonly ColorBand[];
+export declare function decodeResistorBands(names: string[]): { value: number; tolerance: number; tempco: number | null; minimum: number; maximum: number };
+export declare function encodeResistorBands(value: number, options?: { bands?: 4 | 5 | 6; tolerance?: number; tempco?: number }): { bands: string[]; value: number; requested: number; roundingError: number };
+export declare const E_SERIES: Readonly<Record<'E6' | 'E12' | 'E24' | 'E48' | 'E96', number[]>>;
+export declare function nearestPreferred(value: number, series?: string): { series: string; value: number; error: number; below: number; above: number };
+export declare function decodeSmdResistor(code: string): { code: string; value: number; system: string };
+export declare function decodeCapacitorCode(code: string): { farads: number; picofarads: number; tolerance: string | null };
+export declare function timer555Astable(options?: { r1?: number; r2?: number; c?: number }): { mode: 'astable'; high: number; low: number; period: number; frequency: number; duty: number };
+export declare function timer555Monostable(options?: { r?: number; c?: number }): { mode: 'monostable'; width: number };
+export declare function design555Astable(options?: { frequency?: number; duty?: number; c?: number }): { r1: number; r2: number; standard: { r1: number; r2: number; high: number; low: number; period: number; frequency: number; duty: number; mode: 'astable' }; warnings: string[] };
+export declare const OPAMP_CONFIGS: Readonly<Record<string, string>>;
+export declare function opampStage(options?: { config?: string; r1?: number; r2?: number; gbw?: number; slewRate?: number; inputPeak?: number; supply?: number }): { config: string; gain: number; gainDb: number; noiseGain: number; bandwidth: number; inputImpedance: number; outputPeak: number; clipping: boolean; fullPowerBandwidth: number };
+export declare function ratioToDb(ratio: number, kind?: 'power' | 'voltage'): number;
+export declare function dbToRatio(decibels: number, kind?: 'power' | 'voltage'): number;
+export declare const POWER_UNITS: Readonly<Record<string, string>>;
+export declare function convertLevel(value: number, unit?: string, impedance?: number): { W: number; mW: number; dBm: number; dBW: number; Vrms: number; Vpeak: number; Vpp: number; dBuV: number; dBV: number; impedance: number };
+export declare function solveOhm(known: Partial<Record<'V' | 'I' | 'R' | 'P', number | string | null>>): { V: number; I: number; R: number; P: number };
+export declare function seriesParallel(values: number[]): { series: number; parallel: number };
+export declare function voltageDivider(options?: { vin?: number; r1?: number; r2?: number; load?: number | string | null }): { vout: number; unloaded: number; current: number; theveninResistance: number };
+export declare function reactance(options?: { frequency?: number; capacitance?: number; inductance?: number }): { capacitive: number; inductive: number };
+export declare function rlcResonance(options?: { resistance?: number; inductance?: number; capacitance?: number }): { resonance: number; q: number; bandwidth: number; characteristicImpedance: number; damping: number };
+export declare function rcFilter(options?: { resistance?: number; capacitance?: number }): { tau: number; cutoff: number; riseTime: number; settle5Tau: number };
+export declare function ledResistor(options?: { supply?: number; forwardVoltage?: number; current?: number }): { resistance: number; standard: number; actualCurrent: number; resistorPower: number; ledPower: number };
+export declare function adcResolution(options?: { bits?: number; reference?: number }): { levels: number; lsb: number; snrDb: number; dynamicRangeDb: number };

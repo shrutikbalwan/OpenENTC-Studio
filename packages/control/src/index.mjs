@@ -41,3 +41,5 @@ export function firstOrderStability(tau) {
   if (!Number.isFinite(tau) || tau === 0) throw new TypeError('Time constant must be finite and non-zero.');
   return Object.freeze({ stable: tau > 0, reason: tau > 0 ? 'pole is in the left half-plane' : 'pole is in the right half-plane' });
 }
+
+export * from './analysis.mjs';

@@ -8,6 +8,10 @@ The browser preview runs only built-in capabilities and has no native process, f
 
 This is still an unsigned development build. Do not treat it as a trusted public release until clean-machine verification, supported-OS qualification, signing, licence review, and the remaining release checklist are complete.
 
+## AI assistant
+
+The optional AI lab partner sends the user's questions — and, only if they allow it, the current lab's inputs and results — to the OpenAI-compatible service they configure. The API key is kept in the browser's localStorage, is never written to projects or exports, and is sent only to that service. Base URLs must use https, except plain http to localhost for local servers such as Ollama. Model replies are rendered as escaped text; tool calls run only the built-in, side-effect-free calculators.
+
 ## Reporting a vulnerability
 
 Do not disclose security vulnerabilities in a public issue or attach sensitive projects, captures, credentials or device data. Use GitHub private vulnerability reporting when it is enabled for this repository. If it is not available, ask the maintainers for a private reporting channel without including exploit details in the public request. A dedicated security contact has not yet been published; this is a known release-process gap, not an invitation to report publicly.

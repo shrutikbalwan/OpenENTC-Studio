@@ -1,0 +1,25 @@
+                   0 clk=0 rst=1 q= 0
+                   5 clk=1 rst=1 q= 0
+                  10 clk=0 rst=1 q= 0
+                  12 clk=0 rst=0 q= 0
+                  15 clk=1 rst=0 q= 1
+                  20 clk=0 rst=0 q= 1
+                  25 clk=1 rst=0 q= 2
+                  30 clk=0 rst=0 q= 2
+                  35 clk=1 rst=0 q= 3
+                  40 clk=0 rst=0 q= 3
+                  45 clk=1 rst=0 q= 4
+                  50 clk=0 rst=0 q= 4
+                  55 clk=1 rst=0 q= 5
+                  60 clk=0 rst=0 q= 5
+                  65 clk=1 rst=0 q= 6
+                  70 clk=0 rst=0 q= 6
+                  75 clk=1 rst=0 q= 7
+                  80 clk=0 rst=0 q= 7
+                  85 clk=1 rst=0 q= 8
+                  90 clk=0 rst=0 q= 8
+                  95 clk=1 rst=0 q= 9
+                 100 clk=0 rst=0 q= 9
+                 105 clk=1 rst=0 q=10
+                 110 clk=0 rst=0 q=10
+q=10 a 1010 10

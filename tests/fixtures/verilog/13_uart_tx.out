@@ -1,0 +1,11 @@
+0 tx=1 busy=0
+3 tx=1 busy=1
+5 tx=0 busy=1
+19 tx=1 busy=1
+27 tx=0 busy=1
+35 tx=1 busy=1
+43 tx=0 busy=1
+59 tx=1 busy=1
+67 tx=0 busy=1
+75 tx=1 busy=1
+83 tx=1 busy=0

@@ -1,3 +1,6 @@
+export * from './polynomial.mjs';
+export * from './filters.mjs';
+
 const MAX_SAMPLES = 1_000_000;
 const MAX_FFT_SAMPLES = 4096;
 export const MAX_N2_OPERATIONS = 25_000_000;
