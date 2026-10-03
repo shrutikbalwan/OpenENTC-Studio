@@ -95,7 +95,7 @@ Baseline: [`docs/modernization-baseline.md`](modernization-baseline.md) (commit 
   - the circuit solver: `ValidationError` with the component as location, `NumericalError`, `ConvergenceError`;
   - the project model: `ProjectError` is now a `ProjectFormatError`;
   - the desktop bridge (`NativeToolError`) and browser storage (`StorageError`).
-- **`src/services/errors.js`:** `reportError()` replaces all 46 `notify(error…, 'error')` call sites and
+- **`src/services/errors.js`:** `reportError()` replaces every `notify(error…, 'error')` call site (70 calls) and
   keeps the last 20 errors, redacted, for diagnostics. `src/components/errors.js` is the single in-lab error
   panel; it shows the recovery hint when there is one, and its markup is unchanged for plain errors.
 - **Type checking:** `src/shared`, `src/components`, `src/controllers`, `src/services`, `src/state` and
