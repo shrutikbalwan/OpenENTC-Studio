@@ -44,6 +44,7 @@ export const WORKSPACES = [
   { module: 'calc', path: '../src/workspaces/tools/calculators.js', render: 'renderCalculators', bind: 'bindCalculatorEvents', expect: [] },
   { module: 'neural', path: '../src/workspaces/learning/neural.js', render: 'renderNn', bind: 'bindNnEvents', expect: [] },
   { module: 'console', path: '../src/workspaces/learning/console.js', render: 'renderConsole', bind: 'bindConsoleEvents', expect: [] },
+  { module: 'learn', path: '../src/workspaces/learning/learning-hub.js', render: 'renderLearningHub', bind: 'bindLearningHubEvents', expect: [] },
 ];
 
 for (const workspace of WORKSPACES) {
