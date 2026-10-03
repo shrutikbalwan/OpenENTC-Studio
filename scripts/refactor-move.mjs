@@ -60,6 +60,68 @@ export function identifiers(text) {
   visit(file);
   return found;
 }
+// Resolve what the moved line ranges really refer to, using the TypeScript checker: names bound to
+// an import, names bound to another top-level declaration of the source, and nothing else (locals
+// and parameters with the same spelling are ignored).
+export function freeReferences(file, text, ranges) {
+  const program = ts.createProgram([file], { allowJs: true, checkJs: false, noEmit: true, noResolve: true, target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext });
+  const checker = program.getTypeChecker();
+  const sf = program.getSourceFile(file);
+  const lineStarts = sf.getLineStarts();
+  const spans = ranges.map(([startLine, endLine]) => [lineStarts[startLine], endLine < lineStarts.length ? lineStarts[endLine] : text.length]);
+  const inside = (pos) => spans.some(([a, b]) => pos >= a && pos < b);
+  const imports = new Set(), topLevel = new Set();
+  const topOf = (node) => { while (node.parent && node.parent !== sf) node = node.parent; return node; };
+  const visit = (node) => {
+    if (ts.isIdentifier(node) && inside(node.getStart(sf))) {
+      const symbol = checker.getSymbolAtLocation(node);
+      const declaration = symbol?.declarations?.[0];
+      if (declaration && declaration.getSourceFile() === sf) {
+        const top = topOf(declaration);
+        if (ts.isImportDeclaration(top)) imports.add(node.text);
+        else if (top.pos <= declaration.pos && !inside(top.getStart(sf)) && (ts.isVariableStatement(top) || ts.isFunctionDeclaration(top) || ts.isClassDeclaration(top))) {
+          const isTopBinding = ts.isFunctionDeclaration(declaration) || ts.isClassDeclaration(declaration) || (ts.isVariableDeclaration(declaration) && declaration.parent?.parent === top);
+          if (isTopBinding) topLevel.add(node.text);
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return { imports, topLevel };
+}
+
+// One pass over a module: for every top-level declaration, the other top-level declarations and
+// the imported names it references (resolved with the checker, so locals are not confused).
+export function referenceMap(file) {
+  const program = ts.createProgram([file], { allowJs: true, checkJs: false, noEmit: true, noResolve: true, target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext });
+  const checker = program.getTypeChecker();
+  const sf = program.getSourceFile(file);
+  const map = new Map();
+  const namesOf = (statement) => (ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement)) && statement.name ? [statement.name.text]
+    : ts.isVariableStatement(statement) ? statement.declarationList.declarations.filter((d) => ts.isIdentifier(d.name)).map((d) => d.name.text) : [];
+  const topOf = (node) => { while (node.parent && node.parent !== sf) node = node.parent; return node; };
+  for (const statement of sf.statements) {
+    const names = namesOf(statement);
+    if (!names.length) continue;
+    const refs = { topLevel: new Set(), imports: new Set() };
+    const visit = (node) => {
+      if (ts.isIdentifier(node)) {
+        const declaration = checker.getSymbolAtLocation(node)?.declarations?.[0];
+        if (declaration && declaration.getSourceFile() === sf) {
+          const top = topOf(declaration);
+          if (ts.isImportDeclaration(top)) refs.imports.add(node.text);
+          else if (top !== statement && namesOf(top).includes(node.text) && (ts.isFunctionDeclaration(declaration) || ts.isClassDeclaration(declaration) || ts.isVariableDeclaration(declaration) && declaration.parent?.parent === top)) refs.topLevel.add(node.text);
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(statement);
+    for (const name of names) map.set(name, refs);
+  }
+  return map;
+}
+
 const relativeSpec = (fromFile, toFile) => { let spec = path.relative(path.dirname(fromFile), toFile).split(path.sep).join('/'); if (!spec.startsWith('.')) spec = `./${spec}`; return spec; };
 const resolveSpec = (file, spec) => (spec.startsWith('.') ? path.resolve(path.dirname(file), spec) : spec);
 const importLine = (names, spec) => `import { ${[...names].sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }) || a.localeCompare(b)).join(', ')} } from '${spec}';`;
@@ -87,8 +149,9 @@ export function move({ from, to, names, doc = '', exportAlso = [] }) {
     chunks.push(chunk.join('\n'));
   }
   const movedText = chunks.join('\n');
-  const movedIds = identifiers(movedText);
-  const staying = [...source.blocks.keys()].filter((n) => !moving.has(n) && movedIds.has(n));
+  const refs = freeReferences(path.resolve(from), source.lines.join('\n'), [...moving].map((n) => [source.blocks.get(n).start, source.blocks.get(n).end]));
+  const movedIds = refs.imports;
+  const staying = [...refs.topLevel].filter((n) => !moving.has(n));
   if (staying.length) throw new Error(`Moved code uses declarations that stay in ${from}: ${staying.join(', ')}. Move or share them first.`);
 
   // Imports for the target.
@@ -97,6 +160,7 @@ export function move({ from, to, names, doc = '', exportAlso = [] }) {
     for (const n of imp.names) {
       if (!movedIds.has(n.local)) continue;
       const target = resolveSpec(from, imp.from);
+      if (target === path.resolve(to)) continue; // the name is defined in the target itself
       const key = target.startsWith('/') ? target : `pkg:${target}`;
       (needed.get(key) ?? needed.set(key, new Set()).get(key)).add(n.imported === n.local ? n.local : `${n.imported} as ${n.local}`);
     }
@@ -104,6 +168,10 @@ export function move({ from, to, names, doc = '', exportAlso = [] }) {
   let targetText = '';
   if (existsSync(to)) {
     const existing = parseModule(readFileSync(to, 'utf8'));
+    // A name the target already imports (from any path) or defines must not be imported again.
+    const present = new Set([...existing.imports.flatMap((imp) => imp.names.map((n) => n.local)), ...existing.blocks.keys()]);
+    for (const set of needed.values()) for (const entry of [...set]) if (present.has(entry.split(/\s+as\s+/).pop())) set.delete(entry);
+    for (const [key, set] of [...needed]) if (!set.size) needed.delete(key);
     for (const imp of existing.imports) {
       const target = resolveSpec(to, imp.from);
       const key = target.startsWith('/') ? target : `pkg:${target}`;

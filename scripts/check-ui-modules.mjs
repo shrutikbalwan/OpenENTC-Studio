@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Structural checks for the browser UI modules (src/**/*.js):
-//   1. unresolved names — an identifier with no declaration or import (catches broken extractions);
+//   1. name errors — an identifier with no declaration or import, or declared/imported twice
+//      (catches broken extractions);
 //   2. import cycles between files in src/ and packages/;
 //   3. unused imports and locals in the UI modules (dead code);
 //   4. exports from the shared UI layers that nothing imports.
@@ -34,7 +35,7 @@ export function diagnose(files) {
     for (const d of program.getSemanticDiagnostics(program.getSourceFile(file))) {
       const { line } = d.file.getLineAndCharacterOfPosition(d.start);
       const message = `${rel(file)}:${line + 1} ${ts.flattenDiagnosticMessageText(d.messageText, ' ')}`;
-      if ([2304, 2552].includes(d.code)) unresolved.push(message);
+      if ([2304, 2552, 2300, 2440, 2451].includes(d.code)) unresolved.push(message);
       else if ([6133, 6192, 6198].includes(d.code)) unused.push(message);
     }
   }

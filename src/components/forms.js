@@ -6,3 +6,5 @@ export const labSelect = (attribute, name, label, value, options) => `<label>${l
 export const labTabs = (tabs, active, attribute) => `<div class="logic-tabs" role="tablist">${tabs.map(([id, label]) => `<button role="tab" aria-selected="${active === id}" class="${active === id ? 'active' : ''}" ${attribute}="${id}">${label}</button>`).join('')}</div>`;
 export const groupField = (attribute) => (path, label, value, unit = '') => `<label>${label}<input type="text" spellcheck="false" ${attribute}="${path}" value="${esc(numericText(value))}">${unit ? `<span>${unit}</span>` : ''}</label>`;
 export const labText = (prefix) => (path, label, value, rows = 0) => (rows ? `<label class="em-text">${label}<textarea rows="${rows}" spellcheck="false" data-${prefix}-text="${path}">${esc(value)}</textarea></label>` : `<label>${label}<input type="text" spellcheck="false" data-${prefix}-text="${path}" value="${esc(value)}"></label>`);
+
+export const labField = (attribute, name, label, value, unit = '', attributes = 'type="number" step="any"') => `<label>${label}<input ${attributes} ${attribute}="${name}" value="${esc(value)}">${unit ? `<span>${unit}</span>` : ''}</label>`;

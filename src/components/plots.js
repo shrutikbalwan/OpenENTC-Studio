@@ -1,7 +1,7 @@
 // SVG plot primitives: line and stem plots, complex-plane (s/z, Smith) plots and scatter planes.
+import { eng, fmt } from '../shared/formatting.js';
 import { decimate, linePath, niceRange } from '../core/circuit-plot.js';
 import { esc } from '../shared/escaping.js';
-import { eng, fmt } from '../shared/formatting.js';
 
 export const PLOT_COLORS = ['#5eead4', '#60a5fa', '#f59e0b', '#fb7185', '#a78bfa', '#4ade80', '#f97316', '#22d3ee'];
 export function renderPlotFrame({ title, series, xMin, xMax, logX = false, xTicks, yRange, formatY }) {
@@ -54,3 +54,4 @@ export const scatterPlane = (label, points, extent = 1.6, color = PLOT_COLORS[0]
   return `<svg class="pz-plot" viewBox="0 0 ${size} ${size}" role="img" aria-label="${esc(label)}"><path class="axis" d="M${centre} 4V${size - 4}M4 ${centre}H${size - 4}"/>${dots}</svg>`;
 };
 
+export const linearTicks = (min, max, unit) => Array.from({ length: 6 }, (_, index) => ({ position: index / 5, text: eng(min + (max - min) * index / 5, unit) }));

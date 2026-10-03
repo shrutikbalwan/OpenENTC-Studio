@@ -1,7 +1,7 @@
 // Digital Logic Lab workspace: Boolean algebra (truth tables, K-maps, minimisation), number codes
 // and the event-driven gate simulator. Entry points: renderLogic(state) and bindLogicEvents().
 import { modules } from '../../data/modules.js';
-import { esc } from '../../core/html.js';
+import { esc } from '../../shared/escaping.js';
 import { getState, notify, recordExperiment, setState } from '../../core/store.js';
 import { analyzeCombinational, analyzeFunction, convertNumber, LOGIC_TEMPLATES, parseNetlist, parseNumber, simulateNetlist, truthTable } from '../../../packages/logic/src/index.mjs';
 import { GROUP_COLORS, parseMintermNotation, renderGateDiagram, renderKarnaugh, renderTimingDiagram } from '../../core/logic-view.js';

@@ -1,5 +1,5 @@
 import { modules, componentPalette } from './data/modules.js';
-import { esc, formatAssistantText, safeUrl } from './core/html.js';
+import { esc, formatAssistantText, safeUrl } from './shared/escaping.js';
 import { forgetApiKey, loadAssistantSettings, redactSecrets, saveAssistantSettings as storeAssistantSettings } from './core/credentials.js';
 import { engines } from './core/engine-registry.js';
 import { createProject } from './core/project.js';
@@ -33,7 +33,7 @@ import { coldJunction, INAMPS, measurementChain, ntcResistance, rtdResistance, r
 import { accelerationRun, baseSpeedRpm, batteryPack, CELLS, constantSpeedRange, designPack, gearRatioForTopSpeed, motorTorque, chargingTime } from '../packages/ev/src/index.mjs';
 import { DEFAULT_PROCESS, delayTheory, dynamicPower, inverterTransient, inverterVtc, symmetricPmosWidth } from '../packages/vlsi/src/index.mjs';
 import { POLICIES, PROTOCOLS, responseTimeAnalysis, RTOS_EXAMPLES, simulateSchedule, utilisationTests } from '../packages/rtos/src/index.mjs';
-import { C, deltaToStar, loadedTwoPort, NETWORK_EXAMPLES, parseNetlist as parseTheoryNetlist, powerTransferCurve, solveNetwork, starToDelta, superposition, thevenin, twoPortAnalysis } from '../packages/network/src/index.mjs';
+import { deltaToStar, loadedTwoPort, NETWORK_EXAMPLES, parseNetlist as parseTheoryNetlist, powerTransferCurve, solveNetwork, starToDelta, superposition, thevenin, twoPortAnalysis } from '../packages/network/src/index.mjs';
 import { amplifierStability, cascade, chargeField, circularWaveguide, fieldMap, fresnel, fresnelCurve, fromPolar, gaussFlux, planeWave, polarization, rectangularModePattern, rectangularWaveguide, sToZ, sweepCascade, TWO_PORT_ELEMENTS } from '../packages/em/src/index.mjs';
 import { aesDecryptBlock, aesEncryptBlock, blocksToText, bytesToHex, caesar, crackCaesar, crackVigenere, crt, desBlock, diffieHellman, discreteLog, ENGLISH_FREQUENCIES, extendedEuclid, generateRsa, hexToBytes, hill, hmacSha256, indexOfCoincidence, letterCounts, lettersOnly, millerRabin, modInverse, modPow, playfair, railFence, rsaDecrypt, rsaEncrypt, rsaKey, sha256, textToBlocks, toBig, vigenere } from '../packages/cryptolab/src/index.mjs';
 import { chat as assistantChat, LANGUAGES, MODES, PROVIDERS, validateBaseUrl } from '../packages/assistant/src/index.mjs';
@@ -80,14 +80,15 @@ import { batteryLife, heatsink, PART_FIT, reliability, traceWidth } from '../pac
 import { applyFault, BOARDS, boardNets, chooseFault, debrief, FAULT_TYPES, faultsFor, measureResistance as faultMeasureResistance, measureVoltage as faultMeasureVoltage, score as faultScore } from '../packages/faulthunt/src/index.mjs';
 import { adcToVolts, compareDivider, compareRc, explainDifference, parseTwinOutput, rcCharge, TWIN_BANNER, TWIN_BAUD } from '../packages/twin/src/index.mjs';
 import { digitalSignalGroups, filterDigitalSignals, measureDigitalCursors, normalizeDigitalWaveformView, sampleDigitalSignal, serializeDigitalCsv, transformDigitalWaveformView } from './core/digital-waveform-view.js';
-import { binary, complexText, decibels, eng, fmt, lines, numericText, ohms, rect } from './shared/formatting.js';
+import { binary, capitalize, complexText, decibels, eng, finiteEng, fmt, hex2, lines, numericText, ohms, phasor, rect, shifted } from './shared/formatting.js';
 import { engineeringInput, parseNumberList } from './shared/parsing.js';
 import { comparisonRow, comparisonTable, readout, simpleTable } from './components/tables.js';
-import { indexTicks, linePlot, planeExtent, PLOT_COLORS, renderComplexPlane, renderPlotFrame, scatterPlane, stemPlot } from './components/plots.js';
-import { groupField, labSelect, labTabs, labText } from './components/forms.js';
+import { indexTicks, linearTicks, linePlot, planeExtent, PLOT_COLORS, renderComplexPlane, renderPlotFrame, scatterPlane, stemPlot } from './components/plots.js';
+import { groupField, labField, labSelect, labTabs, labText } from './components/forms.js';
 import { labCard, labError, pageHeader } from './components/layout.js';
 import { bindLabControls, bindLabText, makeLab } from './controllers/lab-controls.js';
 import { bindLogicEvents, renderLogic } from './workspaces/digital/logic.js';
+import { renderSmithChart } from './components/smith-chart.js';
 
 const app = document.querySelector('#app');
 const importInput = document.querySelector('#project-import');
@@ -383,7 +384,6 @@ function renderCircuit(state) {
   </div>`;
 }
 
-const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1);
 const DEVICE_HELP = Object.freeze({
   npn: 'Value is the current gain β. Ebers-Moll model, Is = 10 fA, Cje = 8 pF, Cjc = 4 pF, τF = 0.3 ns.',
   pnp: 'Value is the current gain β. Ebers-Moll model, Is = 10 fA, Cje = 8 pF, Cjc = 4 pF, τF = 0.3 ns.',
@@ -690,7 +690,6 @@ function persistDsp(patch) {
   recordExperiment({ id: 'dsp-lab', kind: 'dsp', operation: 'dsp-lab', inputs: { ...dspConfiguration(getState()), ...patch } });
 }
 
-const labField = (attribute, name, label, value, unit = '', attributes = 'type="number" step="any"') => `<label>${label}<input ${attributes} ${attribute}="${name}" value="${esc(value)}">${unit ? `<span>${unit}</span>` : ''}</label>`;
 const dspField = (...args) => labField('data-dsp-lab-field', ...args);
 const dspSelect = (...args) => labSelect('data-dsp-lab-field', ...args);
 function designFromConfig(config) {
@@ -828,7 +827,6 @@ function persistComm(patch) {
 
 const commField = (name, label, value, unit = '', attributes = 'type="number" step="any"') => `<label>${label}<input ${attributes} data-comm-lab-field="${name}" value="${esc(value)}">${unit ? `<span>${unit}</span>` : ''}</label>`;
 const commSelect = (name, label, value, options) => `<label>${label}<select data-comm-lab-field="${name}">${options.map(([key, text]) => `<option value="${esc(key)}" ${String(key) === String(value) ? 'selected' : ''}>${esc(text)}</option>`).join('')}</select></label>`;
-const linearTicks = (min, max, unit) => Array.from({ length: 6 }, (_, index) => ({ position: index / 5, text: eng(min + (max - min) * index / 5, unit) }));
 
 function commPlot(title, xs, seriesList, unitX, formatY) {
   const values = seriesList.flatMap((series) => series.ys);
@@ -1070,24 +1068,7 @@ function persistRf(patch) {
 
 const rfField = (...args) => labField('data-rf-lab-field', ...args);
 const engText = 'type="text" spellcheck="false" maxlength="24"';
-const finiteEng = (value, unit = '') => (Number.isFinite(value) ? eng(value, unit) : '∞');
 const impedanceText = (z) => `${fmt(z.re, 4)} ${z.im < 0 ? '−' : '+'} j${fmt(Math.abs(z.im), 4)} Ω`;
-
-/** Smith chart: constant-resistance circles and constant-reactance arcs in the Γ plane. */
-function renderSmithChart({ label, points = [], traces = [] }) {
-  const size = 320, c = size / 2, radius = 140;
-  const px = (re) => (c + re * radius).toFixed(2), py = (im) => (c - im * radius).toFixed(2);
-  const resistances = [0.2, 0.5, 1, 2, 5];
-  const reactances = [0.2, 0.5, 1, 2, 5];
-  const circles = resistances.map((r) => `<circle cx="${px(r / (1 + r))}" cy="${c}" r="${(radius / (1 + r)).toFixed(2)}"/>`).join('');
-  const arcs = reactances.flatMap((x) => [x, -x]).map((x) => `<circle cx="${px(1)}" cy="${py(1 / x)}" r="${(radius / Math.abs(x)).toFixed(2)}"/>`).join('');
-  const labels = resistances.map((r) => `<text x="${(Number(px((r - 1) / (r + 1))) + 2).toFixed(1)}" y="${c - 3}">${r}</text>`).join('')
-    + reactances.flatMap((x) => [x, -x]).map((x) => { const gamma = cdiv(complex(-1, x), complex(1, x)); const scale = 1.06; return `<text x="${(c - 6 + gamma.re * radius * scale).toFixed(1)}" y="${(c + 3 - gamma.im * radius * scale).toFixed(1)}">${x > 0 ? '+' : '−'}j${Math.abs(x)}</text>`; }).join('');
-  const traceSvg = traces.map((trace) => `<path class="smith-trace" stroke="${trace.color}" d="${trace.points.map((g, index) => `${index ? 'L' : 'M'}${px(g.re)} ${py(g.im)}`).join('')}"/>`).join('');
-  const pointSvg = points.map((point) => `<circle class="smith-point" cx="${px(point.gamma.re)}" cy="${py(point.gamma.im)}" r="${point.radius || 4.5}" fill="${point.color}"/>${point.text ? `<text class="smith-point-label" x="${(Number(px(point.gamma.re)) + 7).toFixed(1)}" y="${(Number(py(point.gamma.im)) - 6).toFixed(1)}">${esc(point.text)}</text>` : ''}`).join('');
-  return `<svg class="smith-plot" viewBox="0 0 ${size} ${size}" role="img" aria-label="${esc(label)}"><defs><clipPath id="smith-clip"><circle cx="${c}" cy="${c}" r="${radius}"/></clipPath></defs>
-    <g class="smith-grid" clip-path="url(#smith-clip)">${circles}${arcs}<line x1="${c - radius}" y1="${c}" x2="${c + radius}" y2="${c}"/></g><circle class="smith-outline" cx="${c}" cy="${c}" r="${radius}"/><g class="smith-labels">${labels}</g>${traceSvg}${pointSvg}</svg>`;
-}
 
 function renderTouchstoneTab(state) {
   const result = state.simulation?.kind === 'rf' ? state.simulation.data : null;
@@ -1626,7 +1607,6 @@ function mcuDrainSerial() {
   if (mcuRuntime.terminal.length > 8000) mcuRuntime.terminal = mcuRuntime.terminal.slice(-6000);
 }
 
-const hex2 = (value) => value.toString(16).toUpperCase().padStart(2, '0');
 const hex4 = (value) => `${value.toString(16).toUpperCase().padStart(4, '0')}H`;
 const portBits = (value) => Array.from({ length: 8 }, (_, k) => `<i class="${(value >> (7 - k)) & 1 ? 'on' : ''}">${(value >> (7 - k)) & 1}</i>`).join('');
 
@@ -2787,11 +2767,6 @@ const netLab = makeLab('network-lab', {
   twoport: { example: 'two-port-t', netlist: NETWORK_EXAMPLES[4].netlist, frequency: 0, p1: '1', p2: '2', zl: 100 },
   stardelta: { ra: 10, rb: 20, rc: 30 },
 });
-const phasor = (value, unit) => {
-  const magnitude = C.abs(value), angle = C.arg(value);
-  if (magnitude < 1e-15) return `0 ${unit}`;
-  return Math.abs(value[1]) < 1e-12 * Math.max(1, magnitude) ? eng(value[0], unit) : `${eng(magnitude, unit)} ∠ ${fmt(angle, 2)}°`;
-};
 const matrixHtml = (label, m, units) => `<div class="matrix-card"><b>${label}</b><table class="truth-table matrix"><tbody>${m.map((row, i) => `<tr>${row.map((value, j) => `<td>${esc(rect(value, units[i][j]))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 
 function renderNetworkTheory(state) {
@@ -2878,8 +2853,6 @@ const polyText = (coefficients, variable, ascendingNegative = false) => {
   return parts.join(' ') || '0';
 };
 const imaginaryAware = (value) => (Math.abs(value.re) < 1e-12 && Math.abs(value.im) > 1e-12 ? `${value.im < 0 ? '−' : ''}j${fmt(Math.abs(value.im), 4)}` : complexText(value));
-/** "s − p" written with natural signs, e.g. s + 1 − j3. */
-const shifted = (variable, p) => `${variable}${Math.abs(p.re) > 1e-12 ? ` ${p.re > 0 ? '−' : '+'} ${fmt(Math.abs(p.re), 4)}` : ''}${Math.abs(p.im) > 1e-12 ? ` ${p.im > 0 ? '−' : '+'} j${fmt(Math.abs(p.im), 4)}` : ''}`;
 const termText = (term, variable, z = false) => `${imaginaryAware(term.residue)} / ${z ? `(1 − ${complexText(term.pole)}·z⁻¹)` : `(${shifted(variable, term.pole)})`}${term.order > 1 ? `^${term.order}` : ''}`;
 const differenceText = (b, a) => {
   const signed = (value, text, first) => `${first ? (value < 0 ? '−' : '') : value < 0 ? ' − ' : ' + '}${fmt(Math.abs(value), 4) === '1' ? '' : `${fmt(Math.abs(value), 4)}·`}${text}`;

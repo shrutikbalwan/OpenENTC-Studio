@@ -52,3 +52,25 @@ test('move refuses when moved code needs a declaration that stays (would create 
   assert.throws(() => move({ from, to: join(dir, 'w.js'), names: ['a'] }), /uses declarations that stay in .*: shared/);
 });
 
+
+test('move ignores locals that share a name with a declaration that stays', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'openentc-move-'));
+  const from = join(dir, 'app.js');
+  writeFileSync(from, 'const fraction = 1;\nfunction a(fraction) { const x = fraction * 2; return x; }\nfunction b() { return a(3) + fraction; }\n');
+  const result = move({ from, to: join(dir, 'w.js'), names: ['a'] });
+  assert.deepEqual(result.importedBack, ['a']);
+  assert.match(readFileSync(join(dir, 'w.js'), 'utf8'), /export function a\(fraction\)/);
+});
+
+test('move into an existing module never imports the module itself or a name twice', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'openentc-move-'));
+  const from = join(dir, 'app.js');
+  const to = join(dir, 'fmt.js');
+  writeFileSync(to, "import { esc } from './escaping.js';\n\nexport const fmt = (v) => esc(String(v));\n");
+  writeFileSync(from, "import { fmt } from './fmt.js';\nimport { esc } from './html.js';\n\nconst eng = (v) => esc(fmt(v));\nfunction use() { return eng(1); }\n");
+  move({ from, to, names: ['eng'] });
+  const target = readFileSync(to, 'utf8');
+  assert.doesNotMatch(target, /from '\.\/fmt\.js'/, 'no self-import');
+  assert.equal(target.match(/import \{[^}]*\besc\b/g).length, 1, 'esc imported once');
+  assert.match(readFileSync(from, 'utf8'), /^import \{ eng \} from '\.\/fmt\.js';$/m, 'merged into the existing import; fmt is no longer used');
+});
