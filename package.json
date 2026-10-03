@@ -29,13 +29,15 @@
     "check": "npm run lint",
     "verify": "node scripts/verify.mjs",
     "deps:map": "node scripts/app-dependency-map.mjs --markdown docs/architecture/app-dependency-map.generated.md",
-    "ui:check": "node scripts/check-ui-modules.mjs --strict-unused"
+    "ui:check": "node scripts/check-ui-modules.mjs --strict-unused",
+    "test:e2e": "npm run build && node --test --test-concurrency=1 tests/e2e/*.e2e.mjs"
   },
   "engines": {
     "node": ">=22.8.0"
   },
   "license": "GPL-3.0-or-later",
   "devDependencies": {
+    "playwright-core": "1.56.1",
     "typescript": "5.9.2"
   }
 }

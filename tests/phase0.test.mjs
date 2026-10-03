@@ -790,3 +790,30 @@ test('Learning workspace adds real DSP and BER checkpoints', async () => {
   assert.match(source, /check-dsp-lesson/);
   assert.match(source, /check-comm-lesson/);
 });
+
+test('static server refuses traversal, encoded traversal and symlink escapes', async () => {
+  const { createStaticServer } = await import('../scripts/server.mjs');
+  const { mkdtempSync, mkdirSync, symlinkSync, writeFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const base = mkdtempSync(join(tmpdir(), 'openentc-serve-'));
+  const served = join(base, 'served');
+  mkdirSync(served);
+  writeFileSync(join(served, 'index.html'), '<p>ok</p>');
+  writeFileSync(join(base, 'secret.txt'), 'secret');
+  symlinkSync(join(base, 'secret.txt'), join(served, 'link.txt'));
+  const server = await createStaticServer(served);
+  await new Promise((done) => server.listen(0, '127.0.0.1', done));
+  const { port } = server.address();
+  const get = async (path) => { const response = await fetch(`http://127.0.0.1:${port}${path}`); return { status: response.status, text: await response.text() }; };
+  try {
+    assert.equal((await get('/')).text, '<p>ok</p>');
+    for (const path of ['/../secret.txt', '/%2e%2e/secret.txt', '/..%2Fsecret.txt', '/link.txt']) {
+      const result = await get(path);
+      assert.equal(result.status, 404, path);
+      assert.doesNotMatch(result.text, /secret/, path);
+    }
+  } finally {
+    server.close();
+  }
+});

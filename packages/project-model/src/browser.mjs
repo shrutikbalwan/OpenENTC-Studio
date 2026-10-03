@@ -69,6 +69,7 @@ const rawMigrateProject = migrateProject;
 migrateProject = function migrateProjectWithRegistries(input) {
   const value = rawMigrateProject(input);
   for (const field of ['documents', 'targets', 'toolchainConstraints', 'experiments']) if (value[field] === undefined) value[field] = [];
+  if (value.notes === undefined) value.notes = [];
   return value;
 };
 

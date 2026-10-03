@@ -141,6 +141,7 @@ export function migrateProject(input) {
   if (value.targets === undefined) value.targets = [];
   if (value.toolchainConstraints === undefined) value.toolchainConstraints = [];
   if (value.experiments === undefined) value.experiments = [];
+  if (value.notes === undefined) value.notes = [];
   if (value.settings && value.settings.gridSize === undefined) value.settings.gridSize = 20;
   return value;
 }
