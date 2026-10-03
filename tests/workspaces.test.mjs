@@ -39,6 +39,7 @@ export const WORKSPACES = [
   { module: 'rf', path: '../src/workspaces/rf/rf.js', render: 'renderRf', bind: 'bindRfLabEvents', expect: [] },
   { module: 'em', path: '../src/workspaces/rf/em.js', render: 'renderEm', bind: 'bindEmEvents', expect: [] },
   { module: 'radar', path: '../src/workspaces/rf/radar.js', render: 'renderRadar', bind: 'bindRadarEvents', expect: [] },
+  { module: 'twin', path: '../src/workspaces/embedded/twin.js', render: 'renderTwin', bind: 'bindTwinEvents', expect: [] },
 ];
 
 for (const workspace of WORKSPACES) {
