@@ -438,6 +438,14 @@
       "plannedPhase": 9
     },
     {
+      "id": "measure.instrumentation-lab",
+      "surface": "Measurements: virtual AC bridges with a live null detector and a hidden-unknown challenge mode (Maxwell, Hay, Owen, Schering, De Sauty, Wien), Lissajous figures, reading statistics and limiting-error propagation, voltmeter loading, ammeter shunt / Ayrton shunt / voltmeter multiplier / series ohmmeter design and the Q-meter",
+      "state": "built-in",
+      "evidence": ["packages/measurement/src/index.mjs", "src/app.js#renderMeasurement", "tests/measurement.test.mjs"],
+      "limitations": "Bridges use ideal components, an ideal source and an infinite-impedance detector (no stray capacitance, Wagner earth or detector loading). Lissajous figures assume pure sinusoids and identify ratios with denominators up to 12. Error propagation is first order; the Q-meter correction uses the double-frequency method for distributed capacitance. Every bridge result is computed from the general complex balance and checked against the textbook closed forms in the tests.",
+      "plannedPhase": 9
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",

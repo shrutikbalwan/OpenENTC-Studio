@@ -808,3 +808,12 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .ofdm-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .ofdm-pair svg { width: 100%; height: auto; }
 .mono-wrap { word-break: break-all; font-family: 'DM Mono', monospace; }
+.bridge-svg { width: 100%; max-width: 420px; height: auto; }
+.bridge-wire { fill: none; stroke: var(--teal); stroke-width: 2; }
+.bridge-detector { fill: var(--panel-2); stroke: #f59e0b; stroke-width: 2; }
+.bridge-text { fill: var(--text); font: 500 10px 'DM Mono', monospace; }
+.null-meter { display: grid; gap: 6px; margin-top: 10px; }
+.null-meter b { font: 500 18px 'DM Mono', monospace; color: #f59e0b; }
+.null-meter small { color: var(--muted); font-size: 10px; }
+.null-bar { height: 12px; border-radius: 6px; background: var(--soft); overflow: hidden; }
+.null-bar i { display: block; height: 100%; background: linear-gradient(90deg, #22c55e, #f59e0b, #ef4444); }
