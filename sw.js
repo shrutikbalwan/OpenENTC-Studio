@@ -1,11 +1,25 @@
 // OpenENTC Studio service worker: makes the studio work offline after the first visit.
 // Strategy: network first (so a connected user always gets the latest code), falling back to the
 // cache when the network fails; every same-origin GET that succeeds refreshes the cache.
-const CACHE = 'openentc-studio-v1';
+// Install precaches every web asset listed in precache.json (written by `npm run build`), so the
+// first visit is enough to work offline. In development, where no list exists, only the shell is
+// precached and other files are cached as they are fetched.
+const CACHE = 'openentc-studio-v2';
 const SHELL = ['./', './index.html', './src/app.js', './src/styles.css', './manifest.webmanifest', './assets/openentc-icon.svg'];
 
+async function precacheList() {
+  try {
+    const response = await fetch('./precache.json', { cache: 'no-store' });
+    if (response.ok) {
+      const list = await response.json();
+      if (Array.isArray(list) && list.every((path) => typeof path === 'string' && path.startsWith('./'))) return [...new Set([...SHELL, ...list])];
+    }
+  } catch { /* fall back to the shell */ }
+  return SHELL;
+}
+
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()));
+  event.waitUntil(caches.open(CACHE).then(async (cache) => cache.addAll(await precacheList())).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (event) => {

@@ -497,8 +497,8 @@
       "id": "app.offline-pwa",
       "surface": "Offline app: a service worker caches the whole browser studio on the first visit (network first, cache fallback) and a web-app manifest lets it be installed on a phone or laptop",
       "state": "built-in",
-      "evidence": ["sw.js", "manifest.webmanifest", "src/app.js#serviceWorker", "tests/offline.test.mjs"],
-      "limitations": "Needs one online visit over HTTP(S) to fill the cache; not registered in the desktop shell, which already has every file locally. Only same-origin files are cached, so AI providers and other online services still need a connection. The icon is SVG, so very old browsers may not offer installation.",
+      "evidence": ["sw.js", "manifest.webmanifest", "scripts/build.mjs#precache", "src/app.js#serviceWorker", "tests/offline.test.mjs", "tests/e2e/offline.e2e.mjs"],
+      "limitations": "Needs one online visit over HTTP(S) to fill the cache; not registered in the desktop shell, which already has every file locally. Only same-origin files are cached, so AI providers and other online services still need a connection. The icon is SVG, so very old browsers may not offer installation. The built app precaches every web asset listed in precache.json on install; the browser journey proving offline use (server stopped, fresh page, simulation) runs in Chromium only. In development (npm run dev) only the shell is precached.",
       "plannedPhase": 11
     },
     {

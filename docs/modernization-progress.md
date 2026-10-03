@@ -14,7 +14,7 @@ Baseline: [`docs/modernization-baseline.md`](modernization-baseline.md) (commit 
 | 1 Correctness and repository fixes | **done** | Node version, full GPL text, README quick start, policies, issue forms |
 | 2 UI modularisation | **done** | `src/app.js` 940 KB → 4 KB; 42 workspace modules; `ui:check` in verify |
 | 3 Types and errors | **done** | error architecture, reportError, ts-check for shared layers, API reference |
-| 4 Browser workflows | pending | |
+| 4 Browser workflows | **done** (CI job added; first hosted run to be confirmed) | 24 Playwright journeys; found and fixed 2 real bugs |
 | 5 Coverage | pending | |
 | 6 Security | partly done earlier | CodeQL, Dependabot, CSP and session-only API keys were added by the earlier hardening pass on this branch; the rest is pending |
 | 7 Numerical credibility | pending | |
@@ -108,14 +108,37 @@ Baseline: [`docs/modernization-baseline.md`](modernization-baseline.md) (commit 
   - A test fails when the reference is stale.
 - **Documents:** `docs/architecture/types-and-errors.md` covers the boundary table, the error classes and the redaction rules.
 
+### Phase 4 — browser workflows (2026-10-03)
+
+- **24 deterministic journeys** in `tests/e2e/*.e2e.mjs` covering all 24 required workflows (mapping in
+  `docs/testing/browser-tests.md`). They check results, not just DOM presence: for example V(mid) = 4 V,
+  an FFT peak against a direct DFT, the Uno serial calculator answering 144 and 1728, a ZIP with Gerbers,
+  and a valid PDF.
+- **Harness:** serves the built `dist/` on an ephemeral port, blocks all other origins, seeds randomness,
+  and keeps traces and screenshots only on failure. `npm run test:e2e` runs everything in about 36 s locally.
+- **CI:** a new `browser-e2e` job (pinned actions, no secrets) installs Chromium, runs the journeys and uploads
+  failure traces. A governance test requires the job.
+- **Dependency:** `playwright-core` 1.56.1 (Apache-2.0, development only, no install scripts), recorded in
+  `docs/dependencies.md`.
+- `scripts/server.mjs` now exports `createStaticServer()`; a new test proves that traversal, encoded traversal and
+  symlink escapes return 404.
+- **Bugs found and fixed:**
+  1. Projects saved before the `notes` field existed could not be imported. Both project models now
+     migrate them, with unit, parity and browser tests.
+  2. The studio did not actually work offline after one visit: only 6 shell files were precached. The build
+     now writes `precache.json`, and the service worker precaches every web asset (221 entries). The offline
+     journey stops the server to prove it, because Chromium's offline emulation does not block 127.0.0.1.
+- **Open item for Phase 8:** the Signals plots have no accessible name.
+
 ## Remaining work
 
-Phases 4–13. The next step is Phase 4: end-to-end browser workflows (Playwright) that run in CI.
+Phases 5–13. The next step is Phase 5: coverage reporting with thresholds, and test-category documentation.
 
 ## Verification evidence
 
 | Date | Phase | Evidence |
 |---|---|---|
+| 2026-10-03 | 4 | `npm run test:e2e`: 24 journeys, 24 pass, about 36 s (Chromium 141). The offline and migration journeys fail against the pre-fix code (mutation-checked). `npm run verify` green. The hosted CI result of the new job is not yet confirmed here. |
 | 2026-10-03 | 3 | `npm run verify` 764 tests (752 pass, 0 fail, 12 skipped); typecheck 134 files; `ui-sweep --compare` 0 changed views; injection probe clean; modal focus trap and Escape verified in Chromium; a circuit validation error shows "R2 must have a resistance greater than zero." |
 | 2026-10-03 | 2 | After the final move: `npm run verify` 756 tests (744 pass, 0 fail, 12 skipped); `ui:check` clean; `ui-sweep --compare` against the pre-Phase-2 snapshot: 0 changed views out of 180 (1 view detected as live); injection probe clean across 43 modules; quick start reads 6 V; API-key flow unchanged. |
 | 2026-10-03 | 1 | `npm run verify` 698 tests (686 pass, 0 fail, 12 skipped); `browser:smoke` passed; `cargo test` 39 passed; `native:sbom` and `license:audit` ran (0 unresolved licences); quick start walked in Chromium. GitHub's licence detection cannot be run locally; the file matches the official text byte for byte. |

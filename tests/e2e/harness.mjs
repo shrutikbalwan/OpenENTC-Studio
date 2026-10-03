@@ -34,8 +34,15 @@ export async function start() {
 export async function stop() {
   if (!shared) return;
   await shared.browser.close();
-  await new Promise((done) => shared.server.close(done));
+  if (shared.server.listening) await new Promise((done) => shared.server.close(done));
   shared = null;
+}
+
+/** Take the server down (real offline: nothing on 127.0.0.1 answers any more). */
+export async function stopServer() {
+  if (!shared?.server.listening) return;
+  shared.server.closeAllConnections();
+  await new Promise((done) => shared.server.close(done));
 }
 
 const PIN_TIME_AND_RANDOMNESS = () => {

@@ -60,6 +60,13 @@ async function filesUnder(directory, prefix = '') {
   return files;
 }
 
+// Offline support: every web asset the app can load is precached by the service worker on install,
+// so the studio works offline after one visit (ES modules imported before the worker took control
+// are otherwise never cached).
+const WEB_ASSET = /\.(html|js|mjs|css|svg|png|webmanifest)$/;
+const precache = (await filesUnder(output)).map((file) => file.path).filter((path) => WEB_ASSET.test(path) && path !== 'sw.js').map((path) => `./${path}`);
+await writeFile(resolve(output, 'precache.json'), `${JSON.stringify(['./', ...precache], null, 2)}\n`);
+
 const manifest = [];
 for (const file of await filesUnder(output)) {
   const bytes = await readFile(file.fullPath);

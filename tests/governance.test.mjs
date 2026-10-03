@@ -39,3 +39,15 @@ test('governance files exist', () => {
   for (const ecosystem of ['npm', 'cargo', 'github-actions']) assert.match(dependabot, new RegExp(`package-ecosystem: ${ecosystem}`), ecosystem);
   assert.match(read('SECURITY.md'), /Report a vulnerability/);
 });
+
+test('CI runs the browser journeys and keeps failure traces', () => {
+  const workflow = read('.github/workflows/verify.yml');
+  assert.match(workflow, /browser-e2e:/);
+  assert.match(workflow, /npx playwright-core install --with-deps chromium/);
+  assert.match(workflow, /run: npm run test:e2e/);
+  assert.match(workflow, /if: failure\(\)[\s\S]*?path: test-results\/e2e\//);
+  const pkg = JSON.parse(read('package.json'));
+  assert.match(pkg.scripts['test:e2e'], /tests\/e2e\/\*\.e2e\.mjs/);
+  assert.equal(pkg.devDependencies['playwright-core'], '1.56.1', 'pinned exactly');
+  assert.equal(Object.keys(pkg.dependencies ?? {}).length, 0, 'still no runtime dependencies');
+});

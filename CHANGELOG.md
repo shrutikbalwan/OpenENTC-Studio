@@ -7,6 +7,7 @@ no signed or qualified release exists yet.
 ## [Unreleased]
 
 ### Added
+- 24 Playwright browser journeys (`npm run test:e2e`) and a `browser-e2e` CI job; development dependency `playwright-core` 1.56.1 (see `docs/dependencies.md`).
 - Shared error classes with stable codes, recovery hints and redaction (`packages/errors`); a central `reportError()` and error panel; a generated package API reference (`docs/api/packages.md`).
 - Code of Conduct, maintainers, repository metadata, support matrix, project compatibility, deprecation and security-contact setup documents.
 - Modernization baseline and the `npm run deps:map` dependency analyser.
@@ -14,6 +15,10 @@ no signed or qualified release exists yet.
 - Governance: CODEOWNERS, pull-request template, Dependabot, CodeQL, branch-protection and release policies.
 - Content Security Policy for the browser app and the desktop webview (`docs/security/CSP.md`).
 - Browser-security tests and an opt-in Chromium injection probe (`tests/e2e/injection-probe.mjs`).
+
+### Fixed
+- Projects saved before the `notes` field existed are migrated instead of being rejected.
+- The installed web app now really works offline after one visit: the service worker precaches every web asset (`precache.json`), not only the shell.
 
 ### Changed
 - The browser UI is split into modules: `src/app.js` (940 KB) is now a 67-line entry point over `src/shell`, 42 workspace modules in `src/workspaces`, and shared `components`, `controllers`, `services`, `state` and `shared` layers. Rendered output is unchanged. `npm run ui:check` (in `verify`) blocks import cycles and unused code.

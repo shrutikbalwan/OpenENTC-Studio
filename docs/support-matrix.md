@@ -26,12 +26,12 @@ The browser app itself has no Node.js or runtime npm dependency.
 
 | Browser | Status |
 |---|---|
-| Chromium-based (Chrome, Edge), current | Tested locally: headless Chromium 141 in `browser:smoke` and the e2e probes. Browser workflows in CI are pending (Phase 4/10). |
+| Chromium-based (Chrome, Edge), current | Tested locally: 24 browser journeys (`npm run test:e2e`) in headless Chromium 141; the same journeys are configured to run in CI (`browser-e2e` job) |
 | Firefox, current | Expected to work; not tested |
 | Safari, current | Expected to work except Web Serial (not available in Safari); not tested |
 | Mobile browsers | Expected to load; narrow-screen layouts are not yet verified (Phase 8) |
 | Web Serial (Real + Virtual Bench) | Chromium only; tested with a mocked port, **no physical-board evidence** |
-| Offline use (service worker) | Tested locally in Chromium |
+| Offline use (service worker) | Tested in Chromium by a journey that stops the server after one visit |
 
 ## Operating systems
 
