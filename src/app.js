@@ -89,6 +89,7 @@ import { bindCryptoEvents, renderCrypto } from './workspaces/communication/crypt
 import { bindRfLabEvents, renderRf } from './workspaces/rf/rf.js';
 import { bindEmEvents, renderEm } from './workspaces/rf/em.js';
 import { bindRadarEvents, renderRadar } from './workspaces/rf/radar.js';
+import { rerender, setRenderer } from './services/render.js';
 
 const app = document.querySelector('#app');
 const importInput = document.querySelector('#project-import');
@@ -1943,7 +1944,7 @@ function runTwinVirtual() {
   const limit = c.experiment === 'rc' ? 0.7 + 250 * c.period * 1e-6 + 0.6 : c.experiment === 'dc' ? 0.3 : 1.8;
   let simulated = 0;
   twinState.busy = 'Running the firmware on the simulated Uno…';
-  render();
+  rerender();
   const step = () => {
     try {
       for (let k = 0; k < 4; k += 1) { sim.advance(0.025); simulated += 0.025; }
@@ -1952,7 +1953,7 @@ function runTwinVirtual() {
       twinState.busy = '';
       notify('Virtual run finished', 'success');
     } catch (error) { twinState.busy = ''; notify(`Virtual run failed: ${error.message}`, 'error'); }
-    render();
+    rerender();
   };
   setTimeout(step, 0);
 }
@@ -1965,17 +1966,17 @@ async function connectTwinSerial() {
     const decoder = new TextDecoderStream();
     port.readable.pipeTo(decoder.writable).catch(() => {});
     twinState.reader = decoder.readable.getReader();
-    (async () => { try { for (;;) { const { value, done } = await twinState.reader.read(); if (done) break; twinState.text += value; if (twinState.text.includes(TWIN_BANNER)) twinState.ready = true; if (twinState.text.length > 200000) twinState.text = twinState.text.slice(-100000); } } catch { /* port closed */ } twinState.connected = false; render(); })();
+    (async () => { try { for (;;) { const { value, done } = await twinState.reader.read(); if (done) break; twinState.text += value; if (twinState.text.includes(TWIN_BANNER)) twinState.ready = true; if (twinState.text.length > 200000) twinState.text = twinState.text.slice(-100000); } } catch { /* port closed */ } twinState.connected = false; rerender(); })();
     notify('Arduino connected — it restarts when the port opens, so wait a second before running.', 'success');
   } catch (error) { notify(`Could not open the serial port: ${error.message}`, 'error'); }
-  render();
+  rerender();
 }
 
 async function runTwinReal() {
   const c = twinLab.configuration(getState()).bench;
   if (!twinState.port) return;
   twinState.busy = 'Waiting for the real Arduino…';
-  render();
+  rerender();
   try {
     if (!twinState.ready) await new Promise((resolve) => setTimeout(resolve, 2500));
     if (!twinState.ready) throw new Error('No reply from the OpenENTC Twin firmware — is it uploaded, and is the baud rate 115200?');
@@ -1989,7 +1990,7 @@ async function runTwinReal() {
     notify('Real run finished', 'success');
   } catch (error) { notify(error.message, 'error'); }
   twinState.busy = '';
-  render();
+  rerender();
 }
 
 function bindTwinEvents() {
@@ -2361,7 +2362,7 @@ async function sendToAssistant(text) {
   assistant.shown.push({ role: 'user', text: question });
   assistant.history.push({ role: 'user', content: question });
   assistant.controller = new AbortController();
-  render();
+  rerender();
   const vivaBank = TRACKS.flatMap((track) => track.viva);
   try {
     const result = await assistantChat({ settings, messages: assistant.history, signal: assistant.controller.signal, context: { labName: active.name, lab: () => (settings.shareLab ? assistantLabContext(getState()) : { note: 'The student chose not to share lab inputs.' }), lessons: lessonIndex(), viva: vivaBank } });
@@ -2374,22 +2375,22 @@ async function sendToAssistant(text) {
     assistant.error = assistant.controller?.signal.aborted ? 'Stopped.' : redactSecrets(error.message, [settings.apiKey]);
   } finally {
     assistant.busy = false; assistant.status = ''; assistant.controller = null; assistant.focus = true;
-    render();
+    rerender();
   }
 }
 
 function bindAssistantEvents() {
-  document.querySelector('[data-ai-open]')?.addEventListener('click', () => { assistant.open = true; assistant.focus = true; if (!assistantSettings().consented) assistant.view = 'settings'; render(); });
-  document.querySelector('[data-ai-close]')?.addEventListener('click', () => { assistant.open = false; render(); });
-  document.querySelector('[data-ai-clear]')?.addEventListener('click', () => { assistant.history = []; assistant.shown = []; assistant.error = ''; render(); });
-  document.querySelectorAll('[data-ai-view]').forEach((b) => b.addEventListener('click', () => { assistant.view = b.dataset.aiView; render(); }));
-  document.querySelector('[data-ai-forget]')?.addEventListener('click', () => { forgetApiKey(sessionStorage); notify('API key forgotten.', 'success'); render(); });
+  document.querySelector('[data-ai-open]')?.addEventListener('click', () => { assistant.open = true; assistant.focus = true; if (!assistantSettings().consented) assistant.view = 'settings'; rerender(); });
+  document.querySelector('[data-ai-close]')?.addEventListener('click', () => { assistant.open = false; rerender(); });
+  document.querySelector('[data-ai-clear]')?.addEventListener('click', () => { assistant.history = []; assistant.shown = []; assistant.error = ''; rerender(); });
+  document.querySelectorAll('[data-ai-view]').forEach((b) => b.addEventListener('click', () => { assistant.view = b.dataset.aiView; rerender(); }));
+  document.querySelector('[data-ai-forget]')?.addEventListener('click', () => { forgetApiKey(sessionStorage); notify('API key forgotten.', 'success'); rerender(); });
   document.querySelectorAll('[data-ai-setting]').forEach((input) => input.addEventListener('change', () => {
     const key = input.dataset.aiSetting;
     const value = input.type === 'checkbox' ? input.checked : input.value.trim();
     if (key === 'baseUrl' && value) { try { validateBaseUrl(value); } catch (error) { notify(error.message, 'error'); return; } }
     saveAssistantSettings(key === 'provider' ? { provider: value, baseUrl: '', model: '' } : { [key]: value });
-    render();
+    rerender();
   }));
   const draft = document.querySelector('[data-ai-draft]');
   draft?.addEventListener('input', () => { assistant.draft = draft.value; });
@@ -2484,7 +2485,7 @@ function bindMcuEvents() {
     if (file.size > 300_000) { notify('That file is too large.', 'error'); return; }
     const text = await file.text();
     if (/\.(hex|ihx)$/i.test(file.name)) {
-      try { const parsed = parseIntelHex(text); mcuRuntime.loadedHex = { name: file.name, image: parsed.image, bytes: parsed.bytes }; mcuRuntime.key = null; render(); notify(`Loaded ${parsed.bytes} bytes from ${file.name}`, 'success'); }
+      try { const parsed = parseIntelHex(text); mcuRuntime.loadedHex = { name: file.name, image: parsed.image, bytes: parsed.bytes }; mcuRuntime.key = null; rerender(); notify(`Loaded ${parsed.bytes} bytes from ${file.name}`, 'success'); }
       catch (error) { notify(error.message, 'error'); }
     } else { mcuRuntime.loadedHex = null; persistMcu({ source: text, exampleId: 'custom' }); }
   });
@@ -2767,13 +2768,13 @@ function bindUnoEvents() {
   bindAnalyzerEvents('uno');
   paintUno();
   root.querySelector('[data-action="uno-run"]')?.addEventListener('click', () => { if (unoRuntime.running) { unoStop(); paintUno(); } else unoStart(); });
-  root.querySelector('[data-action="uno-reset"]')?.addEventListener('click', () => { unoStop(); if (unoRuntime.cosim) { unoRuntime.key = null; render(); return; } unoRuntime.board.reset(); unoRuntime.terminal = ''; paintUno(); });
+  root.querySelector('[data-action="uno-reset"]')?.addEventListener('click', () => { unoStop(); if (unoRuntime.cosim) { unoRuntime.key = null; rerender(); return; } unoRuntime.board.reset(); unoRuntime.terminal = ''; paintUno(); });
   bindCosimEvents();
   root.querySelector('[data-uno-file]')?.addEventListener('change', async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
     if (file.size > 200_000) { notify('That file is too large for an ATmega328P.', 'error'); return; }
-    try { const text = await file.text(); const parsed = parseIntelHex(text); if (parsed.size > 32_768) throw new RangeError('The program is larger than 32 KB of flash.'); unoRuntime.hex = { name: file.name, text, bytes: parsed.bytes }; unoRuntime.key = null; render(); notify(`Loaded ${file.name}`, 'success'); }
+    try { const text = await file.text(); const parsed = parseIntelHex(text); if (parsed.size > 32_768) throw new RangeError('The program is larger than 32 KB of flash.'); unoRuntime.hex = { name: file.name, text, bytes: parsed.bytes }; unoRuntime.key = null; rerender(); notify(`Loaded ${file.name}`, 'success'); }
     catch (error) { notify(error.message, 'error'); }
   });
   const input = root.querySelector('[data-uno-input]');
@@ -2947,7 +2948,7 @@ function bindAnalyzerEvents(target) {
     const action = button.dataset.laAction;
     const uno = target === 'uno';
     if (action === 'freeze') { laState.frozen[target] = !laState.frozen[target]; button.textContent = laState.frozen[target] ? 'Live' : 'Freeze'; paintAnalyzer(target, true); }
-    else if (action === 'live') { laState.imported[target] = null; render(); }
+    else if (action === 'live') { laState.imported[target] = null; rerender(); }
     else if (action.startsWith('add-')) {
       const type = action.slice(4);
       const fresh = type === 'uart' ? { type, rx: uno ? 'D1' : 'P3.1', baud: 'auto', parity: 'none' } : type === 'spi' ? { type, sck: uno ? 'D13' : 'P1.0', mosi: uno ? 'D11' : 'P1.1', miso: uno ? 'D12' : '', cs: uno ? 'D10' : '', mode: 0 } : { type, scl: uno ? 'A5' : 'P1.6', sda: uno ? 'A4' : 'P1.7' };
@@ -4780,8 +4781,9 @@ window.addEventListener('keydown', (event) => {
   }
 });
 
+setRenderer(render);
 subscribe(render);
-render();
+rerender();
 if (assistantStartup.removedLegacyKey) notify('An AI API key saved by an older version was removed from browser storage. Enter it again when you use the assistant.', 'info');
 
 // Offline support: register the service worker in a normal browser (not in the desktop shell,

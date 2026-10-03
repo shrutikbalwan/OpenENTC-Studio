@@ -140,3 +140,12 @@ test('lab controller persists tab, field, select and text changes in the project
   assert.equal(config.first.r, 4700, 'reset leaves other tabs alone');
   delete globalThis.document;
 });
+
+test('render service forwards rerender() to the registered shell renderer', async () => {
+  const { rerender, setRenderer } = await import('../src/services/render.js');
+  let calls = 0;
+  setRenderer(() => { calls += 1; });
+  rerender(); rerender();
+  assert.equal(calls, 2);
+  assert.throws(() => setRenderer(null), TypeError);
+});
