@@ -14,6 +14,7 @@ export const WORKSPACES = [
   { module: 'adc', path: '../src/workspaces/electrical/adc.js', render: 'renderAdcLab', bind: 'bindAdcEvents', expect: [] },
   { module: 'sensors-ev', path: '../src/workspaces/electrical/sensors-ev.js', render: 'renderSensors', bind: 'bindSensorEvents', expect: [] },
   { module: 'sensors-ev', path: '../src/workspaces/electrical/sensors-ev.js', render: 'renderEv', bind: 'bindSensorEvents', expect: [] },
+  { module: 'machines', path: '../src/workspaces/electrical/machines.js', render: 'renderMachines', bind: 'bindMachinesEvents', expect: [] },
 ];
 
 for (const workspace of WORKSPACES) {
