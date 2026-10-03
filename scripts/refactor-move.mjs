@@ -199,7 +199,7 @@ export function move({ from, to, names, doc = '', exportAlso = [] }) {
       if (!movedIds.has(n.local)) continue;
       const target = resolveSpec(from, imp.from);
       if (target === path.resolve(to)) continue; // the name is defined in the target itself
-      const key = target.startsWith('/') ? target : `pkg:${target}`;
+      const key = path.isAbsolute(target) ? target : `pkg:${target}`;
       (needed.get(key) ?? needed.set(key, new Set()).get(key)).add(n.imported === n.local ? n.local : `${n.imported} as ${n.local}`);
     }
   }
@@ -212,7 +212,7 @@ export function move({ from, to, names, doc = '', exportAlso = [] }) {
     for (const [key, set] of [...needed]) if (!set.size) needed.delete(key);
     for (const imp of existing.imports) {
       const target = resolveSpec(to, imp.from);
-      const key = target.startsWith('/') ? target : `pkg:${target}`;
+      const key = path.isAbsolute(target) ? target : `pkg:${target}`;
       for (const n of imp.names) (needed.get(key) ?? needed.set(key, new Set()).get(key)).add(n.imported === n.local ? n.local : `${n.imported} as ${n.local}`);
     }
     const kept = existing.lines.filter((_, i) => !existing.imports.some((imp) => imp.index === i));

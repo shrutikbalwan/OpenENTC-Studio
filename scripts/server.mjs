@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
 import { readFile, realpath, stat } from 'node:fs/promises';
-import { extname, isAbsolute, join, relative } from 'node:path';
+import { extname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { rootFromModuleUrl } from './server-path.mjs';
 
@@ -41,7 +41,7 @@ export async function createStaticServer(servedRoot) {
 });
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (process.argv[1] && resolve(fileURLToPath(import.meta.url)) === resolve(process.argv[1])) {
   const port = Number(process.env.PORT || 4173);
   const server = await createStaticServer(rootFromModuleUrl(import.meta.url));
   server.listen(port, '127.0.0.1', () => {
