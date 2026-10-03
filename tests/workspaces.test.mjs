@@ -29,6 +29,7 @@ export const WORKSPACES = [
   { module: 'biomed', path: '../src/workspaces/signals/biomed.js', render: 'renderBio', bind: 'bindBioEvents', expect: [] },
   { module: 'control', path: '../src/workspaces/control/control.js', render: 'renderControl', bind: 'bindControlLabEvents', expect: [] },
   { module: 'plc', path: '../src/workspaces/control/plc.js', render: 'renderPlc', bind: 'bindPlcEvents', expect: [] },
+  { module: 'communication', path: '../src/workspaces/communication/communication.js', render: 'renderCommunication', bind: 'bindCommLabEvents', expect: [] },
 ];
 
 for (const workspace of WORKSPACES) {
