@@ -470,6 +470,22 @@
       "plannedPhase": 9
     },
     {
+      "id": "machines.power-devices",
+      "surface": "Machines & Devices: transformer equivalent circuit from OC/SC tests with efficiency, regulation, maximum and all-day efficiency; DC shunt and series motor speed–torque; induction-motor Thévenin torque–slip, pull-out and starting torque and power flow; UJT relaxation and R triggering, RC snubber, series SCR strings and MOSFET/IGBT losses",
+      "state": "built-in",
+      "evidence": ["packages/machines/src/index.mjs", "src/app.js#renderMachines", "tests/machines.test.mjs"],
+      "limitations": "Steady-state, linear models: no magnetic saturation (series motor assumes Φ ∝ Ia), no armature reaction, constant parameters with temperature; transformer regulation uses the approximate (Kapp) formula. The induction motor uses the IEEE per-phase circuit without deep-bar or skin effects. SCR triggering and snubber formulas are textbook (Rashid/Bimbhra) design equations, not device simulations. Results match the Theraja 20 kVA transformer and Chapman example 6-5 within the stated tolerances.",
+      "plannedPhase": 9
+    },
+    {
+      "id": "product.design-calculators",
+      "surface": "Product Design: heat-sink thermal path and required θsa, parts-count reliability with MTBF and parallel redundancy, IPC-2221 PCB trace width with trace resistance and loss, duty-cycled battery life with optional Peukert exponent",
+      "state": "built-in",
+      "evidence": ["packages/productdesign/src/index.mjs", "src/app.js#renderProduct", "tests/machines.test.mjs"],
+      "limitations": "Steady-state thermal model (no transient thermal impedance or airflow); default failure rates are ballpark FIT values, not a MIL-HDBK-217 or IEC 61709 prediction with stress factors. IPC-2221 is the legacy chart fit (IPC-2152 gives more accurate widths); battery life ignores temperature and self-discharge.",
+      "plannedPhase": 9
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",
