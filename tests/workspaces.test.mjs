@@ -22,6 +22,7 @@ export const WORKSPACES = [
   { module: 'vlsi-rtos', path: '../src/workspaces/digital/vlsi-rtos.js', render: 'renderVlsi', bind: 'bindVlsiEvents', expect: [] },
   { module: 'vlsi-rtos', path: '../src/workspaces/digital/vlsi-rtos.js', render: 'renderRtos', bind: 'bindVlsiEvents', expect: [] },
   { module: 'fpga', path: '../src/workspaces/digital/fpga.js', render: 'renderDigital', bind: 'bindVerilogEvents', expect: [] },
+  { module: 'sigsys', path: '../src/workspaces/signals/sigsys.js', render: 'renderSigsys', bind: 'bindSigsysEvents', expect: [] },
 ];
 
 for (const workspace of WORKSPACES) {
