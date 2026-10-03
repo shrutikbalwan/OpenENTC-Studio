@@ -32,6 +32,7 @@ export const WORKSPACES = [
   { module: 'communication', path: '../src/workspaces/communication/communication.js', render: 'renderCommunication', bind: 'bindCommLabEvents', expect: [] },
   { module: 'info', path: '../src/workspaces/communication/info.js', render: 'renderInfo', bind: 'bindInfoEvents', expect: [] },
   { module: 'network', path: '../src/workspaces/communication/network.js', render: 'renderNetwork', bind: 'bindNetprotoEvents', expect: [] },
+  { module: 'cellular', path: '../src/workspaces/communication/cellular.js', render: 'renderCellular', bind: 'bindCellularEvents', expect: [] },
 ];
 
 for (const workspace of WORKSPACES) {
