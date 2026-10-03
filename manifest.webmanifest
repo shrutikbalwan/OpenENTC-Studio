@@ -1,0 +1,13 @@
+{
+  "name": "OpenENTC Studio",
+  "short_name": "OpenENTC",
+  "description": "Open-source all-in-one ENTC engineering workspace that works offline.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#07111f",
+  "theme_color": "#07111f",
+  "icons": [
+    { "src": "assets/openentc-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

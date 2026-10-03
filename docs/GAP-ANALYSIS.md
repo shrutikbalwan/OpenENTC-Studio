@@ -63,9 +63,14 @@ SciPy, every feature gets a capability-ledger entry, and `npm run verify` stays 
 
 ## Progress
 
-- [ ] Phase 9 — subject gaps
-- [ ] Phase 10 — Fault Hunt
-- [ ] Phase 11 — Offline app
+- [x] Phase 9 — Information & Coding, Analog Design, Measurements, Radar & Satellite, Speech Processing, PLC & Automation, Machines & Devices, Product Design
+- [x] Phase 10 — Fault Hunt (five boards, hidden faults, virtual multimeter, scoring and debrief)
+- [x] Phase 11 — Offline app (service worker + web-app manifest; works with no internet after the first visit)
+
+All three phases are built, tested and documented. Every gap from section 2 now has a lab, and
+the common gaps G1–G7 are covered by the single workspace, the free and cross-platform build,
+offline support, Fault Hunt, design-to-spec tools, the tool-checked AI partner and the new
+subject labs.
 
 ## Sources
 

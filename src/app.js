@@ -5235,7 +5235,7 @@ function bindLearningHubEvents() {
 // AI lab partner (OpenAI-compatible). Settings and the API key live only in this browser's
 // localStorage — never in the project file.
 
-const EXPERIMENT_MODULES = { 'signals-fft': 'dsp', 'dsp-lab': 'dsp', 'control-step': 'iot', 'control-lab': 'iot', 'comm-lab': 'communication', 'qpsk-ber': 'communication', 'rx-lab': 'communication', 'rf-touchstone': 'rf', 'rf-lab': 'rf', 'calc-lab': 'calc', 'pcb-board': 'pcb', 'mcu-lab': 'mcu', 'bench-lab': 'bench', 'lab-record': 'record', 'power-lab': 'power', 'adc-lab': 'adc', 'sensor-lab': 'sensors', 'ev-lab': 'ev', 'vlsi-lab': 'vlsi', 'rtos-lab': 'rtos', 'network-lab': 'theory', 'sigsys-lab': 'sigsys', 'em-lab': 'em', 'cell-lab': 'cellular', 'netproto-lab': 'network', 'crypto-lab': 'crypto', 'wsn-lab': 'wsn', 'sdr-lab': 'sdr', 'dip-lab': 'dip', 'bio-lab': 'biomed', 'nn-lab': 'neural', 'console-lab': 'console', 'learn-lab': 'learn', 'topology-metrics': 'network', 'vcd-import': 'fpga' };
+const EXPERIMENT_MODULES = { 'signals-fft': 'dsp', 'dsp-lab': 'dsp', 'control-step': 'iot', 'control-lab': 'iot', 'comm-lab': 'communication', 'qpsk-ber': 'communication', 'rx-lab': 'communication', 'rf-touchstone': 'rf', 'rf-lab': 'rf', 'calc-lab': 'calc', 'pcb-board': 'pcb', 'mcu-lab': 'mcu', 'bench-lab': 'bench', 'lab-record': 'record', 'power-lab': 'power', 'adc-lab': 'adc', 'sensor-lab': 'sensors', 'ev-lab': 'ev', 'vlsi-lab': 'vlsi', 'rtos-lab': 'rtos', 'network-lab': 'theory', 'sigsys-lab': 'sigsys', 'em-lab': 'em', 'cell-lab': 'cellular', 'netproto-lab': 'network', 'crypto-lab': 'crypto', 'wsn-lab': 'wsn', 'sdr-lab': 'sdr', 'dip-lab': 'dip', 'bio-lab': 'biomed', 'nn-lab': 'neural', 'console-lab': 'console', 'learn-lab': 'learn', 'info-lab': 'info', 'analog-lab': 'analog', 'meas-lab': 'measure', 'radar-lab': 'radar', 'speech-lab': 'speech', 'plc-lab': 'plc', 'mach-lab': 'machines', 'product-lab': 'product', 'fault-lab': 'faulthunt', 'topology-metrics': 'network', 'vcd-import': 'fpga' };
 const ASSISTANT_STORAGE = 'openentc.assistant.v1';
 const assistantDefaults = { provider: 'openai', baseUrl: '', model: '', apiKey: '', mode: 'explain', language: 'en', shareLab: true, consented: false };
 const assistant = { open: false, view: 'chat', draft: '', history: [], shown: [], busy: false, status: '', error: '', controller: null, focus: false };
@@ -8236,3 +8236,19 @@ window.addEventListener('keydown', (event) => {
 
 subscribe(render);
 render();
+
+// Offline support: register the service worker in a normal browser (not in the desktop shell,
+// which already has every file locally). The first visit caches the studio for offline use.
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) && !globalThis.__TAURI__) {
+  window.addEventListener('load', () => {
+    const firstInstall = !navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('./sw.js').then((registration) => {
+      if (!firstInstall) return;
+      registration.addEventListener('updatefound', () => {
+        const worker = registration.installing;
+        worker?.addEventListener('statechange', () => { if (worker.state === 'activated') notify('OpenENTC Studio is saved on this device and now works offline.', 'success'); });
+      });
+    }).catch(() => {});
+  });
+  window.addEventListener('offline', () => notify('You are offline — everything keeps working from the saved copy.', 'info'));
+}

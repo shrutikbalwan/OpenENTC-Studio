@@ -494,6 +494,14 @@
       "plannedPhase": 10
     },
     {
+      "id": "app.offline-pwa",
+      "surface": "Offline app: a service worker caches the whole browser studio on the first visit (network first, cache fallback) and a web-app manifest lets it be installed on a phone or laptop",
+      "state": "built-in",
+      "evidence": ["sw.js", "manifest.webmanifest", "src/app.js#serviceWorker", "tests/offline.test.mjs"],
+      "limitations": "Needs one online visit over HTTP(S) to fill the cache; not registered in the desktop shell, which already has every file locally. Only same-origin files are cached, so AI providers and other online services still need a connection. The icon is SVG, so very old browsers may not offer installation.",
+      "plannedPhase": 11
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",
