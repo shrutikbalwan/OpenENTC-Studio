@@ -27,7 +27,8 @@
     "hdl:smoke": "node scripts/hdl-tool-smoke.mjs",
     "test": "node --test --experimental-test-isolation=none",
     "check": "npm run lint",
-    "verify": "node scripts/verify.mjs"
+    "verify": "node scripts/verify.mjs",
+    "deps:map": "node scripts/app-dependency-map.mjs --markdown docs/architecture/app-dependency-map.generated.md"
   },
   "engines": {
     "node": ">=22.8.0"
