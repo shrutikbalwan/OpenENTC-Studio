@@ -122,6 +122,31 @@ export function referenceMap(file) {
   return map;
 }
 
+// Remove import specifiers the compiler reports as unused (TS6133/TS6192), so a local with the same
+// spelling never keeps a dead import alive.
+export function pruneUnusedImports(file) {
+  const program = ts.createProgram([file], { allowJs: true, checkJs: true, noEmit: true, noResolve: true, noUnusedLocals: true, target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext });
+  const sf = program.getSourceFile(file);
+  const unused = new Set();
+  for (const d of program.getSemanticDiagnostics(sf)) {
+    if (![6133, 6192].includes(d.code) || d.start === undefined) continue;
+    let node = ts.getTokenAtPosition ? ts.getTokenAtPosition(sf, d.start) : null;
+    while (node && !ts.isImportDeclaration(node)) node = node.parent;
+    if (!node) continue;
+    if (d.code === 6192) for (const el of node.importClause?.namedBindings?.elements ?? []) unused.add(el.name.text);
+    else unused.add(sf.text.slice(d.start, d.start + d.length));
+  }
+  if (!unused.size) return [];
+  const lines = sf.text.split('\n').flatMap((line) => {
+    const m = IMPORT.exec(line);
+    if (!m) return [line];
+    const kept = m[1].split(',').map((x) => x.trim()).filter(Boolean).filter((x) => !unused.has((x.split(/\s+as\s+/)[1] ?? x).trim()));
+    return kept.length ? [`import { ${kept.join(', ')} } from '${m[2]}';`] : [];
+  });
+  writeFileSync(file, lines.join('\n'));
+  return [...unused];
+}
+
 const relativeSpec = (fromFile, toFile) => { let spec = path.relative(path.dirname(fromFile), toFile).split(path.sep).join('/'); if (!spec.startsWith('.')) spec = `./${spec}`; return spec; };
 const resolveSpec = (file, spec) => (spec.startsWith('.') ? path.resolve(path.dirname(file), spec) : spec);
 const importLine = (names, spec) => `import { ${[...names].sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }) || a.localeCompare(b)).join(', ')} } from '${spec}';`;
@@ -203,6 +228,8 @@ export function move({ from, to, names, doc = '', exportAlso = [] }) {
     rewritten.splice(lastImport + 1, 0, importLine(back, relativeSpec(from, to)));
   }
   writeFileSync(from, rewritten.join('\n'));
+  pruneUnusedImports(path.resolve(from));
+  pruneUnusedImports(path.resolve(to));
   return { moved: names.length, importedBack: back, targetImports: importBlock.length };
 }
 
