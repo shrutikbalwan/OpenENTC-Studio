@@ -79,6 +79,7 @@ for (const pkg of packages) {
   }
 }
 const rootLicense = await readFile(new URL('../LICENSE', import.meta.url), 'utf8').catch(() => '');
-noticeSections.unshift(`===== OpenENTC Studio — LICENSE =====\n${rootLicense.trim()}\n`);
+const rootNotice = await readFile(new URL('../NOTICE', import.meta.url), 'utf8').catch(() => '');
+noticeSections.unshift(`===== OpenENTC Studio — NOTICE =====\n${rootNotice.trim()}\n`, `===== OpenENTC Studio — LICENSE =====\n${rootLicense.trim()}\n`);
 await writeFile(noticesOutput, `OpenENTC Studio native Cargo dependency notices\n\nGenerated from Cargo metadata and local package sources. Review before distribution.\n\n${noticeSections.join('\n')}`, 'utf8');
 process.stdout.write(`Native SPDX SBOM and third-party notices written (${packages.length} Cargo packages, ${noticeSections.length} notice sections).\n`);

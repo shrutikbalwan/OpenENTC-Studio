@@ -28,6 +28,7 @@ for (const entry of await readdir(resolve(root, 'packages'), { withFileTypes: tr
 }
 await cp(resolve(root, 'assets'), resolve(output, 'assets'), { recursive: true });
 await cp(resolve(root, 'LICENSE'), resolve(output, 'LICENSE'));
+await cp(resolve(root, 'NOTICE'), resolve(output, 'NOTICE'));
 await writeFile(resolve(output, 'THIRD-PARTY-NOTICES.txt'), 'OpenENTC Studio browser preview\n\nNo third-party engine binaries or libraries are bundled in this artifact. External toolchains remain user-managed and subject to their own upstream licence terms.\n');
 await writeFile(resolve(output, 'BUILD-METADATA.json'), `${JSON.stringify({
   product: 'OpenENTC Studio',
