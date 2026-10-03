@@ -817,3 +817,9 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .null-meter small { color: var(--muted); font-size: 10px; }
 .null-bar { height: 12px; border-radius: 6px; background: var(--soft); overflow: hidden; }
 .null-bar i { display: block; height: 100%; background: linear-gradient(90deg, #22c55e, #f59e0b, #ef4444); }
+.heatmap { width: 100%; height: 220px; display: block; border-radius: 6px; }
+.heatmap-axis { display: flex; justify-content: space-between; font-size: 9px; color: var(--muted); margin-top: 3px; }
+.vuv-strip { display: flex; height: 10px; border-radius: 4px; overflow: hidden; margin: 4px 0; }
+.vuv-strip i { flex: 1; }
+.vuv-strip i.voiced { background: #34d399; } .vuv-strip i.unvoiced { background: #f97316; } .vuv-strip i.silence { background: #475569; }
+.file-button { cursor: pointer; display: inline-flex; align-items: center; }

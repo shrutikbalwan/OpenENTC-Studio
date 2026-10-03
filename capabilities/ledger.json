@@ -454,6 +454,14 @@
       "plannedPhase": 9
     },
     {
+      "id": "speech.processing-lab",
+      "surface": "Speech Processing: microphone recording, WAV loading or synthetic vowels; short-time energy, zero-crossing rate and voiced/unvoiced/silence labels; pitch by autocorrelation, AMDF and cepstrum with a pitch track; LPC by Levinson–Durbin with formants from the polynomial roots and LPC/cepstral envelopes; spectrogram and MFCCs",
+      "state": "built-in",
+      "evidence": ["packages/speech/src/index.mjs", "src/app.js#renderSpeech", "tests/speech.test.mjs", "tests/fixtures/speech/psf-mfcc.json"],
+      "limitations": "Audio is resampled to 8 kHz mono by simple averaging and kept only in memory (it is not saved into project files); at most 10 s is analysed. The voiced/unvoiced rule uses fixed energy and zero-crossing thresholds. Formants come from a single analysis frame without tracking. No speech recognition or synthesis beyond the source–filter vowel model. MFCCs match python_speech_features 0.6 frame for frame; LPC satisfies the Toeplitz normal equations; formants and pitch of synthetic vowels are recovered within a few per cent.",
+      "plannedPhase": 9
+    },
+    {
       "id": "circuit.builtin-transient",
       "surface": "Circuit Lab: Run transient",
       "state": "built-in",
