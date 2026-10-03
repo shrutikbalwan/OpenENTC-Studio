@@ -21,6 +21,7 @@ export const WORKSPACES = [
   { module: 'faulthunt', path: '../src/workspaces/circuit/faulthunt.js', render: 'renderFaultHunt', bind: 'bindFaultHuntEvents', expect: [] },
   { module: 'vlsi-rtos', path: '../src/workspaces/digital/vlsi-rtos.js', render: 'renderVlsi', bind: 'bindVlsiEvents', expect: [] },
   { module: 'vlsi-rtos', path: '../src/workspaces/digital/vlsi-rtos.js', render: 'renderRtos', bind: 'bindVlsiEvents', expect: [] },
+  { module: 'fpga', path: '../src/workspaces/digital/fpga.js', render: 'renderDigital', bind: 'bindVerilogEvents', expect: [] },
 ];
 
 for (const workspace of WORKSPACES) {
