@@ -36,7 +36,7 @@ The optional AI lab partner sends the user's questions to the OpenAI-compatible 
 
 Do not disclose security vulnerabilities in a public issue, and do not attach sensitive projects, captures, credentials or device data.
 
-Report privately through GitHub: open the repository's **Security** tab and choose **Report a vulnerability** (private vulnerability reporting). The repository owner must enable this feature under *Settings → Code security*. Until it is confirmed enabled, open a public issue that only asks for a private contact, with no technical details. We aim to acknowledge reports within 7 days and to agree a disclosure date with the reporter.
+Report privately through GitHub: open the repository's **Security** tab and choose **Report a vulnerability** (private vulnerability reporting). The repository owner must enable this feature under *Settings → Code security*. Until it is confirmed enabled, use the *Security contact request* issue form, which only asks for a private channel and must contain no technical details. Owner setup steps are in `docs/security-contact-setup.md`. We aim to acknowledge reports within 7 days and to agree a disclosure date with the reporter.
 
 ## Secrets
 

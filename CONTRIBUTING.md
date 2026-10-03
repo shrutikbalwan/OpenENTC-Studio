@@ -1,6 +1,19 @@
 # Contributing
 
 OpenENTC Studio welcomes focused changes that keep the toolkit free, transparent and useful for students.
+Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Setup
+
+You need Node.js 22.8.0 or newer. Run `npm ci`, then `npm run dev`; see the README quick start and
+[docs/development.md](docs/development.md) for every command.
+
+## Issues
+
+Use the issue forms: bug, numerical error, external engine problem or accessibility problem.
+Never report a security problem in a public issue; follow [SECURITY.md](SECURITY.md).
+
+## Changes
 
 Before submitting a change:
 
@@ -15,10 +28,10 @@ The baseline quality commands are:
 
 - `npm run format:check`
 - `npm run lint`
-- `npm run typecheck` (alpha structural contracts; strict TypeScript begins in Phase 1)
+- `npm run typecheck` (structural contracts plus strict TypeScript for the files listed in `tsconfig.json`)
 - `npm test`
 
-Update `capabilities/ledger.json` whenever a user-visible capability or limitation changes. Follow `docs/definition-of-done.md` and the release gates in `docs/release-checklist.md`.
+Feature claims must stay accurate: update `docs/features.md` and `capabilities/ledger.json` whenever a user-visible capability or limitation changes. Follow `docs/definition-of-done.md` and the release gates in `docs/release-checklist.md`.
 
 Use small pull requests and describe which engineering workflow was verified.
 
@@ -35,4 +48,4 @@ Dependabot proposes updates weekly (`.github/dependabot.yml`); each update goes 
 
 ## Governance
 
-Pull requests use the template in `.github/pull_request_template.md`. Code owners are listed in `.github/CODEOWNERS`. Branch protection, review rules and the release process are described in `docs/governance/`.
+Pull requests use the template in `.github/PULL_REQUEST_TEMPLATE.md`. Code owners are listed in `.github/CODEOWNERS`. Branch protection, review rules and the release process are described in `docs/governance/`.

@@ -2,6 +2,9 @@
 # the groups below are placeholders for the reviewers the project should add (see
 # docs/governance/BRANCH-PROTECTION.md). A path needs a non-author approval once branch
 # protection is enabled.
+# PLACEHOLDER: every @shrutikbalwan entry outside "Default" stands in for a reviewer role that
+# is not yet staffed (numerical, native/security, project format). Replace them when the roles in
+# docs/maintainers.md are confirmed.
 
 # Default
 *                                   @shrutikbalwan

@@ -32,8 +32,8 @@ test('workflows run with least privilege and never expose credentials to pull re
 });
 
 test('governance files exist', () => {
-  for (const path of ['.github/CODEOWNERS', '.github/pull_request_template.md', '.github/dependabot.yml', '.github/workflows/codeql.yml', 'docs/governance/BRANCH-PROTECTION.md', 'docs/governance/RELEASE-POLICY.md', 'CHANGELOG.md', 'SECURITY.md']) assert.ok(existsSync(new URL(path, root)), path);
-  const template = read('.github/pull_request_template.md');
+  for (const path of ['.github/CODEOWNERS', '.github/PULL_REQUEST_TEMPLATE.md', '.github/dependabot.yml', '.github/workflows/codeql.yml', 'docs/governance/BRANCH-PROTECTION.md', 'docs/governance/RELEASE-POLICY.md', 'CHANGELOG.md', 'SECURITY.md']) assert.ok(existsSync(new URL(path, root)), path);
+  const template = read('.github/PULL_REQUEST_TEMPLATE.md');
   for (const heading of ['Scope', 'Test evidence', 'Numerical references', 'Security impact', 'Accessibility impact', 'Project schema compatibility', 'Hardware claims', 'Licence and provenance']) assert.match(template, new RegExp(`## ${heading}`), heading);
   const dependabot = read('.github/dependabot.yml');
   for (const ecosystem of ['npm', 'cargo', 'github-actions']) assert.match(dependabot, new RegExp(`package-ecosystem: ${ecosystem}`), ecosystem);
