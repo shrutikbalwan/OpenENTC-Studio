@@ -38,6 +38,7 @@ export const WORKSPACES = [
   { module: 'crypto', path: '../src/workspaces/communication/crypto.js', render: 'renderCrypto', bind: 'bindCryptoEvents', expect: [] },
   { module: 'rf', path: '../src/workspaces/rf/rf.js', render: 'renderRf', bind: 'bindRfLabEvents', expect: [] },
   { module: 'em', path: '../src/workspaces/rf/em.js', render: 'renderEm', bind: 'bindEmEvents', expect: [] },
+  { module: 'radar', path: '../src/workspaces/rf/radar.js', render: 'renderRadar', bind: 'bindRadarEvents', expect: [] },
 ];
 
 for (const workspace of WORKSPACES) {
