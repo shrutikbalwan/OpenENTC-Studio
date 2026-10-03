@@ -34,6 +34,7 @@ export const WORKSPACES = [
   { module: 'network', path: '../src/workspaces/communication/network.js', render: 'renderNetwork', bind: 'bindNetprotoEvents', expect: [] },
   { module: 'cellular', path: '../src/workspaces/communication/cellular.js', render: 'renderCellular', bind: 'bindCellularEvents', expect: [] },
   { module: 'wsn', path: '../src/workspaces/communication/wsn.js', render: 'renderWsn', bind: 'bindWsnEvents', expect: [] },
+  { module: 'sdr', path: '../src/workspaces/communication/sdr.js', render: 'renderSdr', bind: 'bindSdrEvents', expect: [] },
 ];
 
 for (const workspace of WORKSPACES) {
