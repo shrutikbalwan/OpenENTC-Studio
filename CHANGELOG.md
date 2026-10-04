@@ -7,6 +7,7 @@ no signed or qualified release exists yet.
 ## [Unreleased]
 
 ### Added
+- CI: an external-tools job (ngspice, GHDL, Verilator, Yosys, nextpnr) with a passed/failed/unavailable/skipped report, an unsigned Windows desktop build, and SBOM and licence audit; `docs/testing/ci.md`.
 - A first-run guide and example library on Mission control; a diagnostics centre (health, recent errors, a redacted report to copy or download, and a link to report a problem); a "Know the limits" section in Help; user guides in `docs/user-guide/`.
 - Automated accessibility tests (axe-core 4.13.0, development only) on every module in both themes; a skip link; an "Alpha · educational" maturity badge on each lab; `docs/accessibility.md`.
 - Numerical validation manifest (`validation/manifest.json`), expert review checklist, a required `review` field in the capability ledger, circuit solver diagnostics (iterations, GMIN, source stepping) and a warning for non-physical node voltages.

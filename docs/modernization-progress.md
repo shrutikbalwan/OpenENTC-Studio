@@ -20,7 +20,7 @@ Baseline: [`docs/modernization-baseline.md`](modernization-baseline.md) (commit 
 | 7 Numerical credibility | **done** (no independent review) | validation manifest (25 entries), convergence diagnostics, non-physical-result warning, report disclaimer, review checklist, ledger review field |
 | 8 Accessibility and UX | **done** (automated checks only; not a WCAG claim) | axe-core on all modules in both themes: 0 violations; skip link; text alternatives; reflow tests; maturity badge |
 | 9 Onboarding and diagnostics | **done** | first-run guide, example library (69 examples), help limits, diagnostics centre with redacted report, recovery hints in error toasts, user guides |
-| 10 CI and integrations | pending | |
+| 10 CI and integrations | **done** (new jobs await their first hosted run) | external-tools job with passed/failed/unavailable/skipped report, Windows desktop build, SBOM and licence audit in CI |
 | 11 Performance and recovery | pending | |
 | 12 Release preparation | pending | |
 | 13 Governance | partly done earlier | CODEOWNERS (placeholders), PR template, branch-protection and release policies exist |
@@ -222,9 +222,21 @@ New in this phase:
 - **User guides:** `docs/user-guide/getting-started.md` and `docs/user-guide/troubleshooting.md`.
 - **Tests:** `tests/e2e/onboarding.e2e.mjs` (3 journeys). One of them checks that the downloaded report equals the preview and contains neither the API key nor the project name. The diagnostics dialog is included in the axe checks.
 
+### Phase 10 — CI and external tool integration (2026-10-04)
+
+- **New `external-tools` job** (ubuntu-24.04) installs ngspice, GHDL, Verilator, Yosys and nextpnr-ice40. These are the same versions as the reference environment (Ubuntu 24.04 packages).
+  - It runs `scripts/external-tools-report.mjs`, which combines the version probes, the HDL smoke flow, the live ngspice comparison, the arduino-cli/kicad-cli probes and the real-process runner tests.
+  - Each check gets exactly one state: passed, failed, **unavailable** (tool not configured; never a pass) or skipped.
+  - The results go into the job summary and an uploaded JSON report.
+- **Local run** with the tools configured: 15 checks passed and 2 were unavailable (arduino-cli and kicad-cli are not installed). Without tools, every tool row reports unavailable, and only the process-runner tests run.
+- **New `desktop-windows-build` job:** Rust unit tests, then an unsigned NSIS installer, uploaded as an artifact.
+- **The `security-audit` job** now also generates the native SBOM and runs the licence audit, and uploads the SBOM. Local run: 437 crates, 0 unresolved licences.
+- **Documents:** `docs/testing/ci.md` lists every job, what it proves, the four states, and what CI does not prove.
+- **Tests:** a governance test checks that the jobs exist and that every action is pinned by SHA. A unit test checks that "unavailable" is never reported as a pass.
+
 ## Remaining work
 
-Phases 10–13. The next step is Phase 10: CI and external tool integration.
+Phases 11–13. The next step is Phase 11: performance and recovery.
 
 ## Verification evidence
 

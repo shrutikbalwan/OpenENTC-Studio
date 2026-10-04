@@ -56,3 +56,18 @@ test('the mutation runner restores files and treats failing baselines as invalid
   assert.equal(runMutant({ ...mutant, from: 'no such text anywhere' }, () => ({ status: 0 })).status, 'stale');
   assert.equal(runMutant({ ...mutant, tests: ['tests/missing.test.mjs'] }, () => ({ status: 0 })).status, 'invalid');
 });
+
+test('external-tool report: unavailable is never a pass, and failures win', async () => {
+  const { reportState, tapCounts, testState, markdownTable } = await import('../scripts/external-tools-report.mjs');
+  assert.equal(reportState('not-configured'), 'unavailable');
+  assert.equal(reportState('not-run'), 'skipped');
+  assert.equal(reportState('passed'), 'passed');
+  assert.equal(reportState('something-new'), 'failed', 'an unknown state is treated as a failure');
+  const counts = tapCounts('# tests 6\n# pass 0\n# fail 0\n# skipped 6\n');
+  assert.deepEqual(counts, { tests: 6, pass: 0, fail: 0, skipped: 6 });
+  assert.equal(testState(counts, false), 'unavailable');
+  assert.equal(testState(counts, true), 'skipped');
+  assert.equal(testState({ pass: 5, fail: 1 }, true), 'failed');
+  assert.equal(testState({ pass: 5, fail: 0 }, true), 'passed');
+  assert.match(markdownTable([{ tool: 'ngspice', check: 'a|b', state: 'unavailable', detail: 'x' }]), /\| ngspice \| a\|b \| ⚪ unavailable \| x \|/);
+});

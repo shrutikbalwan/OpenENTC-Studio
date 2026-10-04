@@ -79,3 +79,14 @@ test('the version shown in the app and in diagnostic reports matches package.jso
   assert.equal(APP_VERSION, JSON.parse(read('package.json')).version);
   assert.match(ISSUES_URL, /^https:\/\/github\.com\/shrutikbalwan\/OpenENTC-Studio\/issues\//);
 });
+
+test('CI runs the external tools, the Windows desktop build and the SBOM and licence audit', () => {
+  const workflow = read('.github/workflows/verify.yml');
+  assert.match(workflow, /external-tools:\n[\s\S]*?runs-on: ubuntu-24\.04/);
+  assert.match(workflow, /apt-get install -y --no-install-recommends ngspice ghdl verilator yosys nextpnr-ice40/);
+  assert.match(workflow, /node scripts\/external-tools-report\.mjs/);
+  assert.match(workflow, /desktop-windows-build:\n[\s\S]*?runs-on: windows-latest[\s\S]*?cargo test --lib[\s\S]*?build:installer/);
+  assert.match(workflow, /npm run native:sbom\n\s+npm run license:audit/);
+  // Every action is pinned to a full commit SHA.
+  for (const [, ref] of workflow.matchAll(/uses: [^@\s]+@(\S+)/g)) assert.match(ref, /^[0-9a-f]{40}$/, `action pinned by SHA: ${ref}`);
+});
