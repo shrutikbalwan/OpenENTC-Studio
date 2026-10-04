@@ -8,6 +8,10 @@ The browser preview runs only built-in capabilities and has no native process, f
 
 This is still an unsigned development build. Do not treat it as a trusted public release until clean-machine verification, supported-OS qualification, signing, licence review, and the remaining release checklist are complete.
 
+## Threat model
+
+Trust boundaries, untrusted inputs and their controls are listed in `docs/security/threat-model.md`. What the AI assistant sends and receives is in `docs/security/ai-data-flow.md`.
+
 ## AI assistant
 
 The optional AI lab partner sends the user's questions to the OpenAI-compatible service they configure. If they allow it, it also sends the current lab's inputs and results.

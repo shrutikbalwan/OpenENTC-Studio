@@ -16,7 +16,7 @@ Baseline: [`docs/modernization-baseline.md`](modernization-baseline.md) (commit 
 | 3 Types and errors | **done** | error architecture, reportError, ts-check for shared layers, API reference |
 | 4 Browser workflows | **done**; journeys pass in hosted CI (run 93) | 24 Playwright journeys; found and fixed 2 real bugs |
 | 5 Coverage | **done** | coverage thresholds per risk group, property and fuzz tests, 8/8 mutants killed, CI coverage job |
-| 6 Security | partly done earlier | CodeQL, Dependabot, CSP and session-only API keys were added by the earlier hardening pass on this branch; the rest is pending |
+| 6 Security | **done** (no independent review) | threat model, AI data flow, dependency audit job, expiring device grants, redacted diagnostic report |
 | 7 Numerical credibility | pending | |
 | 8 Accessibility and UX | pending | |
 | 9 Onboarding and diagnostics | pending | |
@@ -150,14 +150,34 @@ Baseline: [`docs/modernization-baseline.md`](modernization-baseline.md) (commit 
   - The tests must pass on unmutated code first, so a broken suite cannot count as a "kill".
 - **Documents:** `docs/testing/test-categories.md` explains what each test category proves and lists every skipped test with its reason.
 
+### Phase 6 — security (2026-10-04)
+
+Done earlier on this branch: CodeQL, Dependabot, pinned actions, CSP, session-only API keys, and escaping probes.
+
+New in this phase:
+- **Threat model** (`docs/security/threat-model.md`): it maps assets, the 11 trust boundaries, untrusted inputs, controls and the tests that prove them. It also lists the known gaps.
+- **AI data flow** (`docs/security/ai-data-flow.md`) lists exactly what is sent, when, and how replies are treated.
+  - **Change:** the circuit netlist given to the AI used the project name as its title. It now uses "OpenENTC circuit", so the project name never leaves the computer.
+- **Device permissions:**
+  - Grants now expire after one hour by default (`grantTtlMs`). They can be revoked per permission or all at once (`revokePermission`, `revokeAll`).
+  - **Bug fixed:** `revokeTarget('COM4')` also removed a grant for the target `usb:COM4`, because grants were matched by string suffix. Grants are now stored per permission and per exact target.
+  - Desktop project grants were already cleared on project close (Rust `close_project_session`).
+- **Diagnostic report** (`createDiagnosticReport` in `packages/errors`):
+  - It copies only allow-listed fields: counts instead of project content, tool ids and versions instead of paths, and "key set" true/false instead of the key.
+  - It then redacts everything again. Redaction now also removes e-mail addresses.
+  - The UI for it comes in Phase 9.
+- **CI `security-audit` job:** runs `npm audit` for the workspace and the desktop shell, and `cargo audit` (cargo-audit 0.22.2, pinned, `--locked`).
+- **Parser fuzzing** was added in Phase 5 (`tests/property.test.mjs`).
+
 ## Remaining work
 
-Phases 6–13. The next step is Phase 6: security (audit job, threat model, AI data flow, permission lifecycle, redacted diagnostics).
+Phases 7–13. The next step is Phase 7: numerical credibility (validation manifest, limitations, expert-review checklist).
 
 ## Verification evidence
 
 | Date | Phase | Evidence |
 |---|---|---|
+| 2026-10-04 | 6 | `npm run verify` passed (all tests, 0 fail). `npm audit`: 0 vulnerabilities (workspace and desktop). `cargo audit` 0.22.2 on 437 crates: 0 vulnerabilities and 3 warnings, all transitive through Tauri's GTK stack: `proc-macro-error` 1.0.4 is unmaintained (RUSTSEC-2024-0370), `glib` 0.18.5 is unsound in `VariantStrIter` (RUSTSEC-2024-0429), and `yoke-derive` 0.8.3 is yanked. The new tests fail against the old code (the suffix-revoke case and the project name in the netlist). |
 | 2026-10-04 | 5 | `npm run verify` 792 tests (780 pass, 0 fail, 12 skipped); `npm run coverage` thresholds met; `npm run test:mutation` 8/8 killed; `npm run test:e2e` 24/24 pass. Hosted CI result recorded in the next phase row. |
 | 2026-10-03 | 4 | `npm run test:e2e`: 24 journeys, 24 pass, about 36 s (Chromium 141). The offline and migration journeys fail against the pre-fix code (mutation-checked). **Hosted CI:** the `Browser journeys (Chromium)` job passed in run 93 (https://github.com/shrutikbalwan/OpenENTC-Studio/actions/runs/37157935257), and `Verify (ubuntu-latest)` passed there too. |
 | 2026-10-03 | CI correction | **Hosted `Verify (windows-latest)` failed in runs 84–92** (since commit `455634d`): the new `tests/refactor-move.test.mjs` exposed a Windows path bug in `scripts/refactor-move.mjs` (absolute imports written for `C:\` paths). Earlier phase reports of "verify passed" referred to local runs only. Fixed in `796d627`; the confirming hosted run is recorded below. Hosted CI is now checked after each push. |
@@ -177,6 +197,8 @@ Phases 6–13. The next step is Phase 6: security (audit job, threat model, AI d
 - `release:verify` needs a Windows desktop executable, so it cannot pass in a Linux container.
 - Browser checks need Chromium with `--no-sandbox` when run as root (container-specific).
 - External-tool evidence comes from one container's tool versions, not from CI.
+- `cargo audit` warnings for `glib` 0.18 (unsound iterator) and `proc-macro-error` (unmaintained) come from Tauri's Linux GTK3 bindings. They cannot be fixed until Tauri moves off GTK3. The app does not call `VariantStrIter`.
+- No independent security review or penetration test has been done.
 - No physical hardware, clean machine, code signing or independent expert review is available in this environment.
 
 ## Decisions and rationale

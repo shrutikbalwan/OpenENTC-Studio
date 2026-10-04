@@ -96,6 +96,34 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  security-audit:
+    name: Dependency audit (npm and Cargo)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - name: Audit npm dependencies (workspace)
+        run: npm audit --audit-level=low
+      - name: Audit npm dependencies (desktop shell)
+        working-directory: apps/desktop
+        run: npm audit --audit-level=low
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d # stable branch
+        with:
+          toolchain: stable
+      - name: Install cargo-audit (pinned)
+        run: cargo install cargo-audit --version 0.22.2 --locked
+      - name: Audit Cargo dependencies
+        working-directory: apps/desktop/src-tauri
+        run: cargo audit
+
   desktop-linux-build:
     name: Linux desktop build
     runs-on: ubuntu-latest

@@ -1,5 +1,5 @@
 export type DevicePermission = 'serial' | 'usb' | 'debug' | 'capture' | 'sdr' | 'programmer';
-export interface DeviceGrant { permission: DevicePermission; target: string; granted: true; }
+export interface DeviceGrant { permission: DevicePermission; target: string; granted: true; expiresAt: number; }
 export interface DevicePermissionRecord { permission: DevicePermission; allowed: boolean; grantedTargets: string[]; }
 export interface DevicePermissionPolicy {
   readonly environment: 'desktop' | 'browser';
@@ -7,10 +7,13 @@ export interface DevicePermissionPolicy {
   inspect(): readonly DevicePermissionRecord[];
   selectTarget(permission: DevicePermission, target: string): DeviceGrant;
   revokeTarget(target: string): void;
+  revokePermission(permission: DevicePermission): void;
+  revokeAll(): void;
   assertGranted(permission: DevicePermission, target: string): true;
 }
 export declare const DEVICE_PERMISSIONS: readonly DevicePermission[];
-export declare function createDevicePermissionPolicy(options?: { environment?: 'desktop' | 'browser'; allowed?: DevicePermission[] }): DevicePermissionPolicy;
+export declare const DEFAULT_GRANT_TTL_MS: number;
+export declare function createDevicePermissionPolicy(options?: { environment?: 'desktop' | 'browser'; allowed?: DevicePermission[]; grantTtlMs?: number; now?: () => number }): DevicePermissionPolicy;
 export type SerialSessionState = 'disconnected' | 'reconnecting' | 'connected' | 'closed';
 export interface SerialFrame { timestamp: string; text: string; bytes: number; }
 export interface SerialSessionSnapshot {

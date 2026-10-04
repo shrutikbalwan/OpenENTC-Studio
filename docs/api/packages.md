@@ -87,7 +87,7 @@ Cryptography step by step: classical ciphers, number theory and public-key schem
 Physical-device permission policy (serial, USB, debug, capture, SDR, programmer) and a bounded serial session; browsers are always denied native device scopes.
 
 - Types: `index.d.ts`
-- Exports (3): `createDevicePermissionPolicy`, `createSerialSession`, `DEVICE_PERMISSIONS`
+- Exports (4): `createDevicePermissionPolicy`, `createSerialSession`, `DEFAULT_GRANT_TTL_MS`, `DEVICE_PERMISSIONS`
 
 ## diagnostics
 
@@ -115,7 +115,7 @@ External-engine adapter SDK: job state machine, cancellation, manifests, discove
 Error architecture shared by the engines, project model, native boundary and UI. Every error has: a stable machine-readable `code`; a `message` that is safe to show the user; optionally a `location` (file/line/column or a component id); a `recovery` hint (what the user can do next); and a `context` object that is redacted when it is created, so it can go into logs and diagnostic exports. Subclasses keep the built-in base class that older code checks for (ValidationError and TimeoutError are RangeErrors), so existing `instanceof` checks keep working.
 
 - Types: `index.d.ts`
-- Exports (12): `ConvergenceError`, `NativeToolError`, `NumericalError`, `OpenEntcError`, `PermissionError`, `ProjectFormatError`, `redactDiagnostic`, `redactText`, `StorageError`, `TimeoutError`, `toUserFacing`, `ValidationError`
+- Exports (13): `ConvergenceError`, `createDiagnosticReport`, `NativeToolError`, `NumericalError`, `OpenEntcError`, `PermissionError`, `ProjectFormatError`, `redactDiagnostic`, `redactText`, `StorageError`, `TimeoutError`, `toUserFacing`, `ValidationError`
 
 ## ev
 

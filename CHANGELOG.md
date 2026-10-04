@@ -7,6 +7,7 @@ no signed or qualified release exists yet.
 ## [Unreleased]
 
 ### Added
+- Threat model and AI data-flow documents (`docs/security/`), a CI dependency-audit job (`npm audit`, `cargo audit`), expiring device permission grants with `revokePermission`/`revokeAll`, and `createDiagnosticReport()` for redacted diagnostics.
 - Coverage reporting with per-risk-group thresholds (`npm run coverage`), a targeted mutation check (`npm run test:mutation`), seeded property and fuzz tests, store tests, and a CI `coverage` job. See `docs/testing/test-categories.md`.
 - 24 Playwright browser journeys (`npm run test:e2e`) and a `browser-e2e` CI job; development dependency `playwright-core` 1.56.1 (see `docs/dependencies.md`).
 - Shared error classes with stable codes, recovery hints and redaction (`packages/errors`); a central `reportError()` and error panel; a generated package API reference (`docs/api/packages.md`).
@@ -18,6 +19,8 @@ no signed or qualified release exists yet.
 - Browser-security tests and an opt-in Chromium injection probe (`tests/e2e/injection-probe.mjs`).
 
 ### Fixed
+- Revoking a device target no longer also revokes other targets that end with the same name (for example `usb:COM4`).
+- **Privacy:** the AI assistant no longer receives the project name in the circuit netlist title.
 - Projects saved before the `notes` field existed are migrated instead of being rejected.
 - The installed web app now really works offline after one visit: the service worker precaches every web asset (`precache.json`), not only the shell.
 

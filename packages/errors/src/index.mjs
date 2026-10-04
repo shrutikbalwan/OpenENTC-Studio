@@ -19,11 +19,12 @@ const SECRET_PATTERNS = [
   [/\bgh[pousr]_[A-Za-z0-9]{20,}\b/g, '[redacted]'],
   [/\b(api[_-]?key|token|password|secret)(["']?\s*[:=]\s*["']?)[^\s"',;&]{4,}/gi, '$1$2[redacted]'],
 ];
-// Absolute paths that reveal a user name or private directory layout.
+// Absolute paths that reveal a user name or private directory layout, and e-mail addresses.
 /** @type {[RegExp, string][]} */
 const PATH_PATTERNS = [
   [/(?:[A-Za-z]:)?[\\/](?:Users|home|Documents and Settings)[\\/][^\\/\s"'<>:]+((?:[\\/][^\s"'<>]*)?)/g, '<home>$1'],
   [/\/(?:root|private\/var|var\/folders|tmp)\/[^\s"'<>]+/g, '<private-path>'],
+  [/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, '<email>'],
 ];
 // Only real stack frames: "at fn (file:line:col)" or "at file:line:col".
 const STACK_LINE = /^\s*at\s+(?:.+\(.+:\d+:\d+\)|\S+:\d+:\d+)\s*$/gm;
@@ -145,4 +146,50 @@ export function toUserFacing(error, { secrets = [], fallback = 'Something went w
   const recovery = typeof value?.recovery === 'string' ? redactText(value.recovery, secrets) : LEGACY_RECOVERY[/** @type {keyof typeof LEGACY_RECOVERY} */ (code)];
   const location = value?.location && typeof value.location === 'object' ? /** @type {ErrorLocation} */ (redactDiagnostic(value.location)) : undefined;
   return { code, message, ...(recovery ? { recovery } : {}), ...(location ? { location } : {}) };
+}
+
+/**
+ * Build a diagnostic report that is safe to attach to a public issue. Only allow-listed fields are
+ * copied: counts instead of project content, tool ids and versions instead of paths, a boolean
+ * instead of the API key. Everything is then redacted again (secrets, private paths, e-mail
+ * addresses, stack lines), so a careless caller cannot leak more than the allow list.
+ * @param {{
+ *   app?: { version?: string, build?: string },
+ *   environment?: { userAgent?: string, platform?: string, language?: string, online?: boolean, desktop?: boolean, serviceWorker?: string },
+ *   project?: any,
+ *   persistence?: { status?: string, error?: string },
+ *   errors?: { at?: string, code?: string, message?: string, recovery?: string }[],
+ *   toolchains?: { id?: string, detected?: boolean, version?: string }[],
+ *   assistant?: { provider?: string, apiKey?: string, consented?: boolean },
+ *   secrets?: string[],
+ *   now?: () => Date,
+ * }} input
+ */
+export function createDiagnosticReport({ app = {}, environment = {}, project = null, persistence = {}, errors = [], toolchains = [], assistant = {}, secrets = [], now = () => new Date() } = {}) {
+  /** @param {unknown} value @param {number} [max] */
+  const text = (value, max = 200) => (typeof value === 'string' ? value.slice(0, max) : undefined);
+  /** @param {unknown} value */
+  const count = (value) => (Array.isArray(value) ? value.length : 0);
+  const allSecrets = [...secrets, ...(assistant.apiKey ? [assistant.apiKey] : [])];
+  const report = {
+    format: 'openentc-diagnostics',
+    version: 1,
+    generatedAt: now().toISOString(),
+    app: { version: text(app.version, 40), build: text(app.build, 80) },
+    environment: {
+      userAgent: text(environment.userAgent, 300), platform: text(environment.platform, 60), language: text(environment.language, 20),
+      online: typeof environment.online === 'boolean' ? environment.online : undefined,
+      desktop: Boolean(environment.desktop), serviceWorker: text(environment.serviceWorker, 40),
+    },
+    project: project && typeof project === 'object' ? {
+      format: text(project.format, 40), version: Number.isInteger(project.version) ? project.version : undefined,
+      components: count(project.circuit?.components), wires: count(project.circuit?.wires), experiments: count(project.experiments),
+      notes: count(project.notes), artifacts: count(project.artifacts),
+    } : null,
+    persistence: { status: text(persistence.status, 20), error: text(persistence.error, 300) },
+    recentErrors: (Array.isArray(errors) ? errors : []).slice(-20).map((entry) => ({ at: text(entry?.at, 40), code: text(entry?.code, 60), message: text(entry?.message, 500), recovery: text(entry?.recovery, 300) })),
+    toolchains: (Array.isArray(toolchains) ? toolchains : []).slice(0, 30).map((tool) => ({ id: text(tool?.id, 40), detected: Boolean(tool?.detected), version: text(tool?.version, 80) })),
+    assistant: { provider: text(assistant.provider, 30), apiKeySet: Boolean(assistant.apiKey), consented: Boolean(assistant.consented) },
+  };
+  return /** @type {Record<string, unknown>} */ (redactDiagnostic(JSON.parse(JSON.stringify(report)), { secrets: allSecrets, depth: 6 }));
 }

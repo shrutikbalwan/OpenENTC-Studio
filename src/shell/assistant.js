@@ -23,7 +23,7 @@ function assistantLabContext(state) {
   const active = modules.find((item) => item.id === state.activeModule) ?? modules[0];
   const context = { lab: active.name, labPurpose: active.description, savedInputs: state.project.experiments.filter((e) => EXPERIMENT_MODULES[e?.id] === active.id).map((e) => ({ experiment: e.id, inputs: e.inputs })) };
   if (['circuit', 'bench', 'record'].includes(active.id) && state.project.circuit.components.length) {
-    try { context.circuitSpiceNetlist = buildSpiceNetlist(state.project.circuit.components, state.project.circuit.wires, { title: state.project.name, netLabels: state.project.circuit.netLabels }); } catch (error) { context.circuitProblem = error.message; }
+    try { context.circuitSpiceNetlist = buildSpiceNetlist(state.project.circuit.components, state.project.circuit.wires, { title: 'OpenENTC circuit', netLabels: state.project.circuit.netLabels }); } catch (error) { context.circuitProblem = error.message; }
   }
   if (state.simulation?.kind) {
     const text = JSON.stringify(state.simulation, (key, value) => (Array.isArray(value) && value.length > 40 ? `[${value.length} values]` : value));

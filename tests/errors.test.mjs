@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ConvergenceError, NativeToolError, NumericalError, OpenEntcError, PermissionError, ProjectFormatError, StorageError, TimeoutError, ValidationError, redactDiagnostic, redactText, toUserFacing } from '../packages/errors/src/index.mjs';
+import { ConvergenceError, NativeToolError, NumericalError, OpenEntcError, PermissionError, ProjectFormatError, StorageError, TimeoutError, ValidationError, redactDiagnostic, redactText, toUserFacing, createDiagnosticReport } from '../packages/errors/src/index.mjs';
 
 test('every error kind has a stable code, a recovery hint and keeps its legacy base class', () => {
   const kinds = [[ValidationError, 'OPENENTC_VALIDATION', RangeError], [ProjectFormatError, 'OPENENTC_PROJECT_FORMAT', Error], [NumericalError, 'OPENENTC_NUMERICAL', Error], [ConvergenceError, 'OPENENTC_CONVERGENCE', Error], [PermissionError, 'OPENENTC_PERMISSION', Error], [NativeToolError, 'OPENENTC_NATIVE_TOOL', Error], [TimeoutError, 'OPENENTC_TIMEOUT', RangeError], [StorageError, 'OPENENTC_STORAGE', Error]];
@@ -53,4 +53,28 @@ test('toUserFacing turns any thrown value into a safe message with code and reco
   const shown = toUserFacing(withStack, { secrets: ['carol'] });
   assert.doesNotMatch(JSON.stringify(shown), /carol|stack|\n\s+at /);
   assert.deepEqual(toUserFacing(new ConvergenceError('Did not converge.', { location: { component: 'Q1' } })).location, { component: 'Q1' });
+});
+
+test('diagnostic reports copy only allow-listed fields and redact everything else', () => {
+  const key = 'sk-live-abcdefghijklmnop1234';
+  const project = { format: 'openentc-project', version: 1, name: 'Priya private project', circuit: { components: [{ id: 'R1' }, { id: 'R2' }], wires: [] }, experiments: [{}], notes: [{ text: 'personal note' }], artifacts: [] };
+  const report = createDiagnosticReport({
+    app: { version: '0.1.0' },
+    environment: { userAgent: 'Mozilla/5.0 test', platform: 'Linux', language: 'en', online: true },
+    project,
+    persistence: { status: 'error', error: 'Could not write C:\\Users\\priya\\Documents\\lab.json' },
+    errors: [{ at: '2026-10-04T00:00:00Z', code: 'OPENENTC_STORAGE', message: `failed for priya@example.edu with ${key}\n    at save (file:///home/priya/app.js:1:2)` }],
+    toolchains: [{ id: 'ngspice', detected: true, version: '42', path: '/home/priya/bin/ngspice' }],
+    assistant: { provider: 'openai', apiKey: key, consented: true, baseUrl: 'https://private.example/v1' },
+    now: () => new Date('2026-10-04T00:00:00Z'),
+  });
+  const text = JSON.stringify(report);
+  for (const leaked of [key, 'priya', 'Priya', 'personal note', 'private.example', 'app.js:1:2', '/bin/ngspice']) assert.ok(!text.includes(leaked), `report must not contain ${leaked}`);
+  assert.deepEqual(report.project, { format: 'openentc-project', version: 1, components: 2, wires: 0, experiments: 1, notes: 1, artifacts: 0 });
+  assert.deepEqual(report.assistant, { provider: 'openai', apiKeySet: true, consented: true });
+  assert.deepEqual(report.toolchains, [{ id: 'ngspice', detected: true, version: '42' }]);
+  assert.match(report.recentErrors[0].message, /<email>/);
+  assert.equal(report.format, 'openentc-diagnostics');
+  assert.equal(report.generatedAt, '2026-10-04T00:00:00.000Z');
+  assert.equal(createDiagnosticReport().project, null, 'works with no input');
 });

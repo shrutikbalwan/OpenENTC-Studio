@@ -25,3 +25,16 @@ export declare const StorageError: KindConstructor<Error>;
 
 export interface UserFacingError { code: string; message: string; recovery?: string; location?: ErrorLocation }
 export declare function toUserFacing(error: unknown, options?: { secrets?: string[]; fallback?: string }): UserFacingError;
+
+export interface DiagnosticInput {
+  app?: { version?: string; build?: string };
+  environment?: { userAgent?: string; platform?: string; language?: string; online?: boolean; desktop?: boolean; serviceWorker?: string };
+  project?: unknown;
+  persistence?: { status?: string; error?: string };
+  errors?: { at?: string; code?: string; message?: string; recovery?: string }[];
+  toolchains?: { id?: string; detected?: boolean; version?: string }[];
+  assistant?: { provider?: string; apiKey?: string; consented?: boolean };
+  secrets?: string[];
+  now?: () => Date;
+}
+export declare function createDiagnosticReport(input?: DiagnosticInput): Record<string, unknown>;

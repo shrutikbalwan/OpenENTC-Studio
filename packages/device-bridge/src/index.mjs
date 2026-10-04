@@ -16,29 +16,44 @@ function assertTarget(target) {
   if (typeof target !== 'string' || !TARGET_PATTERN.test(target)) throw new TypeError('Device target must be a bounded identifier.');
 }
 
-export function createDevicePermissionPolicy({ environment = 'desktop', allowed = PERMISSIONS } = {}) {
+// Grants are per (permission, target) and expire: a session must be re-approved after grantTtlMs
+// (default one hour). revokeAll() is called when a project closes so no grant outlives its project.
+export const DEFAULT_GRANT_TTL_MS = 60 * 60 * 1000;
+
+export function createDevicePermissionPolicy({ environment = 'desktop', allowed = PERMISSIONS, grantTtlMs = DEFAULT_GRANT_TTL_MS, now = () => Date.now() } = {}) {
   if (environment !== 'desktop' && environment !== 'browser') throw new TypeError('Device environment must be desktop or browser.');
   if (!Array.isArray(allowed) || allowed.some((permission) => !PERMISSIONS.includes(permission))) throw new TypeError('Allowed device permissions are invalid.');
+  if (!Number.isFinite(grantTtlMs) || grantTtlMs <= 0) throw new TypeError('Grant lifetime must be a positive number of milliseconds.');
+  if (typeof now !== 'function') throw new TypeError('Clock must be a function.');
   const allowedSet = new Set(allowed);
-  const grants = new Map();
+  // Keyed by permission, then by target, so a target containing ':' can never match another grant.
+  const grants = new Map(PERMISSIONS.map((permission) => [permission, new Map()]));
+  const live = (permission) => {
+    const targets = grants.get(permission);
+    for (const [target, expiresAt] of targets) if (now() >= expiresAt) targets.delete(target);
+    return targets;
+  };
   return Object.freeze({
     environment,
     permissions: [...PERMISSIONS],
     inspect: () => Object.freeze(PERMISSIONS.map((permission) => Object.freeze({
       permission,
       allowed: environment === 'desktop' && allowedSet.has(permission),
-      grantedTargets: [...grants.keys()].filter((key) => key.startsWith(`${permission}:`)).map((key) => key.slice(permission.length + 1))
+      grantedTargets: [...live(permission).keys()]
     }))),
     selectTarget: (permission, target) => {
       assertPermission(permission); assertTarget(target);
       if (environment !== 'desktop' || !allowedSet.has(permission)) throw Object.assign(new Error(`Device permission '${permission}' is unavailable in ${environment} preview.`), { code: 'DEVICE_PERMISSION_UNAVAILABLE' });
-      grants.set(`${permission}:${target}`, true);
-      return Object.freeze({ permission, target, granted: true });
+      const expiresAt = now() + grantTtlMs;
+      grants.get(permission).set(target, expiresAt);
+      return Object.freeze({ permission, target, granted: true, expiresAt });
     },
-    revokeTarget: (target) => { assertTarget(target); for (const key of grants.keys()) if (key.endsWith(`:${target}`)) grants.delete(key); },
+    revokeTarget: (target) => { assertTarget(target); for (const targets of grants.values()) targets.delete(target); },
+    revokePermission: (permission) => { assertPermission(permission); grants.get(permission).clear(); },
+    revokeAll: () => { for (const targets of grants.values()) targets.clear(); },
     assertGranted: (permission, target) => {
       assertPermission(permission); assertTarget(target);
-      if (!grants.has(`${permission}:${target}`)) throw Object.assign(new Error(`Explicit '${permission}' permission is required for target '${target}'.`), { code: 'DEVICE_PERMISSION_REQUIRED' });
+      if (!live(permission).has(target)) throw Object.assign(new Error(`Explicit '${permission}' permission is required for target '${target}'.`), { code: 'DEVICE_PERMISSION_REQUIRED' });
       return true;
     }
   });
