@@ -5,7 +5,7 @@ import { renderErrorPanel } from './errors.js';
 
 /** @param {{ name: string, description: string }} module @param {string} eyebrow trusted HTML @param {string} [actions] trusted HTML */
 export function pageHeader(module, eyebrow, actions = '') {
-  return `<div class="page-heading"><div><span class="eyebrow">${eyebrow}</span><h1>${module.name}</h1><p>${module.description}</p></div><div class="heading-actions">${actions}</div></div>`;
+  return `<div class="page-heading"><div><span class="eyebrow">${eyebrow}</span><h1>${module.name}</h1><span class="maturity-badge" title="Alpha software: results come from simplified educational models and have not been independently reviewed.">Alpha · educational</span><p>${module.description}</p></div><div class="heading-actions">${actions}</div></div>`;
 }
 /** Error panel with a button that restores the current tab's example inputs. */
 /** @param {string} prefix @param {string} title @param {unknown} error */

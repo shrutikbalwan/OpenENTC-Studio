@@ -31,7 +31,7 @@ function dipCanvas(img, caption, { signed = false } = {}) {
   let shown = img;
   if (signed) { const max = Math.max(1e-9, ...Array.from(img.data, Math.abs)); shown = { ...img, data: img.data.map((v) => 128 + 127 * v / max) }; }
   dipCanvases.set(id, shown);
-  return `<figure class="dip-figure"><canvas data-dip-canvas="${id}" width="${img.width}" height="${img.height}"></canvas><figcaption>${esc(caption)}</figcaption></figure>`;
+  return `<figure class="dip-figure"><canvas data-dip-canvas="${id}" role="img" aria-label="${esc(caption)}" width="${img.width}" height="${img.height}"></canvas><figcaption>${esc(caption)}</figcaption></figure>`;
 }
 const dipScaled = (img) => { const max = Math.max(1e-9, ...img.data); return { ...img, data: img.data.map((v) => 255 * v / max) }; };
 const dipHistogram = (img, title) => { const h = histogram(img), levels = h.map((_, k) => k); return renderPlotFrame({ title, series: [{ xs: levels, ys: h, color: PLOT_COLORS[0], stem: true }], xMin: 0, xMax: 255, xTicks: [0, 64, 128, 192, 255].map((v) => ({ position: v / 255, text: String(v) })), yRange: niceRange(0, Math.max(...h)), formatY: (v) => fmt(v, 3) }); };

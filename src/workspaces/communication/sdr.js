@@ -48,7 +48,7 @@ function renderSdrCanvas(graph, run, selected) {
       ${def.outputs.map((port, i) => `<circle class="port out" cx="${SDR_BLOCK_WIDTH}" cy="${sdrPortY(i)}" r="6" data-sdr-out="${esc(b.id)}:${port}"/><text class="port-label" x="${SDR_BLOCK_WIDTH - 9}" y="${sdrPortY(i) + 3}" text-anchor="end">${port}</text>`).join('')}
       ${error ? `<title>${esc(error)}</title>` : ''}</g>`;
   }).join('');
-  return `<div class="sdr-canvas-wrap"><svg class="sdr-canvas" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" data-sdr-canvas>${wires}${nodes}</svg></div>`;
+  return `<div class="sdr-canvas-wrap"><svg class="sdr-canvas" role="img" aria-label="Flowgraph: blocks and connections (edit them with the block list)" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" data-sdr-canvas>${wires}${nodes}</svg></div>`;
 }
 function renderSdrSink(id, block, sink) {
   const title = `${BLOCKS[block.type].label} — ${block.id}`;
@@ -56,7 +56,7 @@ function renderSdrSink(id, block, sink) {
   if (sink.kind === 'spectrum') return linePlot(`${title} (dB)`, sink.frequency, [{ name: 'power', values: sink.db.map((v) => Math.max(v, -120)) }], { xLabel: (x) => eng(x, 'Hz') });
   if (sink.kind === 'constellation') {
     const size = 220, extent = Math.max(1.5, ...sink.re.map(Math.abs), ...sink.im.map(Math.abs)) * 1.1, s = size / 2 / extent;
-    return `<div class="sdr-const"><span class="panel-label">${esc(title)}</span><svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"><path class="axis" d="M${size / 2} 0V${size}M0 ${size / 2}H${size}"/>${sink.re.map((x, i) => `<circle cx="${(size / 2 + x * s).toFixed(1)}" cy="${(size / 2 - sink.im[i] * s).toFixed(1)}" r="1.6"/>`).join('')}</svg></div>`;
+    return `<div class="sdr-const"><span class="panel-label">${esc(title)}</span><svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="${esc(title)}"><path class="axis" d="M${size / 2} 0V${size}M0 ${size / 2}H${size}"/>${sink.re.map((x, i) => `<circle cx="${(size / 2 + x * s).toFixed(1)}" cy="${(size / 2 - sink.im[i] * s).toFixed(1)}" r="1.6"/>`).join('')}</svg></div>`;
   }
   if (sink.kind === 'numbers') return `<div class="analysis-readouts sdr-numbers"><span class="panel-label">${esc(title)}</span>${readout('Mean', sink.meanIm === null ? fmt(sink.mean, 5) : `${fmt(sink.mean, 5)} ${sink.meanIm < 0 ? '−' : '+'} j${fmt(Math.abs(sink.meanIm), 5)}`)}${readout('RMS', fmt(sink.rms, 5))}${readout('Power', `${fmt(sink.powerDb, 4)} dB`)}${readout('Peak', fmt(sink.peak, 5))}${readout('Rate', `${eng(sink.rate, 'S/s')}, ${sink.samples} samples`)}</div>`;
   return `<div class="analysis-readouts sdr-numbers"><span class="panel-label">${esc(title)}</span>${readout('Symbol errors', `${sink.errors} of ${sink.compared} (SER ${sink.ser.toExponential(3)})`)}${readout('Bit errors (Gray map)', `${sink.bitErrors} (BER ${sink.ber.toExponential(3)})`)}${readout('Alignment delay found', `${sink.lag} symbols`)}</div>`;

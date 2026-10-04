@@ -52,12 +52,14 @@ When running as root (containers), the harness adds `--no-sandbox` automatically
 | 23 | Narrow screen | shell › narrow phone screen… | 375 px: no horizontal scroll; navigation and Run DC usable |
 | 24 | User-visible error recovery | shell › bad input is reported… | invalid text rejected with a hint; a model error shows a panel; Reset restores the example |
 
+Phase 8 added `tests/e2e/accessibility.e2e.mjs` (7 tests): axe-core on every module in both themes and in dialogs, text alternatives, the skip link, and reflow at 390 px and 768 px. See [../accessibility.md](../accessibility.md).
+
 ## What these tests do not cover
 
 - Firefox, Safari and mobile browsers. Only Chromium runs.
 - The desktop (Tauri) app and its native tools; those have separate opt-in smoke tests.
 - Physical hardware (Web Serial with a real board).
-- Visual design and screen-reader output; accessibility checks are planned for Phase 8.
+- Visual design and real screen-reader output. Automated accessibility rules run (see above), but no assistive technology is driven.
 
 ## Findings from writing these tests
 
@@ -67,4 +69,4 @@ When running as root (containers), the harness adds `--no-sandbox` automatically
    could not start offline: its other modules had loaded before the service worker took control. The
    build now writes `precache.json` with every web asset, and the worker precaches it on install.
    Chromium's offline emulation does not block 127.0.0.1, so the test stops the server instead.
-3. **Open item (Phase 8).** The Signals plots have no accessible name (no `role="img"` or label).
+3. **Fixed in Phase 8.** The Signals plots had no accessible name. They now have `role="img"` and a label, like every other chart.

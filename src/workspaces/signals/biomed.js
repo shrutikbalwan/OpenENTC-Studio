@@ -21,7 +21,7 @@ const bioLab = makeLab('bio-lab', {
 const bioField = (...args) => groupField('data-bio-field')(...args);
 const scatterPlot = (title, xs, ys, unit) => {
   const size = 260, lo = Math.min(...xs, ...ys), hi = Math.max(...xs, ...ys), span = hi - lo || 1, p = (v) => (16 + (v - lo) / span * (size - 32)).toFixed(1), q = (v) => (size - 16 - (v - lo) / span * (size - 32)).toFixed(1);
-  return `<div class="sdr-const"><span class="panel-label">${esc(title)}</span><svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"><path class="axis" d="M16 ${size - 16}H${size - 16}M16 16V${size - 16}"/><path class="axis" d="M16 ${size - 16}L${size - 16} 16" stroke-dasharray="4 3"/>${xs.map((x, i) => `<circle cx="${p(x)}" cy="${q(ys[i])}" r="2.5"/>`).join('')}<text x="20" y="12" class="bio-axis">${fmt(hi, 4)} ${unit}</text><text x="${size - 70}" y="${size - 4}" class="bio-axis">${fmt(lo, 4)} ${unit}</text></svg></div>`;
+  return `<div class="sdr-const"><span class="panel-label">${esc(title)}</span><svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="${esc(title)}"><path class="axis" d="M16 ${size - 16}H${size - 16}M16 16V${size - 16}"/><path class="axis" d="M16 ${size - 16}L${size - 16} 16" stroke-dasharray="4 3"/>${xs.map((x, i) => `<circle cx="${p(x)}" cy="${q(ys[i])}" r="2.5"/>`).join('')}<text x="20" y="12" class="bio-axis">${fmt(hi, 4)} ${unit}</text><text x="${size - 70}" y="${size - 4}" class="bio-axis">${fmt(lo, 4)} ${unit}</text></svg></div>`;
 };
 function ecgReport(signal, fs, truth = null) {
   const pt = panTompkins(signal, fs);

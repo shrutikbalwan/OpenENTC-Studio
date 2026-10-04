@@ -93,6 +93,7 @@ test('form controls escape values and keep the data-attribute contract', () => {
 
 test('layout: page header, error panel and card fallback when a tab throws', () => {
   assert.match(pageHeader({ name: 'Lab', description: 'd' }, 'EYEBROW'), /<h1>Lab<\/h1>/);
+  assert.match(pageHeader({ name: 'Lab', description: 'd' }, 'EYEBROW'), /class="maturity-badge"[^>]*>Alpha · educational</, 'every lab states its maturity');
   const error = labError('x', 'Title', new Error(HOSTILE));
   assertEscaped(error);
   assert.match(error, /data-x-reset/);

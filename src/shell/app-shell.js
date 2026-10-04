@@ -17,6 +17,7 @@ export function render() {
   document.documentElement.dataset.theme = state.project.settings.theme;
   app.innerHTML = `
     <div class="app-shell">
+      <button class="skip-link" data-action="skip-to-main">Skip to the lab</button>
       <header class="topbar">
         <button class="brand" data-action="home" aria-label="Open Mission control">
           <span class="brand-mark"><i></i><i></i><i></i></span>
@@ -43,7 +44,7 @@ export function render() {
         </nav>
         <button class="nav-item" data-action="help" title="About and shortcuts"><span>?</span><small>Help</small></button>
       </aside>
-      <main class="workspace" style="--active-color:${active.color}">
+      <main class="workspace" id="main-content" tabindex="-1" style="--active-color:${active.color}">
         ${renderWorkspace(state, active)}
       </main>
       ${renderAssistant(state)}

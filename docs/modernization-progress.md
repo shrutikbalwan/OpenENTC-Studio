@@ -18,7 +18,7 @@ Baseline: [`docs/modernization-baseline.md`](modernization-baseline.md) (commit 
 | 5 Coverage | **done** | coverage thresholds per risk group, property and fuzz tests, 8/8 mutants killed, CI coverage job |
 | 6 Security | **done** (no independent review) | threat model, AI data flow, dependency audit job, expiring device grants, redacted diagnostic report |
 | 7 Numerical credibility | **done** (no independent review) | validation manifest (25 entries), convergence diagnostics, non-physical-result warning, report disclaimer, review checklist, ledger review field |
-| 8 Accessibility and UX | pending | |
+| 8 Accessibility and UX | **done** (automated checks only; not a WCAG claim) | axe-core on all modules in both themes: 0 violations; skip link; text alternatives; reflow tests; maturity badge |
 | 9 Onboarding and diagnostics | pending | |
 | 10 CI and integrations | pending | |
 | 11 Performance and recovery | pending | |
@@ -128,7 +128,7 @@ Baseline: [`docs/modernization-baseline.md`](modernization-baseline.md) (commit 
   2. The studio did not actually work offline after one visit: only 6 shell files were precached. The build
      now writes `precache.json`, and the service worker precaches every web asset (221 entries). The offline
      journey stops the server to prove it, because Chromium's offline emulation does not block 127.0.0.1.
-- **Open item for Phase 8:** the Signals plots have no accessible name.
+- **Open item for Phase 8 (fixed in Phase 8):** the Signals plots had no accessible name.
 
 ### Phase 5 — coverage and test quality (2026-10-04)
 
@@ -185,14 +185,36 @@ New in this phase:
 - **Coverage:** the errors-and-redaction branch threshold was raised from 86 to 88, after the Phase 6 tests.
 - **Not done:** no automated test reaches the non-convergence error. I could not build a small circuit that fails to converge, because source stepping rescues the candidates I tried. The message logic is covered only by review.
 
+### Phase 8 — accessibility and responsive UX (2026-10-04)
+
+- **Automated checks:** `axe-core` 4.13.0 (MPL-2.0, dev only, pinned, no dependencies) runs in the new `tests/e2e/accessibility.e2e.mjs` (7 tests).
+  - It covers WCAG 2.0/2.1/2.2 A and AA rules on home and all 43 modules in both themes, plus the command palette, the help dialog and the assistant panel.
+  - The same file checks text alternatives on every graphic, the skip link, and reflow at 390 px and 768 px.
+- **The first axe run found:**
+  - light-theme contrast failures on 166 elements in 35 modules;
+  - 15 unlabelled code editors and 12 unlabelled RTOS task inputs;
+  - 3 unlabelled logic-analyser selects;
+  - low-contrast meter captions;
+  - nested interactive controls on circuit parts;
+  - 12 kinds of chart with no text alternative, including the Signals plots (the Phase 4 open item).
+
+  All of these are fixed: there are now 0 violations.
+- **Regression check:** removing one restored label from the built app makes the test fail.
+- **Skip link:** "Skip to the lab" is the first Tab stop and moves focus to the workspace.
+- **Maturity badge:** every lab header now shows "Alpha · educational". Its tooltip explains that the models are simplified and not independently reviewed.
+- **Documented exception:** circuit pins are smaller than the WCAG 2.5.8 target size. The inspector's wire buttons are the equivalent control.
+- **`docs/accessibility.md`** states that this is **not** a WCAG conformance claim and lists the gaps: only default views are scanned, and no screen reader has been tested.
+- **Already present:** the command palette (Ctrl+K) is the global search, and the top bar shows the save status. The feedback entry point moves to Phase 9, together with the diagnostics export.
+
 ## Remaining work
 
-Phases 8–13. The next step is Phase 8: accessibility and responsive UX.
+Phases 9–13. The next step is Phase 9: onboarding, help and diagnostics.
 
 ## Verification evidence
 
 | Date | Phase | Evidence |
 |---|---|---|
+| 2026-10-04 | 6 (hosted) | Hosted run 98 passed all jobs: Verify on Ubuntu and Windows, browser journeys, coverage and mutation, the dependency audit and the Linux desktop build (https://github.com/shrutikbalwan/OpenENTC-Studio/actions/runs/37176834262). |
 | 2026-10-04 | 7 | `npm run verify` passed (all tests, 0 fail); `npm run test:e2e` 24/24; `npm run coverage` thresholds met (circuit-solver branches 94.5, threshold 94). |
 | 2026-10-04 | 6 | `npm run verify` passed (all tests, 0 fail). `npm audit`: 0 vulnerabilities (workspace and desktop). `cargo audit` 0.22.2 on 437 crates: 0 vulnerabilities and 3 warnings, all transitive through Tauri's GTK stack: `proc-macro-error` 1.0.4 is unmaintained (RUSTSEC-2024-0370), `glib` 0.18.5 is unsound in `VariantStrIter` (RUSTSEC-2024-0429), and `yoke-derive` 0.8.3 is yanked. The new tests fail against the old code (the suffix-revoke case and the project name in the netlist). |
 | 2026-10-04 | 5 | `npm run verify` 792 tests (780 pass, 0 fail, 12 skipped); `npm run coverage` thresholds met; `npm run test:mutation` 8/8 killed; `npm run test:e2e` 24/24 pass. **Hosted run 96:** `Verify` on Ubuntu and Windows and the browser journeys passed, but the new `Coverage and mutation checks` job failed. Some tests read `dist/`, and the job did not build first. When reproduced locally, the coverage gate also caught untested branches in the Phase 6 diagnostics code. Fixed by adding a build step and more tests; the threshold was not lowered. |

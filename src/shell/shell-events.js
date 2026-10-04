@@ -68,6 +68,7 @@ export function bindEvents() {
   document.querySelector('[data-action="new-project"]')?.addEventListener('click', async () => { if (await closeNativeSessionForBrowserProject()) { replaceProject(createProject('Untitled ENTC project')); notify('New project created', 'success'); } });
   document.querySelector('[data-action="load-demo"]')?.addEventListener('click', async () => { if (await closeNativeSessionForBrowserProject()) { replaceProject(createProject('Voltage divider demonstration')); setState({ activeModule: 'circuit' }); notify('Demo loaded', 'success'); } });
   document.querySelector('[data-action="help"]')?.addEventListener('click', showHelp);
+  document.querySelector('[data-action="skip-to-main"]')?.addEventListener('click', () => document.querySelector('#main-content')?.focus());
   document.querySelector('[data-action="command"]')?.addEventListener('click', showCommandPalette);
   document.querySelector('[data-action="engine-info"]')?.addEventListener('click', showEngineInfo);
   const experimentModules = EXPERIMENT_MODULES;

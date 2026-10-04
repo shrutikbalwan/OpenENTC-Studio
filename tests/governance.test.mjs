@@ -65,3 +65,11 @@ test('CI checks coverage thresholds against main and runs the mutation check', (
   const thresholds = JSON.parse(read('coverage-thresholds.json'));
   for (const [name, group] of Object.entries(thresholds.groups)) for (const kind of ['lines', 'branches', 'functions']) assert.ok(group[kind] > 0, `${name} ${kind} threshold is set`);
 });
+
+test('accessibility checks use a pinned axe-core and run in the browser journeys', () => {
+  const pkg = JSON.parse(read('package.json'));
+  assert.equal(pkg.devDependencies['axe-core'], '4.13.0', 'pinned exactly');
+  assert.match(read('docs/dependencies.md'), /`axe-core` \| 4\.13\.0 \| MPL-2\.0/);
+  assert.match(read('tests/e2e/accessibility.e2e.mjs'), /wcag22aa/);
+  assert.match(read('docs/accessibility.md'), /not a WCAG conformance claim/i);
+});

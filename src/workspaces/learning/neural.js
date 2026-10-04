@@ -42,7 +42,7 @@ function nnMapSvg(data, frame) {
     for (const p of data.train) parts.push(`<circle class="nn-point c${p.label}" cx="${X(p.x)}" cy="${Y(p.y)}" r="3.2"/>`);
     for (const p of data.test) parts.push(`<circle class="nn-point c${p.label} test" cx="${X(p.x)}" cy="${Y(p.y)}" r="3.2"/>`);
   }
-  return `<svg class="nn-map" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">${parts.join('')}</svg>`;
+  return `<svg class="nn-map" role="img" aria-label="Decision regions of the trained network over the input plane" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">${parts.join('')}</svg>`;
 }
 function nnDiagram(net) {
   const width = 460, height = 220, columns = net.sizes.length, maxN = Math.max(...net.sizes);
@@ -50,7 +50,7 @@ function nnDiagram(net) {
   const maxW = Math.max(1e-9, ...net.layers.flatMap((layer) => layer.w.flat().map(Math.abs)));
   const lines = net.layers.flatMap((layer, l) => layer.w.flatMap((row, j) => row.map((w, k) => { const [x1, y1] = pos(l, k), [x2, y2] = pos(l + 1, j); return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${w > 0 ? '#f97316' : '#38bdf8'}" stroke-width="${(0.3 + 3 * Math.abs(w) / maxW).toFixed(2)}" stroke-opacity="0.75"/>`; })));
   const nodes = net.sizes.flatMap((n, l) => Array.from({ length: n }, (_, j) => { const [x, y] = pos(l, j); return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6" class="nn-node"/>`; }));
-  return `<svg class="nn-net" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">${lines.join('')}${nodes.join('')}</svg>`;
+  return `<svg class="nn-net" role="img" aria-label="Network diagram: layers, neurons and connection weights" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">${lines.join('')}${nodes.join('')}</svg>`;
 }
 function renderNnTab(config) {
   const c = config[config.tab];
@@ -71,7 +71,7 @@ function renderNnTab(config) {
   let line = '';
   if (Math.abs(w2) > 1e-12) { const y0 = (-b - w1 * -0.2) / w2, y1 = (-b - w1 * 1.2) / w2; line = `<line class="nn-boundary" x1="${X(-0.2)}" y1="${Y(y0)}" x2="${X(1.2)}" y2="${Y(y1)}"/>`; }
   else if (Math.abs(w1) > 1e-12) { const x0 = -b / w1; line = `<line class="nn-boundary" x1="${X(x0)}" y1="${Y(-0.2)}" x2="${X(x0)}" y2="${Y(1.2)}"/>`; }
-  const plot = `<svg class="nn-map" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"><rect x="0" y="0" width="${size}" height="${size}" fill="none"/>${line}${LOGIC_SETS[c.gate].map(([x1, x2, t]) => `<circle class="nn-point c${t}" cx="${X(x1)}" cy="${Y(x2)}" r="8"/><text class="nn-label" x="${(Number(X(x1)) + 11).toFixed(1)}" y="${(Number(Y(x2)) + 4).toFixed(1)}">(${x1},${x2})→${t}</text>`).join('')}</svg>`;
+  const plot = `<svg class="nn-map" role="img" aria-label="Decision regions of the trained network over the input plane" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"><rect x="0" y="0" width="${size}" height="${size}" fill="none"/>${line}${LOGIC_SETS[c.gate].map(([x1, x2, t]) => `<circle class="nn-point c${t}" cx="${X(x1)}" cy="${Y(x2)}" r="8"/><text class="nn-label" x="${(Number(X(x1)) + 11).toFixed(1)}" y="${(Number(Y(x2)) + 4).toFixed(1)}">(${x1},${x2})→${t}</text>`).join('')}</svg>`;
   const controls = `${labSelect('data-nn-select', 'perceptron.gate', 'Function', c.gate, [['and', 'AND'], ['or', 'OR'], ['nand', 'NAND'], ['xor', 'XOR']])}${nnField('perceptron.rate', 'Learning rate η', c.rate)}${nnField('perceptron.w1', 'Initial w₁', c.w1)}${nnField('perceptron.w2', 'Initial w₂', c.w2)}${nnField('perceptron.bias', 'Initial bias', c.bias)}${nnField('perceptron.epochs', 'Max epochs', c.epochs)}`;
   const body = `<div class="power-grid"><div>${plot}<div class="analysis-readouts">${readout('Result', result.converged ? `converged after ${result.epochs} epoch${result.epochs > 1 ? 's' : ''}` : `not converged in ${result.epochs} epochs`)}${readout('Weights and bias', `w₁ = ${fmt(w1, 4)}, w₂ = ${fmt(w2, 4)}, b = ${fmt(b, 4)}`)}${readout('Decision line', `${fmt(w1, 4)}·x₁ ${w2 < 0 ? '−' : '+'} ${fmt(Math.abs(w2), 4)}·x₂ ${b < 0 ? '−' : '+'} ${fmt(Math.abs(b), 4)} = 0`)}</div><p class="field-help">${c.gate === 'xor' ? 'XOR is not linearly separable: no single straight line splits the two classes, so the perceptron rule keeps cycling. A hidden layer fixes this (see the MLP playground).' : 'The perceptron convergence theorem guarantees a solution in finitely many updates for linearly separable data.'}</p></div>
     <div><table class="truth-table comm-table power-table"><thead><tr><th>Epoch</th><th>x₁ x₂</th><th>t</th><th>net = w·x + b</th><th>y</th><th>e = t − y</th><th>w₁, w₂ (after)</th><th>b</th></tr></thead><tbody>${result.steps.slice(0, 48).map((s) => `<tr class="${s.error ? 'active' : ''}"><td>${s.epoch}</td><td>${s.x.join(' ')}</td><td>${s.target}</td><td>${fmt(s.net, 4)}</td><td>${s.output}</td><td>${s.error}</td><td>${fmt(s.w[0], 4)}, ${fmt(s.w[1], 4)}</td><td>${fmt(s.b, 4)}</td></tr>`).join('')}</tbody></table><p class="field-help">Rule: w ← w + η(t − y)x, b ← b + η(t − y); highlighted rows changed the weights.</p></div></div>`;

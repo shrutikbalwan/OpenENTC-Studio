@@ -60,7 +60,7 @@ function renderArqTimeline(result) {
     } else parts.push(`<text class="arq-timeout" x="${left - 6}" y="${y(event.at)}" text-anchor="end">⏱ T/O F${event.seq}</text>`);
   }
   for (const delivery of result.deliveries) parts.push(`<circle class="arq-deliver" cx="${right}" cy="${y(delivery.at)}" r="3"/>`);
-  return `<div class="gantt-scroll"><svg class="arq-timeline" viewBox="0 0 520 ${height}" width="520" height="${height}">${parts.join('')}</svg></div>`;
+  return `<div class="gantt-scroll"><svg class="arq-timeline" role="img" aria-label="ARQ timeline of frames and acknowledgements" viewBox="0 0 520 ${height}" width="520" height="${height}">${parts.join('')}</svg></div>`;
 }
 function renderNetworkTab(config, state) {
   const c = config[config.tab];

@@ -7,6 +7,7 @@ no signed or qualified release exists yet.
 ## [Unreleased]
 
 ### Added
+- Automated accessibility tests (axe-core 4.13.0, development only) on every module in both themes; a skip link; an "Alpha · educational" maturity badge on each lab; `docs/accessibility.md`.
 - Numerical validation manifest (`validation/manifest.json`), expert review checklist, a required `review` field in the capability ledger, circuit solver diagnostics (iterations, GMIN, source stepping) and a warning for non-physical node voltages.
 - Threat model and AI data-flow documents (`docs/security/`), a CI dependency-audit job (`npm audit`, `cargo audit`), expiring device permission grants with `revokePermission`/`revokeAll`, and `createDiagnosticReport()` for redacted diagnostics.
 - Coverage reporting with per-risk-group thresholds (`npm run coverage`), a targeted mutation check (`npm run test:mutation`), seeded property and fuzz tests, store tests, and a CI `coverage` job. See `docs/testing/test-categories.md`.
@@ -20,6 +21,7 @@ no signed or qualified release exists yet.
 - Browser-security tests and an opt-in Chromium injection probe (`tests/e2e/injection-probe.mjs`).
 
 ### Fixed
+- **Accessibility:** light-theme text contrast, labels for code editors and other form fields, text alternatives for all charts, low-contrast meter captions, and nested interactive controls on circuit parts.
 - Revoking a device target no longer also revokes other targets that end with the same name (for example `usb:COM4`).
 - **Privacy:** the AI assistant no longer receives the project name in the circuit netlist title.
 - Projects saved before the `notes` field existed are migrated instead of being rejected.

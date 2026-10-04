@@ -108,7 +108,7 @@ function mcuListingHtml() {
 }
 function sevenSegmentSvg(segments) {
   const on = (bit) => (segments !== null && (segments >> bit) & 1 ? 'on' : '');
-  return `<svg viewBox="0 0 60 100" class="mcu-seg"><polygon class="${on(0)}" points="12,6 48,6 42,13 18,13"/><polygon class="${on(1)}" points="50,8 50,46 43,42 43,15"/><polygon class="${on(2)}" points="50,54 50,92 43,85 43,58"/><polygon class="${on(3)}" points="12,94 48,94 42,87 18,87"/><polygon class="${on(4)}" points="10,54 10,92 17,85 17,58"/><polygon class="${on(5)}" points="10,8 10,46 17,42 17,15"/><polygon class="${on(6)}" points="12,50 18,46 42,46 48,50 42,54 18,54"/><circle class="${on(7)}" cx="55" cy="93" r="3.5"/></svg>`;
+  return `<svg viewBox="0 0 60 100" class="mcu-seg" role="img" aria-label="Seven-segment display: ${segments === null ? 'off' : ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'dp'].filter((_, bit) => (segments >> bit) & 1).join(' ') || 'no segments'} lit"><polygon class="${on(0)}" points="12,6 48,6 42,13 18,13"/><polygon class="${on(1)}" points="50,8 50,46 43,42 43,15"/><polygon class="${on(2)}" points="50,54 50,92 43,85 43,58"/><polygon class="${on(3)}" points="12,94 48,94 42,87 18,87"/><polygon class="${on(4)}" points="10,54 10,92 17,85 17,58"/><polygon class="${on(5)}" points="10,8 10,46 17,42 17,15"/><polygon class="${on(6)}" points="12,50 18,46 42,46 48,50 42,54 18,54"/><circle class="${on(7)}" cx="55" cy="93" r="3.5"/></svg>`;
 }
 function mcuBoardHtml(config) {
   const { board } = mcuRuntime;
@@ -178,7 +178,7 @@ function render8051Tab(config) {
     ${mcuRuntime.loadedHex ? `<div class="diagnostic warning"><b>HEX loaded</b><span>Running ${esc(mcuRuntime.loadedHex.name)} (${mcuRuntime.loadedHex.bytes} bytes). Edit the source and press “Assemble &amp; load” to go back to the assembler.</span></div>` : ''}
     <div class="mcu-layout">
       <section class="dsp-card mcu-editor"><span class="panel-label">ASSEMBLY SOURCE (A51 syntax)</span>
-        <textarea data-mcu-source spellcheck="false" rows="28">${esc(config.source)}</textarea>
+        <textarea data-mcu-source spellcheck="false" rows="28" aria-label="8051 assembly source">${esc(config.source)}</textarea>
         ${errors.length ? `<ul class="pcb-drc">${errors.slice(0, 12).map((error) => `<li class="error"><b>error</b> ${esc(error.message)}</li>`).join('')}</ul>` : `<p class="module-footnote">${assembly ? `${assembly.size} bytes of code · ${Object.keys(assembly.symbols).length} symbols` : ''}</p>`}
       </section>
       <section class="mcu-middle">
@@ -472,7 +472,7 @@ function renderUnoTab(config) {
     ${unoRuntime.hex ? `<div class="diagnostic warning"><b>Your sketch</b><span>Running ${esc(unoRuntime.hex.name)} (${unoRuntime.hex.bytes} bytes). Pick an example to go back to the built-in sketches.</span></div>` : ''}
     <div class="mcu-layout">
       <section class="dsp-card mcu-editor"><span class="panel-label">${unoRuntime.hex ? 'YOUR SKETCH (compiled HEX loaded)' : `SKETCH · ${esc(example.id)}.ino (${example.flashBytes} bytes of flash)`}</span>
-        <textarea readonly spellcheck="false" rows="22">${esc(unoRuntime.hex ? '// Source is not available for an uploaded HEX file.' : example.source)}</textarea>
+        <textarea readonly spellcheck="false" rows="22" aria-label="Example program source (read only)">${esc(unoRuntime.hex ? '// Source is not available for an uploaded HEX file.' : example.source)}</textarea>
         <p class="module-footnote">To run your own sketch: in the Arduino IDE choose Sketch → Export Compiled Binary (or run <code>arduino-cli compile --output-dir . </code>) and load the <code>.hex</code> file above — the board must be Arduino Uno. The built-in examples were compiled with the official Arduino AVR core.</p>
       </section>
       <section class="mcu-middle">
@@ -611,15 +611,15 @@ function laSvg(target, pixelWidth = 1000) {
     y += decoderHeight;
   });
   const ticks = Array.from({ length: 6 }, (_, k) => { const t = from + (to - from) * k / 5; return `<line class="la-grid" x1="${x(t)}" x2="${x(t)}" y1="12" y2="${y}"/><text class="la-time" x="${x(t)}" y="10">${esc(eng(t, 's'))}</text>`; }).join('');
-  return `<svg class="la-svg" viewBox="0 0 ${width} ${y + 4}" width="${width}" height="${y + 4}">${ticks}${rows.join('')}</svg>`;
+  return `<svg class="la-svg" role="img" aria-label="Logic analyser waveforms" viewBox="0 0 ${width} ${y + 4}" width="${width}" height="${y + 4}">${ticks}${rows.join('')}</svg>`;
 }
 function renderAnalyzerPanel(target) {
   const config = laConfig(target);
   const names = target === 'uno' ? PIN_LABELS : [0, 1, 2, 3].flatMap((port) => Array.from({ length: 8 }, (_, bit) => `P${port}.${bit}`));
   const decoderRow = (decoder, index) => {
-    const select = (key, value) => `<select data-la-decoder="${index}" data-la-key="${key}">${['', ...names].map((name) => `<option value="${name}" ${name === value ? 'selected' : ''}>${name || '—'}</option>`).join('')}</select>`;
-    if (decoder.type === 'uart') return `<div class="la-decoder"><b>UART</b> RX ${select('rx', decoder.rx)} baud <select data-la-decoder="${index}" data-la-key="baud">${['auto', 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200].map((rate) => `<option value="${rate}" ${String(rate) === String(decoder.baud) ? 'selected' : ''}>${rate}</option>`).join('')}</select> parity <select data-la-decoder="${index}" data-la-key="parity">${['none', 'even', 'odd'].map((p) => `<option ${p === decoder.parity ? 'selected' : ''}>${p}</option>`).join('')}</select><button class="tool" data-la-remove="${index}">✕</button></div>`;
-    if (decoder.type === 'spi') return `<div class="la-decoder"><b>SPI</b> SCK ${select('sck', decoder.sck)} MOSI ${select('mosi', decoder.mosi)} MISO ${select('miso', decoder.miso)} CS ${select('cs', decoder.cs)} mode <select data-la-decoder="${index}" data-la-key="mode">${[0, 1, 2, 3].map((m) => `<option ${m === Number(decoder.mode) ? 'selected' : ''}>${m}</option>`).join('')}</select><button class="tool" data-la-remove="${index}">✕</button></div>`;
+    const select = (key, value) => `<select data-la-decoder="${index}" data-la-key="${key}" aria-label="Decoder ${index + 1} ${key.toUpperCase()} pin">${['', ...names].map((name) => `<option value="${name}" ${name === value ? 'selected' : ''}>${name || '—'}</option>`).join('')}</select>`;
+    if (decoder.type === 'uart') return `<div class="la-decoder"><b>UART</b> RX ${select('rx', decoder.rx)} baud <select data-la-decoder="${index}" data-la-key="baud" aria-label="Decoder ${index + 1} baud rate">${['auto', 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200].map((rate) => `<option value="${rate}" ${String(rate) === String(decoder.baud) ? 'selected' : ''}>${rate}</option>`).join('')}</select> parity <select data-la-decoder="${index}" data-la-key="parity" aria-label="Decoder ${index + 1} parity">${['none', 'even', 'odd'].map((p) => `<option ${p === decoder.parity ? 'selected' : ''}>${p}</option>`).join('')}</select><button class="tool" data-la-remove="${index}">✕</button></div>`;
+    if (decoder.type === 'spi') return `<div class="la-decoder"><b>SPI</b> SCK ${select('sck', decoder.sck)} MOSI ${select('mosi', decoder.mosi)} MISO ${select('miso', decoder.miso)} CS ${select('cs', decoder.cs)} mode <select data-la-decoder="${index}" data-la-key="mode" aria-label="Decoder ${index + 1} SPI mode">${[0, 1, 2, 3].map((m) => `<option ${m === Number(decoder.mode) ? 'selected' : ''}>${m}</option>`).join('')}</select><button class="tool" data-la-remove="${index}">✕</button></div>`;
     return `<div class="la-decoder"><b>I²C</b> SCL ${select('scl', decoder.scl)} SDA ${select('sda', decoder.sda)}<button class="tool" data-la-remove="${index}">✕</button></div>`;
   };
   return `<details class="dsp-card la-panel" data-la-target="${target}" ${config.open === false ? '' : 'open'}><summary><span class="panel-label">LOGIC ANALYSER</span></summary>
