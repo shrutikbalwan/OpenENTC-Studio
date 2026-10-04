@@ -7,6 +7,7 @@ no signed or qualified release exists yet.
 ## [Unreleased]
 
 ### Added
+- A first-run guide and example library on Mission control; a diagnostics centre (health, recent errors, a redacted report to copy or download, and a link to report a problem); a "Know the limits" section in Help; user guides in `docs/user-guide/`.
 - Automated accessibility tests (axe-core 4.13.0, development only) on every module in both themes; a skip link; an "Alpha · educational" maturity badge on each lab; `docs/accessibility.md`.
 - Numerical validation manifest (`validation/manifest.json`), expert review checklist, a required `review` field in the capability ledger, circuit solver diagnostics (iterations, GMIN, source stepping) and a warning for non-physical node voltages.
 - Threat model and AI data-flow documents (`docs/security/`), a CI dependency-audit job (`npm audit`, `cargo audit`), expiring device permission grants with `revokePermission`/`revokeAll`, and `createDiagnosticReport()` for redacted diagnostics.
@@ -28,6 +29,7 @@ no signed or qualified release exists yet.
 - The installed web app now really works offline after one visit: the service worker precaches every web asset (`precache.json`), not only the shell.
 
 ### Changed
+- Error messages now include the recovery hint (what to try next).
 - Lab-record PDF footers now say the values are simulated with educational models, not measured data.
 - The browser UI is split into modules: `src/app.js` (940 KB) is now a 67-line entry point over `src/shell`, 42 workspace modules in `src/workspaces`, and shared `components`, `controllers`, `services`, `state` and `shared` layers. Rendered output is unchanged. `npm run ui:check` (in `verify`) blocks import cycles and unused code.
 - `LICENSE` now holds the full GPL-3.0 text; the "or any later version" grant is in `NOTICE`. The desktop manifests declare `GPL-3.0-or-later`.

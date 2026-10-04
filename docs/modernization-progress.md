@@ -19,7 +19,7 @@ Baseline: [`docs/modernization-baseline.md`](modernization-baseline.md) (commit 
 | 6 Security | **done** (no independent review) | threat model, AI data flow, dependency audit job, expiring device grants, redacted diagnostic report |
 | 7 Numerical credibility | **done** (no independent review) | validation manifest (25 entries), convergence diagnostics, non-physical-result warning, report disclaimer, review checklist, ledger review field |
 | 8 Accessibility and UX | **done** (automated checks only; not a WCAG claim) | axe-core on all modules in both themes: 0 violations; skip link; text alternatives; reflow tests; maturity badge |
-| 9 Onboarding and diagnostics | pending | |
+| 9 Onboarding and diagnostics | **done** | first-run guide, example library (69 examples), help limits, diagnostics centre with redacted report, recovery hints in error toasts, user guides |
 | 10 CI and integrations | pending | |
 | 11 Performance and recovery | pending | |
 | 12 Release preparation | pending | |
@@ -206,9 +206,25 @@ New in this phase:
 - **`docs/accessibility.md`** states that this is **not** a WCAG conformance claim and lists the gaps: only default views are scanned, and no screen reader has been tested.
 - **Already present:** the command palette (Ctrl+K) is the global search, and the top bar shows the save status. The feedback entry point moves to Phase 9, together with the diagnostics export.
 
+### Phase 9 — onboarding, help and diagnostics (2026-10-04)
+
+- **First-run guide** on Mission control, with four steps: load an example, run a simulation, read the limits and export.
+  - Progress is remembered per browser in `localStorage`. If storage fails, the guide simply reappears.
+  - The guide can be hidden.
+- **Example library:** the 9 circuit examples load straight into the Circuit Lab. Cards also link to the 8051, Arduino, Verilog, RTOS, network-theory, PLC and SDR example menus in their labs.
+- **Help panel:** a "Know the limits" section covers alpha status, educational models, no independent review, browser-only storage and no hardware in the browser. The panel also lists the undo and redo shortcuts and has a Diagnostics button.
+- **Diagnostics centre**, opened from Help or the command palette:
+  - It shows health (storage, offline cache, network, desktop, tools) and the recent errors with recovery hints.
+  - It previews the exact report built by `createDiagnosticReport` (Phase 6). The report has no keys, names, paths or project content.
+  - The report can be copied or downloaded, and recent errors can be cleared.
+  - "Report a problem" opens the GitHub issue forms (`noopener`). Nothing is sent automatically.
+- **Error toasts** now include the recovery hint. This was a Phase 3 known limitation.
+- **User guides:** `docs/user-guide/getting-started.md` and `docs/user-guide/troubleshooting.md`.
+- **Tests:** `tests/e2e/onboarding.e2e.mjs` (3 journeys). One of them checks that the downloaded report equals the preview and contains neither the API key nor the project name. The diagnostics dialog is included in the axe checks.
+
 ## Remaining work
 
-Phases 9–13. The next step is Phase 9: onboarding, help and diagnostics.
+Phases 10–13. The next step is Phase 10: CI and external tool integration.
 
 ## Verification evidence
 
@@ -228,7 +244,6 @@ Phases 9–13. The next step is Phase 9: onboarding, help and diagnostics.
 ## Known limitations
 
 - The workspaces and shell (about 950 KB) are not yet type-checked; `.d.ts` contracts are not verified against their implementations (see `docs/architecture/types-and-errors.md`).
-- Error toasts show the message only; the recovery hint appears in in-lab panels and will appear in the diagnostics view (Phase 9).
 
 - Workspaces keep rendering and event binding in one module, and the whole page still re-renders on every change (unchanged behaviour; see `docs/architecture/ui-modules.md`).
 - `release:verify` checks hard-coded hashes for the native SBOM and notices. Phase 1 changed the notices (added NOTICE), so that check needs regeneration in Phase 12. It already could not run on Linux.

@@ -925,7 +925,7 @@ function persistBuiltinConfiguration(field, rawValue) {
   if (field === 'pointsPerDecade') { value = Math.trunc(Number(rawValue)); if (!(value >= 1 && value <= 200)) { notify('Points per decade must be between 1 and 200', 'error'); return; } }
   recordExperiment({ id: 'circuit-builtin-analysis', kind: 'circuit', operation: 'builtin-analysis', inputs: { ...current, [field]: value } });
 }
-function loadExampleCircuit(id) {
+export function loadExampleCircuit(id) {
   const example = exampleCircuits.find((candidate) => candidate.id === id);
   if (!example) return;
   circuitEditor.wireSource = null; circuitEditor.selectedWire = null;

@@ -885,3 +885,27 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .skip-link:focus { top: 8px; }
 .workspace:focus { outline: none; }
 .maturity-badge { display: inline-block; margin: 2px 0 6px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 10px; font: 500 10px DM Mono; letter-spacing: .04em; color: var(--muted); }
+.onboarding { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 16px 18px; margin: 18px 0; }
+.onboarding-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.onboarding-head > div { flex: 1; }
+.onboarding-head h2 { margin: 4px 0 0; font-size: 18px; }
+.onboarding-count { font: 500 11px DM Mono; color: var(--muted); }
+.onboarding-steps { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.onboarding-steps li { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--panel-2); flex-wrap: wrap; }
+.onboarding-steps li div { display: flex; flex-direction: column; gap: 2px; }
+.onboarding-steps li small { color: var(--muted); }
+.onboarding-steps li.done b { text-decoration: line-through; color: var(--muted); }
+.example-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-bottom: 18px; }
+.example-card { display: flex; flex-direction: column; gap: 4px; text-align: left; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 12px; color: var(--text); }
+.example-card small { color: var(--muted); }
+.example-card span { font: 500 10px DM Mono; color: var(--muted); margin-top: auto; }
+.example-card:hover { border-color: var(--teal); }
+.diagnostics h3, .modal h3 { font-size: 13px; margin: 14px 0 6px; }
+.diag-row { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); padding: 5px 0; font-size: 12px; }
+.diag-row span { color: var(--muted); }
+.diag-errors { margin: 0; padding-left: 18px; font-size: 12px; display: grid; gap: 6px; }
+.diag-errors small { display: block; color: var(--muted); }
+.diag-empty { color: var(--muted); font-size: 12px; }
+.diag-json { max-height: 200px; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: 400 11px/1.5 DM Mono; white-space: pre-wrap; word-break: break-word; }
+.diag-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.help-limits { padding-left: 18px; font-size: 12px; line-height: 1.5; display: grid; gap: 4px; }

@@ -20,7 +20,9 @@ export function reportError(error, { prefix = '', secrets = [], fallback } = {})
   const shown = toUserFacing(error, { secrets, ...(fallback ? { fallback } : {}) });
   recent.push({ at: new Date().toISOString(), code: shown.code, message: shown.message, ...(shown.recovery ? { recovery: shown.recovery } : {}) });
   if (recent.length > MAX_RECENT) recent.splice(0, recent.length - MAX_RECENT);
-  notify(prefix ? `${prefix}: ${shown.message}` : shown.message, 'error');
+  // The recovery hint tells the user what to do next; it is shown with the message.
+  const text = prefix ? `${prefix}: ${shown.message}` : shown.message;
+  notify(shown.recovery ? `${text} ${shown.recovery}` : text, 'error');
   return shown;
 }
 

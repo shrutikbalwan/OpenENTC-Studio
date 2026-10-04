@@ -73,3 +73,9 @@ test('accessibility checks use a pinned axe-core and run in the browser journeys
   assert.match(read('tests/e2e/accessibility.e2e.mjs'), /wcag22aa/);
   assert.match(read('docs/accessibility.md'), /not a WCAG conformance claim/i);
 });
+
+test('the version shown in the app and in diagnostic reports matches package.json', async () => {
+  const { APP_VERSION, ISSUES_URL } = await import('../src/data/app-info.js');
+  assert.equal(APP_VERSION, JSON.parse(read('package.json')).version);
+  assert.match(ISSUES_URL, /^https:\/\/github\.com\/shrutikbalwan\/OpenENTC-Studio\/issues\//);
+});

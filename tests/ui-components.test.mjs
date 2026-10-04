@@ -161,6 +161,7 @@ test('reportError shows a redacted message, applies prefix and fallback, and kee
   reportError(new Error(''), { fallback: 'Could not import project' });
   assert.equal(store.getState().toast.message, 'Could not import project');
   reportError(new ConvergenceError('Circuit did not converge.'));
+  assert.match(store.getState().toast.message, /^Circuit did not converge\. Check device orientation/, 'the toast includes the recovery hint');
   const recent = recentErrors();
   assert.equal(recent.length, 3);
   assert.equal(recent[2].code, 'OPENENTC_CONVERGENCE');

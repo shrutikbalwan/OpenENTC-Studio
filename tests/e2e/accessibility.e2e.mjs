@@ -48,7 +48,7 @@ for (const theme of ['dark', 'light']) {
   });
 }
 
-test('axe finds no violations in the command palette, help dialog and AI assistant panel', async (t) => {
+test('axe finds no violations in the command palette, help, diagnostics and AI assistant panel', async (t) => {
   await withPage(t, async (page) => {
     await openApp(page);
     await page.keyboard.press('Control+k');
@@ -58,6 +58,9 @@ test('axe finds no violations in the command palette, help dialog and AI assista
     await page.click('[data-action="help"]');
     await page.waitForSelector('.modal[role="dialog"]');
     assert.deepEqual(await axeViolations(page), [], 'help dialog');
+    await page.click('[data-help-diagnostics]');
+    await page.waitForSelector('[data-diagnostics]');
+    assert.deepEqual(await axeViolations(page), [], 'diagnostics centre');
     await page.keyboard.press('Escape');
     await page.click('[data-ai-open]');
     await page.waitForSelector('[data-ai-setting="provider"]');
