@@ -15,7 +15,7 @@
 //   that would create an import cycle. Move or share that declaration first.
 //
 // Identifiers are found with the TypeScript parser (strings and comments are ignored). Run `npm run ui:check` and the UI sweep afterwards.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
 
@@ -204,8 +204,12 @@ export function move({ from, to, names, doc = '', exportAlso = [] }) {
     }
   }
   let targetText = '';
-  if (existsSync(to)) {
-    const existing = parseModule(readFileSync(to, 'utf8'));
+  // Read directly instead of checking existsSync first, so the file cannot change between the
+  // check and the read (CodeQL js/file-system-race).
+  let existingText = null;
+  try { existingText = readFileSync(to, 'utf8'); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  if (existingText !== null) {
+    const existing = parseModule(existingText);
     // A name the target already imports (from any path) or defines must not be imported again.
     const present = new Set([...existing.imports.flatMap((imp) => imp.names.map((n) => n.local)), ...existing.blocks.keys()]);
     for (const set of needed.values()) for (const entry of [...set]) if (present.has(entry.split(/\s+as\s+/).pop())) set.delete(entry);

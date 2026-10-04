@@ -24,10 +24,39 @@ const SECRET_PATTERNS = [
 const PATH_PATTERNS = [
   [/(?:[A-Za-z]:)?[\\/](?:Users|home|Documents and Settings)[\\/][^\\/\s"'<>:]+((?:[\\/][^\s"'<>]*)?)/g, '<home>$1'],
   [/\/(?:root|private\/var|var\/folders|tmp)\/[^\s"'<>]+/g, '<private-path>'],
-  [/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, '<email>'],
+  // Bounded repetition keeps this linear on long hostile input.
+  [/\b[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63}){0,8}\.[A-Za-z]{2,24}\b/g, '<email>'],
 ];
-// Only real stack frames: "at fn (file:line:col)" or "at file:line:col".
-const STACK_LINE = /^\s*at\s+(?:.+\(.+:\d+:\d+\)|\S+:\d+:\d+)\s*$/gm;
+/**
+ * True when `text` ends with ":<digits>:<digits>" (a line and column). Scans from the end.
+ * @param {string} text
+ */
+function endsWithPosition(text) {
+  let end = text.length;
+  for (let part = 0; part < 2; part += 1) {
+    let start = end;
+    while (start > 0 && text.charCodeAt(start - 1) >= 48 && text.charCodeAt(start - 1) <= 57) start -= 1;
+    if (start === end || start === 0 || text[start - 1] !== ':') return false;
+    end = start - 1;
+  }
+  return end > 0;
+}
+
+/**
+ * Only real stack frames: "at fn (file:line:col)" or "at file:line:col". Checked with string
+ * scans, not a backtracking regular expression, so hostile text cannot make redaction slow.
+ * @param {string} line
+ */
+function isStackLine(line) {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith('at ')) return false;
+  const frame = trimmed.slice(3).trim();
+  if (frame.endsWith(')')) {
+    const open = frame.lastIndexOf('(');
+    return open > 0 && endsWithPosition(frame.slice(open + 1, -1));
+  }
+  return frame.length > 0 && !/\s/.test(frame) && endsWithPosition(frame);
+}
 
 /**
  * Remove secrets, private absolute paths and stack-trace lines from text.
@@ -38,7 +67,7 @@ export function redactText(text, secrets = []) {
   let out = String(text ?? '');
   for (const secret of secrets) if (secret && String(secret).length >= 4) out = out.split(String(secret)).join('[redacted]');
   for (const [pattern, replacement] of [...SECRET_PATTERNS, ...PATH_PATTERNS]) out = out.replace(pattern, replacement);
-  return out.replace(STACK_LINE, '').replace(/\n{2,}/g, '\n').trim();
+  return out.split('\n').filter((line) => !isStackLine(line)).join('\n').replace(/\n{2,}/g, '\n').trim();
 }
 
 /**

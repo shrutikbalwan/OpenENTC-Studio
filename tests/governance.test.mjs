@@ -106,3 +106,11 @@ test('governance documents exist and keep the honesty rules', () => {
   const maintainers = read('docs/maintainers.md');
   for (const link of ['governance/roadmap.md', 'governance/review-responsibilities.md']) assert.ok(maintainers.includes(link), `maintainers links ${link}`);
 });
+
+test('feature-status table cells escape backslashes before pipes (CodeQL js/incomplete-sanitization)', async () => {
+  const { renderFeatureStatus } = await import('../scripts/feature-status.mjs');
+  const ledger = { states: ['built-in'], capabilities: [{ id: 'x.y', surface: 'a\\|b', state: 'built-in', evidence: ['src/x.js'], limitations: 'Ends with a backslash \\. More text.', review: 'not-independently-reviewed' }] };
+  const text = renderFeatureStatus(ledger, { entries: [] });
+  assert.ok(text.includes('| a\\\\\\|b |'), 'a\\|b becomes a\\\\\\|b in the cell');
+  assert.match(text, /Ends with a backslash \\\\\./);
+});

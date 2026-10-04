@@ -105,3 +105,15 @@ test('diagnostic reports drop malformed fields instead of copying them', () => {
   assert.equal(many.recentErrors[0].message, '[redacted] leaked');
   assert.deepEqual(many.toolchains, [{ detected: false }]);
 });
+
+test('redaction stays fast on hostile input and still removes real stack frames (CodeQL js/polynomial-redos)', () => {
+  const hostile = ['at ' + ' '.repeat(50_000) + 'x', 'at ' + 'a('.repeat(25_000), 'x'.repeat(30_000) + '@' + 'a.'.repeat(20_000)];
+  for (const text of hostile) {
+    const started = performance.now();
+    redactText(text);
+    assert.ok(performance.now() - started < 500, `redaction took too long on ${text.slice(0, 12)}…`);
+  }
+  const trace = 'Error: boom\n    at run (file:///app/x.js:12:5)\n    at file:///app/y.js:3:9\n    at not a frame\nat (no position)';
+  assert.equal(redactText(trace), 'Error: boom\n    at not a frame\nat (no position)');
+  assert.equal(redactText('mail ana.k@college.edu.in now'), 'mail <email> now');
+});
