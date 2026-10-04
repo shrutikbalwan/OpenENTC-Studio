@@ -297,6 +297,7 @@ The modernization programme is complete. What remains is outside software work a
 
 | Date | Phase | Evidence |
 |---|---|---|
+| 2026-10-04 | Final (hosted) | **Run 105** on the Phase 13 commit passed all 8 jobs (https://github.com/shrutikbalwan/OpenENTC-Studio/actions/runs/37180393935). |
 | 2026-10-04 | Final | Local: `npm run verify` 829 tests (817 pass, 0 fail, 12 skipped); e2e 37/37; coverage met; mutation 8/8; external tools 15 passed and 2 unavailable; npm and cargo audit 0 vulnerabilities; `cargo test --lib` 39 passed; reproducible build; release integrity verified. **Hosted run 104** (Phase 12 commit) passed all jobs, including the Windows and Linux release dry runs (https://github.com/shrutikbalwan/OpenENTC-Studio/actions/runs/37179846899). |
 | 2026-10-04 | 12 | `npm run verify` passed. `release:reproducible`: 344 files, identical. `release:prepare` then `release:verify`: integrity correct; it refused only because of uncommitted changes, as designed. |
 | 2026-10-04 | 11 | `npm run verify` passed; `npm run test:e2e` 37/37; coverage thresholds met (persistence branches raised to 79). The FFT budget fails against the old code (517 ms against a 40 ms budget). |
