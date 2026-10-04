@@ -56,6 +56,7 @@ test('CI checks coverage thresholds against main and runs the mutation check', (
   const workflow = read('.github/workflows/verify.yml');
   assert.match(workflow, /coverage:\n\s+name: Coverage and mutation checks/);
   assert.match(workflow, /fetch-depth: 0/);
+  assert.match(workflow, /run: npm run build\n\s+- name: Check coverage thresholds/, 'tests read dist/, so the build runs first');
   assert.match(workflow, /run: node scripts\/coverage\.mjs --compare-base origin\/main/);
   assert.match(workflow, /run: npm run test:mutation/);
   const pkg = JSON.parse(read('package.json'));

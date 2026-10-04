@@ -78,3 +78,30 @@ test('diagnostic reports copy only allow-listed fields and redact everything els
   assert.equal(report.generatedAt, '2026-10-04T00:00:00.000Z');
   assert.equal(createDiagnosticReport().project, null, 'works with no input');
 });
+
+test('diagnostic reports drop malformed fields instead of copying them', () => {
+  const report = createDiagnosticReport({
+    app: { version: 7, build: { nested: true } },
+    environment: { userAgent: 'x'.repeat(1000), online: 'yes', desktop: 1 },
+    project: { format: 'openentc-project', version: '1', circuit: null, experiments: 'many' },
+    persistence: {},
+    errors: 'not a list',
+    toolchains: { id: 'ngspice' },
+    assistant: {},
+    secrets: ['classroom-secret'],
+  });
+  assert.equal(report.app.version, undefined);
+  assert.equal(report.app.build, undefined);
+  assert.equal(report.environment.userAgent.length, 300);
+  assert.equal(report.environment.online, undefined);
+  assert.equal(report.environment.desktop, true);
+  assert.deepEqual(report.project, { format: 'openentc-project', components: 0, wires: 0, experiments: 0, notes: 0, artifacts: 0 });
+  assert.deepEqual(report.recentErrors, []);
+  assert.deepEqual(report.toolchains, []);
+  assert.deepEqual(report.assistant, { apiKeySet: false, consented: false });
+  const many = createDiagnosticReport({ errors: Array.from({ length: 30 }, (_, i) => ({ code: `E${i}`, message: 'classroom-secret leaked' })), toolchains: [null], secrets: ['classroom-secret'] });
+  assert.equal(many.recentErrors.length, 20, 'only the last 20 errors');
+  assert.equal(many.recentErrors[0].code, 'E10');
+  assert.equal(many.recentErrors[0].message, '[redacted] leaked');
+  assert.deepEqual(many.toolchains, [{ detected: false }]);
+});
