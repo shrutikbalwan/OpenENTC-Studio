@@ -21,7 +21,7 @@ Baseline: [`docs/modernization-baseline.md`](modernization-baseline.md) (commit 
 | 8 Accessibility and UX | **done** (automated checks only; not a WCAG claim) | axe-core on all modules in both themes: 0 violations; skip link; text alternatives; reflow tests; maturity badge |
 | 9 Onboarding and diagnostics | **done** | first-run guide, example library (69 examples), help limits, diagnostics centre with redacted report, recovery hints in error toasts, user guides |
 | 10 CI and integrations | **done** (new jobs await their first hosted run) | external-tools job with passed/failed/unavailable/skipped report, Windows desktop build, SBOM and licence audit in CI |
-| 11 Performance and recovery | pending | |
+| 11 Performance and recovery | **done** | engine, browser and bundle budgets; FFT 300× faster; Biomedical lab 20× faster to open; backup inspection, download, delete and restore |
 | 12 Release preparation | pending | |
 | 13 Governance | partly done earlier | CODEOWNERS (placeholders), PR template, branch-protection and release policies exist |
 
@@ -234,9 +234,29 @@ New in this phase:
 - **Documents:** `docs/testing/ci.md` lists every job, what it proves, the four states, and what CI does not prove.
 - **Tests:** a governance test checks that the jobs exist and that every action is pinned by SHA. A unit test checks that "unavailable" is never reported as a pass.
 
+### Phase 11 — performance and recovery (2026-10-04)
+
+**Performance budgets**, documented in `docs/PERFORMANCE-BUDGETS.md`:
+- `tests/performance.test.mjs` sets budgets for six engine operations: DC, Newton, transient, AC, FFT and project validation.
+- `tests/e2e/performance.e2e.mjs` checks start-up and the time to open each lab.
+- `scripts/bundle-budget.mjs` makes the build fail if the web assets grow past 3.5 MB in total or 256 KB in one file.
+
+**Two real regressions found and fixed:**
+- **FFT:** `fft()` was a direct O(n²) DFT (4096 samples ≈ 500 ms). It is now a radix-2 FFT, with a table-based DFT for other lengths (≈ 2 ms). It is checked against a direct DFT for 14 lengths, and the old code fails the new budget.
+- **Biomedical lab:** it took ≈ 1 s to open because two maxima were recomputed for every sample. It now opens in under 50 ms.
+
+**Recovery: backup inspection and restore**
+- `inspectBackups`, `readBackup`, `restoreBackup` and `discardBackup` in `src/core/project-storage.js` cover the migration, corrupt and interrupted-write copies that the storage layer already kept but did not show.
+- Listing backups never changes storage. Restoring validates and migrates the backup like an import.
+- **UI:** a "Backups in this browser" section in the diagnostics centre lets the user:
+  - open a valid backup (Ctrl+Z returns to the replaced project);
+  - download the original bytes, for salvage;
+  - delete a backup, which asks for confirmation.
+- **Tests:** 5 unit tests in `tests/backups.test.mjs` and 2 journeys in `tests/e2e/recovery.e2e.mjs`. The existing recovery tests still pass: corrupt storage, interrupted write, quota failure and legacy migration.
+
 ## Remaining work
 
-Phases 11–13. The next step is Phase 11: performance and recovery.
+Phases 12–13. The next step is Phase 12: release preparation.
 
 ## Verification evidence
 

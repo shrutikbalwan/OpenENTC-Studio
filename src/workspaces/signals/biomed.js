@@ -26,7 +26,13 @@ const scatterPlot = (title, xs, ys, unit) => {
 function ecgReport(signal, fs, truth = null) {
   const pt = panTompkins(signal, fs);
   const ts = Array.from(signal, (_, k) => k / fs);
-  const stages = linePlot('Pan–Tompkins stages: band-pass 5–15 Hz and moving-window integration (scaled)', ts, [{ name: 'band-passed', values: Array.from(pt.bandpassed) }, { name: 'integrated', values: Array.from(pt.integrated, (v) => v / Math.max(...pt.integrated) * Math.max(...pt.bandpassed.map(Math.abs))) }], { xLabel: (v) => `${fmt(v, 3)} s` });
+  // Scale the integrated signal to the band-passed one. The maxima are computed once: inside the map
+  // they made the Biomedical lab take about a second to open (O(n²)).
+  let integratedMax = 0, bandpassedMax = 0;
+  for (const v of pt.integrated) integratedMax = Math.max(integratedMax, v);
+  for (const v of pt.bandpassed) bandpassedMax = Math.max(bandpassedMax, Math.abs(v));
+  const scale = integratedMax ? bandpassedMax / integratedMax : 0;
+  const stages = linePlot('Pan–Tompkins stages: band-pass 5–15 Hz and moving-window integration (scaled)', ts, [{ name: 'band-passed', values: Array.from(pt.bandpassed) }, { name: 'integrated', values: Array.from(pt.integrated, (v) => v * scale) }], { xLabel: (v) => `${fmt(v, 3)} s` });
   const ecgPlot = renderPlotFrame({ title: 'ECG (mV) with detected R peaks', series: [{ ...decimate(ts, Array.from(signal), 2400), color: PLOT_COLORS[0], primary: true }, { xs: pt.rPeaks.map((p) => p / fs), ys: pt.rPeaks.map((p) => signal[p]), color: '#ef4444', stem: true }], xMin: 0, xMax: ts.at(-1), xTicks: Array.from({ length: 6 }, (_, k) => ({ position: k / 5, text: `${fmt(ts.at(-1) * k / 5, 3)} s` })), yRange: niceRange(Math.min(...signal), Math.max(...signal)), formatY: (v) => fmt(v, 3) });
   const score = truth ? scoreDetections(pt.rPeaks, truth, fs) : null;
   let h = null; try { h = hrv(pt.rPeaks, fs); } catch { h = null; }

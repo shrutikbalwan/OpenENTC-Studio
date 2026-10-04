@@ -92,3 +92,33 @@ test('learning attempts are recorded and persisted separately from the project',
   assert.equal(store.getState().learningProgress.lessons['voltage-divider'].passed, true);
   assert.equal(storageVersion(), store.getState().project.version);
 });
+
+test('project backups can be listed, read, restored (undoably) and discarded through the store', () => {
+  const corruptKey = `${KEY}-corrupt-backup`;
+  const migrationKey = `${KEY}-migration-backup`;
+  localStorage.removeItem(corruptKey); localStorage.removeItem(migrationKey);
+  assert.deepEqual(store.projectBackups().filter((b) => b.kind !== 'interrupted-write'), []);
+  const legacy = createProject('Backup lab'); delete legacy.notes;
+  localStorage.setItem(migrationKey, JSON.stringify(legacy));
+  localStorage.setItem(corruptKey, '{broken');
+  const listed = store.projectBackups();
+  assert.equal(listed.find((b) => b.kind === 'migration').name, 'Backup lab');
+  assert.equal(listed.find((b) => b.kind === 'corrupt').valid, false);
+  assert.equal(store.readProjectBackup('corrupt'), '{broken');
+  const before = store.getState().project.name;
+  assert.equal(store.restoreProjectBackup('migration').name, 'Backup lab');
+  assert.equal(store.getState().project.name, 'Backup lab');
+  assert.equal(stored().name, 'Backup lab', 'the restored project is saved');
+  assert.equal(store.undoProject(), true);
+  assert.equal(store.getState().project.name, before, 'undo returns to the replaced project');
+  assert.throws(() => store.restoreProjectBackup('corrupt'));
+  store.discardProjectBackup('corrupt'); store.discardProjectBackup('migration');
+  assert.equal(localStorage.getItem(corruptKey), null);
+  assert.equal(localStorage.getItem(migrationKey), null);
+});
+
+test('listing backups survives a storage that throws', () => {
+  const original = localStorage.getItem;
+  localStorage.getItem = () => { throw new Error('denied'); };
+  try { assert.deepEqual(store.projectBackups(), []); } finally { localStorage.getItem = original; }
+});

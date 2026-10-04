@@ -20,3 +20,8 @@ export declare function loadStoredProject(storage: StorageLike, key: string, opt
 export declare function saveStoredProject(storage: StorageLike, key: string, project: OpenEntcProject): OpenEntcProject;
 export declare function importStoredProjectText(text: string): OpenEntcProject;
 export declare function storageVersion(): number;
+export interface BackupInfo { kind: 'migration' | 'corrupt' | 'interrupted-write'; key: string; bytes: number; valid: boolean; name?: string; savedVersion?: unknown; updatedAt?: string; components?: number; error?: string }
+export declare function inspectBackups(storage: StorageLike, key: string): BackupInfo[];
+export declare function readBackup(storage: StorageLike, key: string, kind: BackupInfo['kind']): string | null;
+export declare function restoreBackup(storage: StorageLike, key: string, kind: BackupInfo['kind']): OpenEntcProject;
+export declare function discardBackup(storage: StorageLike, key: string, kind: BackupInfo['kind']): void;

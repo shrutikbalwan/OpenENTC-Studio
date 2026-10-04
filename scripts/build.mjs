@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { checkBundleBudget } from './bundle-budget.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const output = resolve(root, 'dist');
@@ -66,6 +67,10 @@ async function filesUnder(directory, prefix = '') {
 const WEB_ASSET = /\.(html|js|mjs|css|svg|png|webmanifest)$/;
 const precache = (await filesUnder(output)).map((file) => file.path).filter((path) => WEB_ASSET.test(path) && path !== 'sw.js').map((path) => `./${path}`);
 await writeFile(resolve(output, 'precache.json'), `${JSON.stringify(['./', ...precache], null, 2)}\n`);
+
+const assets = await Promise.all((await filesUnder(output)).filter((file) => WEB_ASSET.test(file.path)).map(async (file) => ({ path: file.path, bytes: (await stat(file.fullPath)).size })));
+const budget = checkBundleBudget(assets);
+if (budget.problems.length) throw new Error(`Bundle budget exceeded (scripts/bundle-budget.mjs):\n  ${budget.problems.join('\n  ')}`);
 
 const manifest = [];
 for (const file of await filesUnder(output)) {

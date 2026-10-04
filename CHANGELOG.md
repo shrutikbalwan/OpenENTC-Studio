@@ -7,6 +7,7 @@ no signed or qualified release exists yet.
 ## [Unreleased]
 
 ### Added
+- Performance budgets for the engines, browser start-up, lab switching and download size; a "Backups in this browser" section in the diagnostics centre to open, download or delete backups.
 - CI: an external-tools job (ngspice, GHDL, Verilator, Yosys, nextpnr) with a passed/failed/unavailable/skipped report, an unsigned Windows desktop build, and SBOM and licence audit; `docs/testing/ci.md`.
 - A first-run guide and example library on Mission control; a diagnostics centre (health, recent errors, a redacted report to copy or download, and a link to report a problem); a "Know the limits" section in Help; user guides in `docs/user-guide/`.
 - Automated accessibility tests (axe-core 4.13.0, development only) on every module in both themes; a skip link; an "Alpha · educational" maturity badge on each lab; `docs/accessibility.md`.
@@ -23,6 +24,7 @@ no signed or qualified release exists yet.
 - Browser-security tests and an opt-in Chromium injection probe (`tests/e2e/injection-probe.mjs`).
 
 ### Fixed
+- **Performance:** `fft()` is now an O(n log n) FFT (about 300× faster for 4096 samples), and the Biomedical lab opens about 20× faster.
 - **Accessibility:** light-theme text contrast, labels for code editors and other form fields, text alternatives for all charts, low-contrast meter captions, and nested interactive controls on circuit parts.
 - Revoking a device target no longer also revokes other targets that end with the same name (for example `usb:COM4`).
 - **Privacy:** the AI assistant no longer receives the project name in the circuit netlist title.
