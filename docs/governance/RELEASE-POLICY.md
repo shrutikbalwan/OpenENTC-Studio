@@ -35,7 +35,7 @@ Unresolved gates are listed under *Known limitations*.
 
 1. Freeze a release-candidate commit on `main` and record its SHA.
 2. Run the full verification gate (`docs/release-checklist.md`) on a clean checkout and record the results.
-3. Build browser and desktop artifacts, generate SBOMs and checksums (`npm run release:prepare`, `npm run release:verify`).
+3. Build browser and desktop artifacts, generate SBOMs and checksums, and write `dist/RELEASE-MANIFEST.json` (`npm run release:prepare`). Check that the build is reproducible (`npm run release:reproducible`) and verify integrity (`npm run release:verify -- --require windows,linux`). Both desktop CI jobs run this as a dry run on every push. External gates in `release/gates.json` stay `pending` until someone performs them and links evidence.
 4. Complete clean-machine install, upgrade and uninstall testing on each supported OS.
 5. Sign artifacts only in the protected release environment (below).
 6. A maintainer other than the release author approves the release record in `docs/release-evidence/`.

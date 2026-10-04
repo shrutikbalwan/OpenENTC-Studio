@@ -32,6 +32,7 @@ no signed or qualified release exists yet.
 - The installed web app now really works offline after one visit: the service worker precaches every web asset (`precache.json`), not only the shell.
 
 ### Changed
+- Release tooling: `release:prepare` writes a release manifest (artifacts, hashes, source commit, gate status) and `release:verify` re-checks it without hard-coded hashes; `release:reproducible` checks that two builds are identical; both desktop CI jobs run a release dry run. External gates are tracked in `release/gates.json` and are all pending.
 - Error messages now include the recovery hint (what to try next).
 - Lab-record PDF footers now say the values are simulated with educational models, not measured data.
 - The browser UI is split into modules: `src/app.js` (940 KB) is now a 67-line entry point over `src/shell`, 42 workspace modules in `src/workspaces`, and shared `components`, `controllers`, `services`, `state` and `shared` layers. Rendered output is unchanged. `npm run ui:check` (in `verify`) blocks import cycles and unused code.

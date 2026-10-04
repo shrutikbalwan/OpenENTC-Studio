@@ -1,0 +1,12 @@
+{
+  "$comment": "External release gates. Only change a status to \"done\" after the work was really performed, and link the evidence. tests/release.test.mjs refuses \"done\" without an evidence file that exists.",
+  "gates": {
+    "code-signing": { "status": "pending", "owner": "maintainer with a signing certificate", "evidence": null, "description": "Sign the Windows installer and executable (and the Linux packages, if offered); verify the signatures." },
+    "clean-machine-install": { "status": "pending", "owner": "maintainer", "evidence": null, "description": "Install, open a sample project, upgrade and uninstall on clean Windows 10/11 and Ubuntu machines." },
+    "hardware-qualification": { "status": "pending", "owner": "maintainer with boards", "evidence": null, "description": "Run the Arduino upload, serial monitor and FPGA flows on named physical boards." },
+    "accessibility-audit": { "status": "pending", "owner": "accessibility reviewer", "evidence": null, "description": "Manual audit with NVDA, VoiceOver and keyboard-only use beyond the automated axe checks." },
+    "expert-numerical-review": { "status": "pending", "owner": "qualified reviewers", "evidence": null, "description": "Independent review of the engines in validation/manifest.json using docs/expert-review-checklist.md." },
+    "licence-review": { "status": "pending", "owner": "licence reviewer", "evidence": null, "description": "Human review of the native third-party notices and source offers." },
+    "classroom-pilot": { "status": "pending", "owner": "partner instructors", "evidence": null, "description": "A supervised pilot with students; see docs/governance/classroom-pilot-plan.md." }
+  }
+}

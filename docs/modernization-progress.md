@@ -22,7 +22,7 @@ Baseline: [`docs/modernization-baseline.md`](modernization-baseline.md) (commit 
 | 9 Onboarding and diagnostics | **done** | first-run guide, example library (69 examples), help limits, diagnostics centre with redacted report, recovery hints in error toasts, user guides |
 | 10 CI and integrations | **done** (new jobs await their first hosted run) | external-tools job with passed/failed/unavailable/skipped report, Windows desktop build, SBOM and licence audit in CI |
 | 11 Performance and recovery | **done** | engine, browser and bundle budgets; FFT 300× faster; Biomedical lab 20× faster to open; backup inspection, download, delete and restore |
-| 12 Release preparation | pending | |
+| 12 Release preparation | **done** (integrity only; every external gate pending) | release manifest without hard-coded hashes, reproducible-build check, dry runs on Windows and Linux in CI, gates file, draft notes |
 | 13 Governance | partly done earlier | CODEOWNERS (placeholders), PR template, branch-protection and release policies exist |
 
 ## Completed work
@@ -254,14 +254,32 @@ New in this phase:
   - delete a backup, which asks for confirmation.
 - **Tests:** 5 unit tests in `tests/backups.test.mjs` and 2 journeys in `tests/e2e/recovery.e2e.mjs`. The existing recovery tests still pass: corrupt storage, interrupted write, quota failure and legacy migration.
 
+### Phase 12 — release preparation (2026-10-04)
+
+- **`scripts/release-manifest.mjs`** replaces `verify-release-bundle.mjs`. The old script had hard-coded SHA-256 values for the native SBOM and notices that went stale in Phase 1, and it always required a Windows executable.
+  - `prepare` writes `dist/RELEASE-MANIFEST.json`: every artifact with size and SHA-256, the source commit and changed files, `signed: false`, and the gate status.
+  - `verify` re-hashes the browser build and every listed artifact, and refuses a manifest prepared from uncommitted changes.
+  - Desktop builds are optional unless `--require windows,linux` is given.
+  - A test checks that the script contains no literal hashes.
+- **`npm run release:reproducible`** builds twice and compares every file. Local result: 344 files, identical. The file list was already sorted.
+- **CI:** both desktop jobs now run `release:prepare` plus `verify --require <os>` after building, and the Linux job also checks reproducibility. The manifest is uploaded with the builds.
+- **`release/gates.json`** lists the 7 external gates, all `pending`. A test refuses `done` without an evidence file.
+- **Documents:** the release checklist was rewritten (automated gates versus external gates), the release policy updated, and draft release notes added in `docs/releases/0.1.0-alpha.1-draft.md`. Nothing was tagged or released.
+- **Local check:** `release:prepare` then `release:verify` found all integrity checks correct (6 artifacts, including a Linux desktop binary from an earlier local build). It refused only because the tree had uncommitted changes, which is correct.
+
 ## Remaining work
 
-Phases 12–13. The next step is Phase 12: release preparation.
+Phase 13 and final verification.
 
 ## Verification evidence
 
 | Date | Phase | Evidence |
 |---|---|---|
+| 2026-10-04 | 12 | `npm run verify` passed. `release:reproducible`: 344 files, identical. `release:prepare` then `release:verify`: integrity correct; it refused only because of uncommitted changes, as designed. |
+| 2026-10-04 | 11 | `npm run verify` passed; `npm run test:e2e` 37/37; coverage thresholds met (persistence branches raised to 79). The FFT budget fails against the old code (517 ms against a 40 ms budget). |
+| 2026-10-04 | 10 (hosted) | **Run 102 passed every job**, including the new ones: in `External tools`, ngspice 42, GHDL 4.1, Verilator 5.020, Yosys 0.33 and nextpnr 0.6 were installed, and 15 checks passed while 2 were unavailable (arduino-cli and kicad-cli); `Windows desktop build (unsigned)` built the NSIS installer; `Dependency audit` included the SBOM and licence audit (https://github.com/shrutikbalwan/OpenENTC-Studio/actions/runs/37178748898). Runs 99 and 100 (Phases 7 and 8) also passed. |
+| 2026-10-04 | 9 | `npm run verify` passed; `npm run test:e2e` 34/34. |
+| 2026-10-04 | 8 | `npm run verify` passed; `npm run test:e2e` 31/31; axe: 0 violations on 44 views in both themes. Removing one label from the built app makes the test fail. |
 | 2026-10-04 | 6 (hosted) | Hosted run 98 passed all jobs: Verify on Ubuntu and Windows, browser journeys, coverage and mutation, the dependency audit and the Linux desktop build (https://github.com/shrutikbalwan/OpenENTC-Studio/actions/runs/37176834262). |
 | 2026-10-04 | 7 | `npm run verify` passed (all tests, 0 fail); `npm run test:e2e` 24/24; `npm run coverage` thresholds met (circuit-solver branches 94.5, threshold 94). |
 | 2026-10-04 | 6 | `npm run verify` passed (all tests, 0 fail). `npm audit`: 0 vulnerabilities (workspace and desktop). `cargo audit` 0.22.2 on 437 crates: 0 vulnerabilities and 3 warnings, all transitive through Tauri's GTK stack: `proc-macro-error` 1.0.4 is unmaintained (RUSTSEC-2024-0370), `glib` 0.18.5 is unsound in `VariantStrIter` (RUSTSEC-2024-0429), and `yoke-derive` 0.8.3 is yanked. The new tests fail against the old code (the suffix-revoke case and the project name in the netlist). |
@@ -278,9 +296,7 @@ Phases 12–13. The next step is Phase 12: release preparation.
 - The workspaces and shell (about 950 KB) are not yet type-checked; `.d.ts` contracts are not verified against their implementations (see `docs/architecture/types-and-errors.md`).
 
 - Workspaces keep rendering and event binding in one module, and the whole page still re-renders on every change (unchanged behaviour; see `docs/architecture/ui-modules.md`).
-- `release:verify` checks hard-coded hashes for the native SBOM and notices. Phase 1 changed the notices (added NOTICE), so that check needs regeneration in Phase 12. It already could not run on Linux.
 
-- `release:verify` needs a Windows desktop executable, so it cannot pass in a Linux container.
 - Browser checks need Chromium with `--no-sandbox` when run as root (container-specific).
 - External-tool evidence comes from one container's tool versions, not from CI.
 - `cargo audit` warnings for `glib` 0.18 (unsound iterator) and `proc-macro-error` (unmaintained) come from Tauri's Linux GTK3 bindings. They cannot be fixed until Tauri moves off GTK3. The app does not call `VariantStrIter`.
@@ -304,6 +320,6 @@ Phases 12–13. The next step is Phase 12: release preparation.
 | Action | Owner |
 |---|---|
 | Enable branch protection, private vulnerability reporting and secret scanning in GitHub settings (not verified) | repository owner |
-| Run `release:verify` on Windows after a desktop build | maintainer with Windows |
+| Code signing, clean-machine installs, hardware qualification, accessibility audit, expert review, licence review, classroom pilot (`release/gates.json`) | maintainers and reviewers |
 | Physical Arduino/FPGA tests, clean-machine install tests, code signing | maintainer with hardware and credentials |
 | Independent numerical and teaching review | qualified human reviewers |
