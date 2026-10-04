@@ -48,7 +48,9 @@ test('CI runs the browser journeys and keeps failure traces', () => {
   assert.match(workflow, /if: failure\(\)[\s\S]*?path: test-results\/e2e\//);
   const pkg = JSON.parse(read('package.json'));
   assert.match(pkg.scripts['test:e2e'], /tests\/e2e\/\*\.e2e\.mjs/);
-  assert.equal(pkg.devDependencies['playwright-core'], '1.56.1', 'pinned exactly');
+  const playwright = pkg.devDependencies['playwright-core'];
+  assert.match(playwright, /^\d+\.\d+\.\d+$/, 'pinned to an exact version');
+  assert.ok(read('docs/dependencies.md').includes(`| \`playwright-core\` | ${playwright} |`), 'the dependency register records the pinned version');
   assert.equal(Object.keys(pkg.dependencies ?? {}).length, 0, 'still no runtime dependencies');
 });
 
