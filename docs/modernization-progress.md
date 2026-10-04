@@ -17,7 +17,7 @@ Baseline: [`docs/modernization-baseline.md`](modernization-baseline.md) (commit 
 | 4 Browser workflows | **done**; journeys pass in hosted CI (run 93) | 24 Playwright journeys; found and fixed 2 real bugs |
 | 5 Coverage | **done** | coverage thresholds per risk group, property and fuzz tests, 8/8 mutants killed, CI coverage job |
 | 6 Security | **done** (no independent review) | threat model, AI data flow, dependency audit job, expiring device grants, redacted diagnostic report |
-| 7 Numerical credibility | pending | |
+| 7 Numerical credibility | **done** (no independent review) | validation manifest (25 entries), convergence diagnostics, non-physical-result warning, report disclaimer, review checklist, ledger review field |
 | 8 Accessibility and UX | pending | |
 | 9 Onboarding and diagnostics | pending | |
 | 10 CI and integrations | pending | |
@@ -169,14 +169,31 @@ New in this phase:
 - **CI `security-audit` job:** runs `npm audit` for the workspace and the desktop shell, and `cargo audit` (cargo-audit 0.22.2, pinned, `--locked`).
 - **Parser fuzzing** was added in Phase 5 (`tests/property.test.mjs`).
 
+### Phase 7 — numerical and academic credibility (2026-10-04)
+
+- **Validation manifest** (`validation/manifest.json`): 25 entries, each with the engine, the reference, the tolerance and the enforcing test.
+  - References: ngspice 42, SciPy 1.17, scikit-image 0.26, NumPy 2, closed forms and textbook examples.
+  - A test checks that every engine and test exists, that every external tool has a version, and that no entry claims an independent review without a record.
+  - Every entry is `self-checked`.
+- **Capability ledger:** every capability has a new required `review` field. All 119 are `not-independently-reviewed`. The schema and tests require a `docs/reviews/<id>.md` record before a capability can be marked reviewed.
+- **Circuit solver diagnostics:**
+  - DC results report the Newton iteration count, whether a GMIN shunt was added and whether source stepping was used. The Circuit Lab shows this with an "Educational model" note.
+  - A non-convergence error now names the iteration limit and the node still moving, and keeps the details as context.
+  - New warning for non-physical results: for example, 1 A forced into a reverse-biased diode used to report 10¹² V silently; it now warns.
+- **Lab-record PDF:** every page footer says "simulated with educational models, not measured data".
+- **Documents:** `docs/expert-review-checklist.md` and `docs/testing/numerical-validation.md`.
+- **Coverage:** the errors-and-redaction branch threshold was raised from 86 to 88, after the Phase 6 tests.
+- **Not done:** no automated test reaches the non-convergence error. I could not build a small circuit that fails to converge, because source stepping rescues the candidates I tried. The message logic is covered only by review.
+
 ## Remaining work
 
-Phases 7–13. The next step is Phase 7: numerical credibility (validation manifest, limitations, expert-review checklist).
+Phases 8–13. The next step is Phase 8: accessibility and responsive UX.
 
 ## Verification evidence
 
 | Date | Phase | Evidence |
 |---|---|---|
+| 2026-10-04 | 7 | `npm run verify` passed (all tests, 0 fail); `npm run test:e2e` 24/24; `npm run coverage` thresholds met (circuit-solver branches 94.5, threshold 94). |
 | 2026-10-04 | 6 | `npm run verify` passed (all tests, 0 fail). `npm audit`: 0 vulnerabilities (workspace and desktop). `cargo audit` 0.22.2 on 437 crates: 0 vulnerabilities and 3 warnings, all transitive through Tauri's GTK stack: `proc-macro-error` 1.0.4 is unmaintained (RUSTSEC-2024-0370), `glib` 0.18.5 is unsound in `VariantStrIter` (RUSTSEC-2024-0429), and `yoke-derive` 0.8.3 is yanked. The new tests fail against the old code (the suffix-revoke case and the project name in the netlist). |
 | 2026-10-04 | 5 | `npm run verify` 792 tests (780 pass, 0 fail, 12 skipped); `npm run coverage` thresholds met; `npm run test:mutation` 8/8 killed; `npm run test:e2e` 24/24 pass. **Hosted run 96:** `Verify` on Ubuntu and Windows and the browser journeys passed, but the new `Coverage and mutation checks` job failed. Some tests read `dist/`, and the job did not build first. When reproduced locally, the coverage gate also caught untested branches in the Phase 6 diagnostics code. Fixed by adding a build step and more tests; the threshold was not lowered. |
 | 2026-10-03 | 4 | `npm run test:e2e`: 24 journeys, 24 pass, about 36 s (Chromium 141). The offline and migration journeys fail against the pre-fix code (mutation-checked). **Hosted CI:** the `Browser journeys (Chromium)` job passed in run 93 (https://github.com/shrutikbalwan/OpenENTC-Studio/actions/runs/37157935257), and `Verify (ubuntu-latest)` passed there too. |

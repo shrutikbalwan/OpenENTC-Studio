@@ -7,6 +7,7 @@ no signed or qualified release exists yet.
 ## [Unreleased]
 
 ### Added
+- Numerical validation manifest (`validation/manifest.json`), expert review checklist, a required `review` field in the capability ledger, circuit solver diagnostics (iterations, GMIN, source stepping) and a warning for non-physical node voltages.
 - Threat model and AI data-flow documents (`docs/security/`), a CI dependency-audit job (`npm audit`, `cargo audit`), expiring device permission grants with `revokePermission`/`revokeAll`, and `createDiagnosticReport()` for redacted diagnostics.
 - Coverage reporting with per-risk-group thresholds (`npm run coverage`), a targeted mutation check (`npm run test:mutation`), seeded property and fuzz tests, store tests, and a CI `coverage` job. See `docs/testing/test-categories.md`.
 - 24 Playwright browser journeys (`npm run test:e2e`) and a `browser-e2e` CI job; development dependency `playwright-core` 1.56.1 (see `docs/dependencies.md`).
@@ -25,6 +26,7 @@ no signed or qualified release exists yet.
 - The installed web app now really works offline after one visit: the service worker precaches every web asset (`precache.json`), not only the shell.
 
 ### Changed
+- Lab-record PDF footers now say the values are simulated with educational models, not measured data.
 - The browser UI is split into modules: `src/app.js` (940 KB) is now a 67-line entry point over `src/shell`, 42 workspace modules in `src/workspaces`, and shared `components`, `controllers`, `services`, `state` and `shared` layers. Rendered output is unchanged. `npm run ui:check` (in `verify`) blocks import cycles and unused code.
 - `LICENSE` now holds the full GPL-3.0 text; the "or any later version" grant is in `NOTICE`. The desktop manifests declare `GPL-3.0-or-later`.
 - The README is a short introduction with a quick start; the feature catalogue moved to `docs/features.md`, the command reference to `docs/development.md`. The documented Node.js requirement is now 22.8.0 or newer everywhere.

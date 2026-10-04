@@ -865,3 +865,4 @@ button.bit[data-comm-flip^="none"] { cursor: default; }
 .fh-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .twin-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; align-items: center; }
 .twin-status { margin: 0 0 8px; }
+.model-note { margin:8px 0 0; color:var(--muted); font-size:11px; line-height:1.45; }

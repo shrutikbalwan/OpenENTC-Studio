@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildLabRecord, encodeText, engineering, niceTicks, PdfDocument, textWidth, wrapText } from '../packages/report/src/index.mjs';
+import { REPORT_DISCLAIMER, buildLabRecord, encodeText, engineering, niceTicks, PdfDocument, textWidth, wrapText } from '../packages/report/src/index.mjs';
 
 const latin1 = (bytes) => Array.from(bytes, (b) => String.fromCharCode(b)).join('');
 
@@ -67,5 +67,8 @@ test('lab record: title block, sections, tables split over pages, plots, listing
   const pagesWithHeader = doc.pages.filter((page) => page.content().includes('(Time \\(s\\))')).length;
   assert.ok(pagesWithHeader >= 2);
   assert.ok(all.includes('(60)'));
+  // Every page states that the values are simulated, not measured.
+  assert.match(REPORT_DISCLAIMER, /educational models, not measured data/);
+  for (const page of doc.pages) assert.ok(page.content().includes('not measured data'), 'disclaimer on every page');
   assert.throws(() => buildLabRecord({ blocks: [{ type: 'video' }] }), /Unknown lab-record block/);
 });

@@ -16,6 +16,8 @@ export const MAX_AC_POINTS = 1000;
 const ANALOG_TYPES = Object.freeze(['resistor', 'voltage', 'current', 'capacitor', 'inductor', 'diode', 'led', 'switch', 'npn', 'pnp', 'nmos', 'pmos', 'opamp']);
 const BRANCH_TYPES = Object.freeze(['voltage', 'inductor', 'switch', 'opamp']);
 const INTERNAL_PREFIX = '#';
+const PLAUSIBLE_NODE_VOLTS = 1e6;
+const formatVolts = (volts) => `${volts.toExponential(2)} V`;
 const STIMULUS_SHAPES = Object.freeze(['dc', 'step', 'sine', 'pulse', 'square', 'triangle', 'sawtooth']);
 
 function solveLinear(matrix, vector) {
@@ -327,7 +329,9 @@ function buildCircuit(components, wires, netLabels) {
     else if (part.type === 'opamp') devices.set(part.id, opampDevice(part, nodes, nodeLookup.get(internalNode(part)), branchIndex.get(part.id)));
   }
   const warnings = components.filter((part) => !ANALOG_TYPES.includes(part.type) && part.type !== 'ground').map((part) => `${part.label} is not simulated by the built-in solver.`);
-  return { parts, node, nodeNames, branchIndex, size, devices, terminals, warnings };
+  // Convergence aids used while solving, reported with the result so users can judge it.
+  const solver = { newtonIterations: 0, gminShunt: false, sourceStepping: false };
+  return { parts, node, nodeNames, branchIndex, size, devices, terminals, warnings, solver };
 }
 
 /**
@@ -338,7 +342,7 @@ function buildCircuit(components, wires, netLabels) {
 function solveNonlinear(circuit, options) {
   // Solve exactly first; add a tiny shunt conductance only when a node floats (e.g. between capacitors in DC).
   try { return solveNonlinearWith(circuit, options, 0); }
-  catch (error) { if (!/singular/.test(error.message)) throw error; return solveNonlinearWith(circuit, options, GMIN); }
+  catch (error) { if (!/singular/.test(error.message)) throw error; circuit.solver.gminShunt = true; return solveNonlinearWith(circuit, options, GMIN); }
 }
 
 function stampLinearParts(circuit, matrix, vector, { sourceValue, scale = 1, step = null }) {
@@ -403,6 +407,7 @@ function solveNonlinearWith(circuit, options, gmin) {
   const { size, devices, nodeNames } = circuit;
   let x = options.guess ? [...options.guess] : Array(size).fill(0);
   const states = new Map([...devices].map(([id, device]) => [id, device.initial(x, !options.guess)]));
+  let worst = { index: -1, change: 0 };
   for (let iteration = 0; iteration < MAX_NEWTON_ITERATIONS; iteration += 1) {
     const matrix = Array.from({ length: size }, () => Array(size).fill(0));
     const vector = Array(size).fill(0);
@@ -421,10 +426,18 @@ function solveNonlinearWith(circuit, options, gmin) {
       states.set(id, state);
     }
     for (let index = 0; index < size && converged; index += 1) if (Math.abs(next[index] - x[index]) > 1e-6 * Math.max(Math.abs(next[index]), Math.abs(x[index])) + 1e-9) converged = false;
+    if (!converged) {
+      // Remember where the solution is still moving, for the error message.
+      worst = { index: -1, change: 0 };
+      for (let index = 0; index < nodeNames.length; index += 1) { const change = Math.abs(next[index] - x[index]); if (change >= worst.change) worst = { index, change }; }
+    }
     x = next;
+    circuit.solver.newtonIterations += 1;
     if (converged && iteration > 0) return x;
   }
-  throw new ConvergenceError('Circuit did not converge. Check device orientation, bias and source values.');
+  const node = worst.index >= 0 ? String(nodeNames[worst.index]).replace(INTERNAL_PREFIX, '') : '';
+  const where = node ? ` The voltage at node ${node} was still changing by ${Number(worst.change.toPrecision(3))} V per iteration.` : '';
+  throw new ConvergenceError(`Circuit did not converge after ${MAX_NEWTON_ITERATIONS} Newton iterations.${where} Check device orientation, bias and source values.`, { context: { iterations: MAX_NEWTON_ITERATIONS, node, change: worst.change, gmin, sourceScale: options.scale ?? 1 } });
 }
 
 function operatingPoint(circuit, sourceValue) {
@@ -432,6 +445,7 @@ function operatingPoint(circuit, sourceValue) {
   catch (error) {
     if (!circuit.devices.size || /singular/.test(error.message)) throw error;
     // Source stepping: ramp all independent sources up from 10 % for hard nonlinear circuits.
+    circuit.solver.sourceStepping = true;
     let guess = null;
     for (let scale = 0.1; scale <= 1.0001; scale += 0.1) guess = solveNonlinear(circuit, { guess, sourceValue, scale: Math.min(scale, 1) });
     return guess;
@@ -469,7 +483,12 @@ export function simulateDC(components, wires = [], netLabels = []) {
   const sourceValue = (part) => Number(part.value);
   const x = operatingPoint(circuit, sourceValue);
   const currents = partCurrents(circuit, x, sourceValue);
-  return { nodes: nodeVoltages(circuit, x), currents, totalPower: dissipatedPower(circuit, x, currents), warnings: circuit.warnings };
+  const nodes = nodeVoltages(circuit, x);
+  // A converged answer can still be physically meaningless, e.g. a current source pushing current
+  // into a reverse-biased diode: only the tiny GMIN leakage conducts and the node reaches teravolts.
+  const implausible = Object.entries(nodes).filter(([, volts]) => Math.abs(volts) > PLAUSIBLE_NODE_VOLTS);
+  const warnings = [...circuit.warnings, ...implausible.map(([name, volts]) => `Node ${name} reaches ${formatVolts(volts)}. This is not physical: a current source is probably forcing current into an open or reverse-biased path.`)];
+  return { nodes, currents, totalPower: dissipatedPower(circuit, x, currents), warnings, solver: { ...circuit.solver } };
 }
 
 function boundedNumber(value, minimum, maximum, label) {

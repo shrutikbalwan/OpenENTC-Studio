@@ -318,7 +318,7 @@ Radar, satellite communication, antennas and microwave tubes.
 Dependency-free PDF writer and the lab-record (practical journal) layout with tables, graphs and listings.
 
 - Types: `index.d.ts`
-- Exports (9): `buildLabRecord`, `encodeText`, `engineering`, `FONTS`, `niceTicks`, `PdfDocument`, `PdfPage`, `textWidth`, `wrapText`
+- Exports (10): `buildLabRecord`, `encodeText`, `engineering`, `FONTS`, `niceTicks`, `PdfDocument`, `PdfPage`, `REPORT_DISCLAIMER`, `textWidth`, `wrapText`
 
 ## results
 
