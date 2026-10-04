@@ -15,7 +15,7 @@ Baseline: [`docs/modernization-baseline.md`](modernization-baseline.md) (commit 
 | 2 UI modularisation | **done** | `src/app.js` 940 KB → 4 KB; 42 workspace modules; `ui:check` in verify |
 | 3 Types and errors | **done** | error architecture, reportError, ts-check for shared layers, API reference |
 | 4 Browser workflows | **done**; journeys pass in hosted CI (run 93) | 24 Playwright journeys; found and fixed 2 real bugs |
-| 5 Coverage | pending | |
+| 5 Coverage | **done** | coverage thresholds per risk group, property and fuzz tests, 8/8 mutants killed, CI coverage job |
 | 6 Security | partly done earlier | CodeQL, Dependabot, CSP and session-only API keys were added by the earlier hardening pass on this branch; the rest is pending |
 | 7 Numerical credibility | pending | |
 | 8 Accessibility and UX | pending | |
@@ -130,14 +130,35 @@ Baseline: [`docs/modernization-baseline.md`](modernization-baseline.md) (commit 
      journey stops the server to prove it, because Chromium's offline emulation does not block 127.0.0.1.
 - **Open item for Phase 8:** the Signals plots have no accessible name.
 
+### Phase 5 — coverage and test quality (2026-10-04)
+
+- **Coverage** (`npm run coverage`, `scripts/coverage.mjs`) uses Node's built-in V8 coverage; there is no new
+  dependency. Files that no test loads count as 0 %. Thresholds per risk group are in
+  `coverage-thresholds.json`, set just below the measured baseline. CI fails if a threshold is missed or is
+  lowered compared with `main`.
+- **Measured baseline** (lines / branches / functions):
+  - all: 83.4 / 81.3 / 81.4
+  - packages: 98.5 / 85.4 / 93.9
+  - browser-ui: 56.0 / 65.3 / 56.6. 12 browser-only files are covered only by e2e tests.
+  - persistence: 100 / 77.3 / 93.5. This was 89.9 / 75 / 67.9 before the new store tests.
+- **New tests:**
+  - `tests/store.test.mjs` (7 tests) covers persistence, quota failure, undo/redo, replace and sync.
+  - `tests/property.test.mjs` (10 seeded property and fuzz tests) covers FFT, Boolean minimisation, units and subnets. It also fuzzes project validation and the VCD, Touchstone, Intel HEX, Verilog and PCAP/PCAPNG parsers.
+  - `tests/test-quality.test.mjs` tests the coverage and mutation tools themselves.
+- **Mutation check** (`npm run test:mutation`) runs 8 targeted mutants on high-risk lines; all 8 are killed.
+  - It found one real gap: no test proved that the browser never grants device permissions. A test now covers it.
+  - The tests must pass on unmutated code first, so a broken suite cannot count as a "kill".
+- **Documents:** `docs/testing/test-categories.md` explains what each test category proves and lists every skipped test with its reason.
+
 ## Remaining work
 
-Phases 5–13. The next step is Phase 5: coverage reporting with thresholds, and test-category documentation.
+Phases 6–13. The next step is Phase 6: security (audit job, threat model, AI data flow, permission lifecycle, redacted diagnostics).
 
 ## Verification evidence
 
 | Date | Phase | Evidence |
 |---|---|---|
+| 2026-10-04 | 5 | `npm run verify` 792 tests (780 pass, 0 fail, 12 skipped); `npm run coverage` thresholds met; `npm run test:mutation` 8/8 killed; `npm run test:e2e` 24/24 pass. Hosted CI result recorded in the next phase row. |
 | 2026-10-03 | 4 | `npm run test:e2e`: 24 journeys, 24 pass, about 36 s (Chromium 141). The offline and migration journeys fail against the pre-fix code (mutation-checked). **Hosted CI:** the `Browser journeys (Chromium)` job passed in run 93 (https://github.com/shrutikbalwan/OpenENTC-Studio/actions/runs/37157935257), and `Verify (ubuntu-latest)` passed there too. |
 | 2026-10-03 | CI correction | **Hosted `Verify (windows-latest)` failed in runs 84–92** (since commit `455634d`): the new `tests/refactor-move.test.mjs` exposed a Windows path bug in `scripts/refactor-move.mjs` (absolute imports written for `C:\` paths). Earlier phase reports of "verify passed" referred to local runs only. Fixed in `796d627`; the confirming hosted run is recorded below. Hosted CI is now checked after each push. |
 | 2026-10-03 | 3 | `npm run verify` 764 tests (752 pass, 0 fail, 12 skipped); typecheck 134 files; `ui-sweep --compare` 0 changed views; injection probe clean; modal focus trap and Escape verified in Chromium; a circuit validation error shows "R2 must have a resistance greater than zero." |
@@ -166,6 +187,8 @@ Phases 5–13. The next step is Phase 5: coverage reporting with thresholds, and
 | Write a small in-repo analyser instead of adding a tool such as madge or dependency-cruiser | No new dependency is needed, and it understands this file's render/bind convention. |
 | Keep `LICENSE` as pure GPL text and move the project notice to `NOTICE` | GitHub's detector (licensee) matches the licence file against the official text; a preamble lowers the match. |
 | Move code verbatim with a checker-based tool, and prove identical HTML per view | A hand rewrite of 940 KB could not be reviewed. Identical output is a strong, cheap check. See ADR 0002. |
+| Measure coverage with Node's built-in V8 coverage, not c8 or istanbul | No new dependency. The lcov output is enough for per-group thresholds. |
+| Write a small mutation script instead of using Stryker | Stryker is a large dependency tree. Eight hand-picked mutants on security-critical lines give most of the value. |
 | Extract shared components before any workspace | Shared components are used by 8–94 declarations each. Moving them first makes each workspace move small. |
 
 ## External actions still required

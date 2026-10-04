@@ -65,6 +65,37 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  coverage:
+    name: Coverage and mutation checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          # Full history so the thresholds can be compared with the main branch.
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Check coverage thresholds (never lower than main)
+        run: node scripts/coverage.mjs --compare-base origin/main
+      - name: Check that tests kill targeted mutants
+        run: npm run test:mutation
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-report
+          path: coverage/
+          if-no-files-found: ignore
+          retention-days: 14
+
   desktop-linux-build:
     name: Linux desktop build
     runs-on: ubuntu-latest

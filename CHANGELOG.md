@@ -7,6 +7,7 @@ no signed or qualified release exists yet.
 ## [Unreleased]
 
 ### Added
+- Coverage reporting with per-risk-group thresholds (`npm run coverage`), a targeted mutation check (`npm run test:mutation`), seeded property and fuzz tests, store tests, and a CI `coverage` job. See `docs/testing/test-categories.md`.
 - 24 Playwright browser journeys (`npm run test:e2e`) and a `browser-e2e` CI job; development dependency `playwright-core` 1.56.1 (see `docs/dependencies.md`).
 - Shared error classes with stable codes, recovery hints and redaction (`packages/errors`); a central `reportError()` and error panel; a generated package API reference (`docs/api/packages.md`).
 - Code of Conduct, maintainers, repository metadata, support matrix, project compatibility, deprecation and security-contact setup documents.

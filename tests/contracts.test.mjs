@@ -685,3 +685,9 @@ test('adapter orchestration does not prepare an already-cancelled job', async ()
   assert.equal(job.state, 'cancelled');
   assert.deepEqual(calls, []);
 });
+
+test('a browser policy reports and grants no device scope even when given an allowed list', () => {
+  const browser = createDevicePermissionPolicy({ environment: 'browser', allowed: ['serial', 'usb', 'programmer'] });
+  for (const entry of browser.inspect()) assert.equal(entry.allowed, false, `${entry.permission} is never available in the browser`);
+  for (const permission of ['serial', 'usb', 'programmer']) assert.throws(() => browser.selectTarget(permission, 'COM4'), /unavailable in browser preview/);
+});

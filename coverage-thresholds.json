@@ -1,0 +1,14 @@
+{
+  "comment": "Minimum coverage per group (percent). Raise these as coverage improves; CI fails if any is lowered compared with main. Set from the measured baseline on 2026-10-04 (see docs/testing/test-categories.md).",
+  "groups": {
+    "all": { "files": ["src/**", "packages/*/src/**"], "lines": 82, "branches": 80, "functions": 80 },
+    "packages": { "files": ["packages/*/src/**"], "lines": 97, "branches": 84, "functions": 92 },
+    "browser-ui": { "files": ["src/**"], "lines": 55, "branches": 64, "functions": 55 },
+    "project-schema-and-migration": { "files": ["packages/project-model/src/**"], "lines": 97, "branches": 88, "functions": 94 },
+    "persistence": { "files": ["src/core/project-storage.js", "src/core/store.js", "src/core/project-file.js", "src/core/project.js"], "lines": 98, "branches": 76, "functions": 92 },
+    "parsers": { "files": ["packages/packets/src/**", "packages/hdl/src/**", "packages/rf/src/index.mjs", "packages/verilog/src/parser.mjs", "packages/logic/src/boolean.mjs", "packages/mcu/src/i8051/peripherals.mjs", "packages/mathconsole/src/index.mjs"], "lines": 97, "branches": 84, "functions": 83 },
+    "permissions-and-native-boundary": { "files": ["packages/device-bridge/src/**", "packages/process-runner/src/**", "packages/plugin-sdk/src/**", "packages/engine-sdk/src/index.mjs", "src/core/desktop-bridge.js"], "lines": 97, "branches": 81, "functions": 91 },
+    "errors-and-redaction": { "files": ["packages/errors/src/**", "src/services/errors.js", "src/core/credentials.js", "src/core/html.js"], "lines": 99, "branches": 86, "functions": 99 },
+    "circuit-solver": { "files": ["src/engines/circuit-engine.js"], "lines": 98, "branches": 94, "functions": 97 }
+  }
+}

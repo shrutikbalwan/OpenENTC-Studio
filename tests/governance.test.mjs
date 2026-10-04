@@ -51,3 +51,16 @@ test('CI runs the browser journeys and keeps failure traces', () => {
   assert.equal(pkg.devDependencies['playwright-core'], '1.56.1', 'pinned exactly');
   assert.equal(Object.keys(pkg.dependencies ?? {}).length, 0, 'still no runtime dependencies');
 });
+
+test('CI checks coverage thresholds against main and runs the mutation check', () => {
+  const workflow = read('.github/workflows/verify.yml');
+  assert.match(workflow, /coverage:\n\s+name: Coverage and mutation checks/);
+  assert.match(workflow, /fetch-depth: 0/);
+  assert.match(workflow, /run: node scripts\/coverage\.mjs --compare-base origin\/main/);
+  assert.match(workflow, /run: npm run test:mutation/);
+  const pkg = JSON.parse(read('package.json'));
+  assert.equal(pkg.scripts.coverage, 'node scripts/coverage.mjs');
+  assert.equal(pkg.scripts['test:mutation'], 'node scripts/mutation-check.mjs');
+  const thresholds = JSON.parse(read('coverage-thresholds.json'));
+  for (const [name, group] of Object.entries(thresholds.groups)) for (const kind of ['lines', 'branches', 'functions']) assert.ok(group[kind] > 0, `${name} ${kind} threshold is set`);
+});
