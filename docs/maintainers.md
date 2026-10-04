@@ -17,7 +17,7 @@ fall to the sole maintainer, and that is recorded as a release risk.
 | Accessibility reviewer | UI changes, `src/styles.css` | **to be confirmed** |
 | Backup security contact | private vulnerability reports | **to be confirmed** |
 
-Code ownership is in [`.github/CODEOWNERS`](../.github/CODEOWNERS).
+Code ownership is in [`.github/CODEOWNERS`](../.github/CODEOWNERS). Which review each kind of change needs is in [`governance/review-responsibilities.md`](governance/review-responsibilities.md); the plan beyond the alpha is in [`governance/roadmap.md`](governance/roadmap.md), with open work in [`governance/backlog.md`](governance/backlog.md).
 
 ## Responsibilities
 

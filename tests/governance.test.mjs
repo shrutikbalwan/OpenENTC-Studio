@@ -90,3 +90,19 @@ test('CI runs the external tools, the Windows desktop build and the SBOM and lic
   // Every action is pinned to a full commit SHA.
   for (const [, ref] of workflow.matchAll(/uses: [^@\s]+@(\S+)/g)) assert.match(ref, /^[0-9a-f]{40}$/, `action pinned by SHA: ${ref}`);
 });
+
+test('the feature-status matrix is generated from the ledger and is current', async () => {
+  const { renderFeatureStatus } = await import('../scripts/feature-status.mjs');
+  const expected = renderFeatureStatus(JSON.parse(read('capabilities/ledger.json')), JSON.parse(read('validation/manifest.json')));
+  assert.equal(read('docs/feature-status.md'), expected, 'run node scripts/feature-status.mjs');
+  assert.match(expected, /Independently reviewed: \*\*0 of \d+\*\*/);
+});
+
+test('governance documents exist and keep the honesty rules', () => {
+  for (const doc of ['docs/governance/roadmap.md', 'docs/governance/backlog.md', 'docs/governance/review-responsibilities.md', 'docs/governance/classroom-pilot-plan.md', 'docs/modernization-final-report.md']) assert.ok(existsSync(new URL(doc, root)), doc);
+  assert.match(read('docs/governance/classroom-pilot-plan.md'), /Status: planned, not started/);
+  assert.match(read('docs/governance/review-responsibilities.md'), /never weakened/);
+  assert.match(read('docs/governance/roadmap.md'), /No new labs/);
+  const maintainers = read('docs/maintainers.md');
+  for (const link of ['governance/roadmap.md', 'governance/review-responsibilities.md']) assert.ok(maintainers.includes(link), `maintainers links ${link}`);
+});
