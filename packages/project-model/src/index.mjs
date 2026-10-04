@@ -1,3 +1,5 @@
+// Versioned project schema: creation, validation, migration, import/export, the .entcproj archive
+// profile, directory persistence with atomic writes and backups, and history.
 import { constants } from 'node:fs';
 import { access, copyFile, lstat, mkdir, open, readFile, rename, rm } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
@@ -139,6 +141,7 @@ export function migrateProject(input) {
   if (value.targets === undefined) value.targets = [];
   if (value.toolchainConstraints === undefined) value.toolchainConstraints = [];
   if (value.experiments === undefined) value.experiments = [];
+  if (value.notes === undefined) value.notes = [];
   if (value.settings && value.settings.gridSize === undefined) value.settings.gridSize = 20;
   return value;
 }

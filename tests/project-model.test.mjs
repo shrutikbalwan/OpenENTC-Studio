@@ -495,3 +495,22 @@ test('history limit zero disables retention and invalid limits fail early', () =
   assert.throws(() => createHistory({}, -1), /limit/);
   assert.throws(() => createHistory({}, 10_001), /limit/);
 });
+
+test('version-0 projects saved before the notes field existed migrate without data loss', () => {
+  const legacy = { name: 'Old lab', createdAt: '2025-01-01T00:00:00.000Z', updatedAt: '2025-01-01T00:00:00.000Z', circuit: { components: [{ id: 'R1', type: 'resistor', label: 'R1', value: 100, unit: 'Ω', n1: 'a', n2: '0', x: 0, y: 0 }], signal: { shape: 'sine', frequency: 1000, amplitude: 1, offset: 0 } }, embedded: { board: 'Arduino Uno', language: 'C++', code: '' }, settings: { theme: 'dark', grid: true } };
+  const project = importProject(JSON.stringify(legacy));
+  assert.equal(project.version, 1);
+  assert.deepEqual(project.notes, []);
+  assert.equal(project.circuit.components[0].id, 'R1');
+  assert.equal(legacy.notes, undefined, 'the input object is not mutated');
+});
+
+test('browser and Node project models migrate legacy projects identically', async () => {
+  const browser = await import('../packages/project-model/src/browser.mjs');
+  const node = await import('../packages/project-model/src/index.mjs');
+  const legacy = { name: 'Parity', createdAt: '2025-01-01T00:00:00.000Z', updatedAt: '2025-01-01T00:00:00.000Z', circuit: { components: [], signal: { shape: 'sine', frequency: 1000, amplitude: 1, offset: 0 } }, embedded: { board: 'Arduino Uno', language: 'C++', code: '' }, settings: { theme: 'dark', grid: true } };
+  const fromBrowser = browser.validateProject(browser.migrateProject(legacy));
+  const fromNode = node.validateProject(node.migrateProject(legacy));
+  assert.deepEqual(fromBrowser, fromNode);
+  assert.deepEqual(fromBrowser.notes, []);
+});

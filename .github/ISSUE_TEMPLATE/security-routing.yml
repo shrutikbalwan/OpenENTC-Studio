@@ -1,0 +1,33 @@
+name: Security contact request
+description: Ask for a private channel to report a security problem. Do NOT describe the problem here.
+title: "[Security contact request]"
+labels: ["security"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Stop — GitHub issues are public.** Do not describe the vulnerability, and do not attach exploits,
+        projects, captures, logs, credentials, API keys or device identifiers.
+
+        First try the repository's **Security → Report a vulnerability** button (private vulnerability
+        reporting). Use this form only if that button is not available, so a maintainer can open a private channel.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Rough area (optional, no details)
+      options:
+        - Browser app
+        - Desktop app / native boundary
+        - Project files or imports
+        - AI assistant
+        - Build, CI or release
+        - Not sure
+    validations:
+      required: false
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmation
+      options:
+        - label: I have not included any vulnerability details, exploit code, secrets or private data in this issue.
+          required: true

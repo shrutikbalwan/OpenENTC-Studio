@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { besselJ, berCurve, constellation, convolutionalEncode, crcCheck, crcDivide, CRC_POLYNOMIALS, erfc, eyeDiagram, fftInPlace, hammingDecode, hammingEncode, lineCode, measureSqnr, qFunction, samplingDemo, simulateAnalogModulation, simulateDigitalLink, theoreticalBer, viterbiDecode } from '../packages/communications/src/index.mjs';
+import { readUiSource } from './helpers/ui-source.mjs';
 
 const near = (actual, expected, tolerance, message) => assert.ok(Math.abs(actual - expected) <= tolerance, `${message}: ${actual} vs ${expected}`);
 const peak = (result, frequency) => { const index = result.spectrum.frequency.findIndex((value) => value >= frequency - 1e-9); return Math.max(...result.spectrum.amplitude.slice(index - 3, index + 4)); };
@@ -128,7 +129,7 @@ test('convolutional code (7,5) with Viterbi corrects separated errors', () => {
 
 test('Communication lab exposes all five tabs and keeps the QPSK lesson path', async () => {
   const { readFile } = await import('node:fs/promises');
-  const app = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  const app = readUiSource();
   for (const tab of ['link', 'analog', 'digital', 'pcm', 'coding']) assert.match(app, new RegExp(`\\['${tab}', '`));
   assert.match(app, /data-comm-tab=/);
   assert.match(app, /data-action="comm-ber-curve"/);

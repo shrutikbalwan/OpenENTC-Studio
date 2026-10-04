@@ -1,5 +1,5 @@
-name: Engine adapter report
-description: Report detection, compatibility, parsing, timeout, or cancellation problems
+name: External engine problem
+description: Report a problem with an external tool (ngspice, Arduino CLI, GHDL, Yosys, Verilator, nextpnr) — detection, version, parsing, timeout or cancellation
 title: "[Engine]: "
 labels: ["engine-adapter"]
 body:

@@ -1,7 +1,7 @@
 // @ts-check
 
 import { createProject, validateProject } from './project.js';
-import { loadStoredProject, saveStoredProject } from './project-storage.js';
+import { discardBackup, inspectBackups, loadStoredProject, readBackup, restoreBackup, saveStoredProject } from './project-storage.js';
 import { createHistory } from '../../packages/project-model/src/history.mjs';
 import { upsertExperiment } from '../../packages/project-model/src/experiments.mjs';
 import { loadLearningProgress, recordLessonAttempt, saveLearningProgress } from './learning-progress.js';
@@ -130,3 +130,21 @@ export function synchronizeOpenProject(project) {
   setState({ project: validated });
   return validated;
 }
+
+/** Backups of the browser project (migration, corrupt and interrupted-write copies). */
+export function projectBackups() {
+  try { return inspectBackups(localStorage, storageKey); } catch { return []; }
+}
+/** @param {'migration' | 'corrupt' | 'interrupted-write'} kind */
+export function readProjectBackup(kind) { return readBackup(localStorage, storageKey, kind); }
+/**
+ * Open a backup as the current project. The project it replaces stays in undo history.
+ * @param {'migration' | 'corrupt' | 'interrupted-write'} kind
+ */
+export function restoreProjectBackup(kind) {
+  const project = restoreBackup(localStorage, storageKey, kind);
+  replaceProject(project);
+  return project;
+}
+/** @param {'migration' | 'corrupt' | 'interrupted-write'} kind */
+export function discardProjectBackup(kind) { discardBackup(localStorage, storageKey, kind); }

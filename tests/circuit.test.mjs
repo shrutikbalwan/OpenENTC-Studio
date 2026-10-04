@@ -164,3 +164,18 @@ test('transient restarts with backward Euler at stimulus edges (BJT turn-off mat
   near(at(0.0055), 3.8789, 5e-3, 'off, LED leakage');
   assert.ok(Math.max(...result.nodes.c) < 5, 'no overshoot above the supply');
 });
+
+test('DC results report the convergence aids used and warn about non-physical node voltages', () => {
+  const p = (id, type, value, n1, n2) => ({ id, type, label: id, value, n1, n2 });
+  const diode = simulateDC([p('V1', 'voltage', 5, 'a', '0'), p('R1', 'resistor', 1000, 'a', 'b'), p('D1', 'diode', 0.7, 'b', '0')]);
+  assert.ok(diode.solver.newtonIterations > 1, 'a diode needs Newton iterations');
+  assert.equal(diode.solver.gminShunt, false);
+  assert.equal(diode.solver.sourceStepping, false);
+  assert.deepEqual(diode.warnings, []);
+  const floating = simulateDC([p('V1', 'voltage', 5, 'a', '0'), p('C1', 'capacitor', 1e-6, 'a', 'b'), p('C2', 'capacitor', 1e-6, 'b', '0')]);
+  assert.equal(floating.solver.gminShunt, true, 'the node between two capacitors needs the GMIN shunt in DC');
+  assert.equal(floating.solver.newtonIterations, 0, 'a linear circuit is solved directly');
+  const reverse = simulateDC([p('I1', 'current', 1, '0', 'a'), p('D1', 'diode', 0.7, '0', 'a')]);
+  assert.ok(reverse.nodes.a > 1e6);
+  assert.match(reverse.warnings.join('\n'), /Node a reaches 1\.00e\+12 V\. This is not physical/);
+});

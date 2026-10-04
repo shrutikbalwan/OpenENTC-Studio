@@ -35,5 +35,6 @@ export interface LabRecord {
   assessment?: boolean;
 }
 export declare function buildLabRecord(record: LabRecord, options?: { creationDate?: Date }): PdfDocument;
+export declare const REPORT_DISCLAIMER: string;
 export declare function engineering(value: number, digits?: number): string;
 export declare function niceTicks(min: number, max: number, count?: number): number[];

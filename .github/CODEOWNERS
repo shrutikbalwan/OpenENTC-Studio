@@ -1,0 +1,30 @@
+# Code owners are requested automatically for review. Today one maintainer owns everything;
+# the groups below are placeholders for the reviewers the project should add (see
+# docs/governance/BRANCH-PROTECTION.md). A path needs a non-author approval once branch
+# protection is enabled.
+# PLACEHOLDER: every @shrutikbalwan entry outside "Default" stands in for a reviewer role that
+# is not yet staffed (numerical, native/security, project format). Replace them when the roles in
+# docs/maintainers.md are confirmed.
+
+# Default
+*                                   @shrutikbalwan
+
+# Security-sensitive boundaries: native process, serial, filesystem, permissions, CI
+/apps/desktop/src-tauri/            @shrutikbalwan
+/packages/process-runner/           @shrutikbalwan
+/packages/device-bridge/            @shrutikbalwan
+/.github/                           @shrutikbalwan
+/SECURITY.md                        @shrutikbalwan
+
+# Numerical engines (want an independent numerical reviewer)
+/src/engines/                       @shrutikbalwan
+/packages/                          @shrutikbalwan
+/tests/fixtures/                    @shrutikbalwan
+
+# Project format and migrations
+/packages/project-model/            @shrutikbalwan
+/schemas/                           @shrutikbalwan
+
+# Release evidence and capability claims
+/capabilities/                      @shrutikbalwan
+/docs/release-evidence/             @shrutikbalwan

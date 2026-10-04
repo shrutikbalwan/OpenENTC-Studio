@@ -1,3 +1,4 @@
+// Static analysis of Arduino sketch source (setup/loop, pins, serial use) before compilation.
 const MAX_SOURCE = 1_000_000;
 
 export function analyzeSketchSource(source) {

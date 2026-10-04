@@ -685,3 +685,34 @@ test('adapter orchestration does not prepare an already-cancelled job', async ()
   assert.equal(job.state, 'cancelled');
   assert.deepEqual(calls, []);
 });
+
+test('a browser policy reports and grants no device scope even when given an allowed list', () => {
+  const browser = createDevicePermissionPolicy({ environment: 'browser', allowed: ['serial', 'usb', 'programmer'] });
+  for (const entry of browser.inspect()) assert.equal(entry.allowed, false, `${entry.permission} is never available in the browser`);
+  for (const permission of ['serial', 'usb', 'programmer']) assert.throws(() => browser.selectTarget(permission, 'COM4'), /unavailable in browser preview/);
+});
+
+test('device grants expire, can be revoked per permission or all at once, and match targets exactly', () => {
+  let clock = 1_000;
+  const policy = createDevicePermissionPolicy({ environment: 'desktop', allowed: ['serial', 'programmer'], grantTtlMs: 500, now: () => clock });
+  assert.equal(policy.selectTarget('serial', 'COM4').expiresAt, 1_500);
+  clock = 1_499;
+  assert.equal(policy.assertGranted('serial', 'COM4'), true);
+  clock = 1_500;
+  assert.throws(() => policy.assertGranted('serial', 'COM4'), (error) => error.code === 'DEVICE_PERMISSION_REQUIRED', 'an expired grant must be re-approved');
+  assert.deepEqual(policy.inspect().find((entry) => entry.permission === 'serial').grantedTargets, []);
+
+  // A target that contains ':' must not be revoked by revoking its suffix.
+  policy.selectTarget('serial', 'usb:COM4');
+  policy.revokeTarget('COM4');
+  assert.equal(policy.assertGranted('serial', 'usb:COM4'), true);
+
+  policy.selectTarget('programmer', 'COM5');
+  policy.revokePermission('serial');
+  assert.throws(() => policy.assertGranted('serial', 'usb:COM4'), /required/);
+  assert.equal(policy.assertGranted('programmer', 'COM5'), true);
+  policy.revokeAll();
+  assert.throws(() => policy.assertGranted('programmer', 'COM5'), /required/);
+  assert.throws(() => createDevicePermissionPolicy({ grantTtlMs: 0 }), /positive/);
+  assert.throws(() => createDevicePermissionPolicy({ grantTtlMs: Infinity }), /positive/);
+});

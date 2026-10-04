@@ -5,6 +5,9 @@ import { PdfDocument, textWidth, wrapText } from './pdf.mjs';
 const MARGIN = { left: 56, right: 56, top: 64, bottom: 62 };
 const COLORS = { ink: '#111827', muted: '#4b5563', rule: '#9ca3af', light: '#e5e7eb', accent: '#1d4ed8', head: '#f3f4f6' };
 const SERIES_COLORS = ['#1d4ed8', '#dc2626', '#059669', '#d97706', '#7c3aed', '#0891b2'];
+// Every page says the values are simulated with educational models, so a printed record is not
+// mistaken for measured laboratory data.
+export const REPORT_DISCLAIMER = 'Prepared with OpenENTC Studio · simulated with educational models, not measured data';
 
 const PREFIX = [[1e12, 'T'], [1e9, 'G'], [1e6, 'M'], [1e3, 'k'], [1, ''], [1e-3, 'm'], [1e-6, 'µ'], [1e-9, 'n'], [1e-12, 'p']];
 /** Short engineering notation for axis labels, e.g. 4.7k, 250µ. */
@@ -252,7 +255,7 @@ export function buildLabRecord(record, { creationDate = new Date() } = {}) {
     page.text(doc.width - MARGIN.right, 34, `${experiment.number ? `Expt. ${experiment.number} · ` : ''}${experiment.title ?? ''}`.slice(0, 80), { size: 8, color: COLORS.muted, align: 'right' });
     page.line(MARGIN.left, 40, doc.width - MARGIN.right, 40, { color: COLORS.light, width: 0.6 });
     page.line(MARGIN.left, doc.height - 42, doc.width - MARGIN.right, doc.height - 42, { color: COLORS.light, width: 0.6 });
-    page.text(MARGIN.left, doc.height - 30, 'Prepared with OpenENTC Studio', { size: 7.5, color: '#9ca3af' });
+    page.text(MARGIN.left, doc.height - 30, REPORT_DISCLAIMER, { size: 7.5, color: '#9ca3af' });
     page.text(doc.width - MARGIN.right, doc.height - 30, `Page ${index + 1} of ${doc.pages.length}`, { size: 8, color: COLORS.muted, align: 'right' });
   });
   return doc;

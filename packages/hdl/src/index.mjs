@@ -1,3 +1,5 @@
+// HDL project model and jobs (simulate, lint, synthesise, place-and-route) and a bounded VCD
+// waveform parser.
 const MAX_TEXT_BYTES = 20 * 1024 * 1024;
 const MAX_SIGNALS = 4096;
 const MAX_SAMPLES = 1_000_000;

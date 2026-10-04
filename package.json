@@ -21,19 +21,27 @@
     "license:audit": "node scripts/audit-native-licenses.mjs",
     "phase:status": "node scripts/audit-phase-gates.mjs",
     "signing:check": "node scripts/check-signing.mjs",
-    "release:prepare": "npm run build && npm run native:sbom && npm run license:audit",
+    "release:prepare": "npm run build && npm run native:sbom && npm run license:audit && node scripts/release-manifest.mjs prepare",
     "browser:smoke": "node scripts/browser-performance-smoke.mjs",
-    "release:verify": "node scripts/verify-release-bundle.mjs",
+    "release:verify": "node scripts/release-manifest.mjs verify",
+    "release:reproducible": "node scripts/check-reproducible-build.mjs",
     "hdl:smoke": "node scripts/hdl-tool-smoke.mjs",
     "test": "node --test --experimental-test-isolation=none",
     "check": "npm run lint",
-    "verify": "node scripts/verify.mjs"
+    "verify": "node scripts/verify.mjs",
+    "deps:map": "node scripts/app-dependency-map.mjs --markdown docs/architecture/app-dependency-map.generated.md",
+    "ui:check": "node scripts/check-ui-modules.mjs --strict-unused",
+    "test:e2e": "npm run build && node --test --test-concurrency=1 tests/e2e/*.e2e.mjs",
+    "coverage": "node scripts/coverage.mjs",
+    "test:mutation": "node scripts/mutation-check.mjs"
   },
   "engines": {
     "node": ">=22.8.0"
   },
   "license": "GPL-3.0-or-later",
   "devDependencies": {
+    "axe-core": "4.13.0",
+    "playwright-core": "1.56.1",
     "typescript": "5.9.2"
   }
 }

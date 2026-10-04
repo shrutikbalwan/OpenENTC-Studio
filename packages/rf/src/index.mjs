@@ -1,3 +1,5 @@
+// RF engineering: Touchstone parsing, S-parameter conversion, reflection, matching networks,
+// transmission lines, microstrip, link budgets and antenna arrays.
 const MAX_POINTS = 100_000;
 const UNIT_SCALE = Object.freeze({ hz: 1, khz: 1e3, mhz: 1e6, ghz: 1e9 });
 const EPSILON = 1e-12;

@@ -1,3 +1,5 @@
+// Structured diagnostics (severity, code, bounded message and source location) shared by engines,
+// ERC and adapters.
 export const SEVERITIES = Object.freeze(['info', 'warning', 'error']);
 export const DIAGNOSTIC_CODES = Object.freeze({
   INVALID_INPUT: 'INPUT_INVALID',

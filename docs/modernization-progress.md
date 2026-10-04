@@ -1,0 +1,349 @@
+# Modernization progress
+
+Goal: turn OpenENTC Studio from a broad 0.1 prototype into a maintainable, secure, tested,
+accessible and releasable **alpha**. No new laboratories. Nothing here claims the product is stable,
+certified, laboratory-grade or hardware-qualified.
+
+Baseline: [`docs/modernization-baseline.md`](modernization-baseline.md) (commit `1350ccf`).
+
+## Phase status
+
+| Phase | Status | Notes |
+|---|---|---|
+| 0 Baseline and safety | **done** | baseline, dependency map, extraction plan |
+| 1 Correctness and repository fixes | **done** | Node version, full GPL text, README quick start, policies, issue forms |
+| 2 UI modularisation | **done** | `src/app.js` 940 KB → 4 KB; 42 workspace modules; `ui:check` in verify |
+| 3 Types and errors | **done** | error architecture, reportError, ts-check for shared layers, API reference |
+| 4 Browser workflows | **done**; journeys pass in hosted CI (run 93) | 24 Playwright journeys; found and fixed 2 real bugs |
+| 5 Coverage | **done** | coverage thresholds per risk group, property and fuzz tests, 8/8 mutants killed, CI coverage job |
+| 6 Security | **done** (no independent review) | threat model, AI data flow, dependency audit job, expiring device grants, redacted diagnostic report |
+| 7 Numerical credibility | **done** (no independent review) | validation manifest (25 entries), convergence diagnostics, non-physical-result warning, report disclaimer, review checklist, ledger review field |
+| 8 Accessibility and UX | **done** (automated checks only; not a WCAG claim) | axe-core on all modules in both themes: 0 violations; skip link; text alternatives; reflow tests; maturity badge |
+| 9 Onboarding and diagnostics | **done** | first-run guide, example library (69 examples), help limits, diagnostics centre with redacted report, recovery hints in error toasts, user guides |
+| 10 CI and integrations | **done** (new jobs await their first hosted run) | external-tools job with passed/failed/unavailable/skipped report, Windows desktop build, SBOM and licence audit in CI |
+| 11 Performance and recovery | **done** | engine, browser and bundle budgets; FFT 300× faster; Biomedical lab 20× faster to open; backup inspection, download, delete and restore |
+| 12 Release preparation | **done** (integrity only; every external gate pending) | release manifest without hard-coded hashes, reproducible-build check, dry runs on Windows and Linux in CI, gates file, draft notes |
+| 13 Governance | **done** (review roles still placeholders) | roadmap, backlog, review responsibilities, generated feature-status matrix, classroom pilot plan, final report |
+| Final verification | **done** | all local checks and hosted run 104 green; see `docs/modernization-final-report.md` |
+
+## Completed work
+
+### Phase 0 — baseline (2026-10-03)
+
+- `docs/modernization-baseline.md`: environment, sizes, every verification command with its result,
+  skipped tests, an opt-in run with real external tools, and browser performance figures.
+- `scripts/app-dependency-map.mjs` (`npm run deps:map`): read-only static analysis of `src/app.js`
+  covering categories, references between declarations, workspace ownership and the
+  package-to-package import graph with cycle detection.
+- `docs/architecture/app-dependency-map.generated.md` (generated) and
+  `docs/architecture/app-dependency-map.md` (analysis and extraction order).
+- `tests/app-dependency-map.test.mjs`: tests the analyser and asserts that the 57 packages have no import
+  cycles and no runtime npm dependencies.
+- No functional code changed.
+
+### Phase 1 — correctness and repository fixes (2026-10-03)
+
+- **Node.js:** the README, CONTRIBUTING, `docs/development.md` and `docs/support-matrix.md` now all state
+  22.8.0 or newer, matching `engines` (the README used to say 20).
+- **Licence:**
+  - `LICENSE` is now the unmodified GPL-3.0 text (SHA-256 `3972dc97…`, the same as gnu.org's `gpl-3.0.txt`).
+  - The "or any later version" grant and the copyright line moved to a new `NOTICE` file, which the build and the native notices now include.
+  - `license = "GPL-3.0-or-later"` was added to the desktop `package.json` and `Cargo.toml`.
+- **README:** reduced to an introduction, a five-minute quick start (checked in Chromium: the starter
+  divider reads 6 V), limitations, a documentation index, contribution and licence. The full catalogue
+  moved to `docs/features.md` with a link to the ledger. The detailed commands moved to `docs/development.md`.
+- **New documents:** `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1, with a placeholder conduct contact),
+  `docs/maintainers.md` (with placeholder reviewer roles), `docs/repository-metadata.md` (suggested description, topics and a
+  demo-URL placeholder), `docs/support-matrix.md`, `docs/project-compatibility-policy.md`,
+  `docs/deprecation-policy.md` and `docs/security-contact-setup.md` (an owner checklist; no invented address).
+- **GitHub templates:**
+  - The PR template was renamed to `.github/PULL_REQUEST_TEMPLATE.md`.
+  - CODEOWNERS placeholders are marked.
+  - The issue forms are now bug, numerical error, security contact request (replacing a Markdown template), external engine problem (renamed) and accessibility (new), plus a `config.yml` that disables blank issues and links to private vulnerability reporting.
+- **Test:** `tests/repository-docs.test.mjs` checks the Node version agreement, the licence hash and
+  grants, that the documents exist, the issue forms, the README size and that local links in the documents resolve.
+
+### Phase 2 — UI modularisation (2026-10-03)
+
+- **`src/app.js`:** 8,384 lines / 940,410 bytes at the baseline, now **67 lines / 4,220 bytes**. It only composes the parts.
+- **New layers:**
+  - `src/shell/` (6 files);
+  - `src/workspaces/` (42 files in 13 areas, one entry module per laboratory);
+  - `src/components/` (tables, plots, Smith chart, forms, layout, dialogs);
+  - `src/controllers/` (lab controls), `src/services/` (render hook, desktop project, project I/O);
+  - `src/state/` (circuit-editor and native-session state), `src/shared/` (escaping, formatting, parsing).
+- **Guard rails in `npm run verify`:** `npm run ui:check` fails on import cycles, unresolved or duplicate
+  names, unused imports or locals, and unused shared exports.
+- **Tests:**
+  - workspace contract tests (each renderer renders its title, no "undefined", binder is safe without DOM);
+  - unit tests for components, controllers and the render service;
+  - tests for the move tool.
+  - Source-text tests read the whole UI tree (`tests/helpers/ui-source.mjs`).
+- **Tools:**
+  - `scripts/refactor-move.mjs`: verbatim declaration mover using the TypeScript checker; refuses cycles.
+  - `tests/e2e/ui-sweep.mjs`: opens every module and tab and fails on errors; `--compare` checks that the rendered HTML is identical.
+- **Dead code removed:** two legacy renderers, an old Learning page, a duplicate helper, an unused palette and four unused
+  imports. Two source-text tests that matched only that dead code now check the live code.
+- **Documents:** `docs/architecture/ui-modules.md` and `docs/architecture/adr-0002-ui-modularisation.md`.
+
+### Phase 3 — types and error architecture (2026-10-03)
+
+- **`packages/errors`:** eight error kinds with stable codes, safe messages, an optional location, a
+  recovery hint and redacted context. Legacy base classes (`RangeError`) and codes (`PROJECT_*`,
+  `DESKTOP_UNAVAILABLE`) are kept. `toUserFacing`, `redactText` and `redactDiagnostic` strip secrets,
+  private paths and stack frames.
+- **Adopted in:**
+  - the circuit solver: `ValidationError` with the component as location, `NumericalError`, `ConvergenceError`;
+  - the project model: `ProjectError` is now a `ProjectFormatError`;
+  - the desktop bridge (`NativeToolError`) and browser storage (`StorageError`).
+- **`src/services/errors.js`:** `reportError()` replaces every `notify(error…, 'error')` call site (70 calls) and
+  keeps the last 20 errors, redacted, for diagnostics. `src/components/errors.js` is the single in-lab error
+  panel; it shows the recovery hint when there is one, and its markup is unchanged for plain errors.
+- **Type checking:** `src/shared`, `src/components`, `src/controllers`, `src/services`, `src/state` and
+  `packages/errors` are `// @ts-check` and part of the strict typecheck (134 files, up from 108). The
+  checker found real type mismatches in my first JSDoc for the plot and Smith-chart inputs; they were
+  corrected to the shapes the code actually uses.
+- **Package API reference:**
+  - `docs/api/packages.md` is generated by `scripts/generate-api-docs.mjs`.
+  - All 58 packages now have a header comment and declaration files.
+  - A test fails when the reference is stale.
+- **Documents:** `docs/architecture/types-and-errors.md` covers the boundary table, the error classes and the redaction rules.
+
+### Phase 4 — browser workflows (2026-10-03)
+
+- **24 deterministic journeys** in `tests/e2e/*.e2e.mjs` covering all 24 required workflows (mapping in
+  `docs/testing/browser-tests.md`). They check results, not just DOM presence: for example V(mid) = 4 V,
+  an FFT peak against a direct DFT, the Uno serial calculator answering 144 and 1728, a ZIP with Gerbers,
+  and a valid PDF.
+- **Harness:** serves the built `dist/` on an ephemeral port, blocks all other origins, seeds randomness,
+  and keeps traces and screenshots only on failure. `npm run test:e2e` runs everything in about 36 s locally.
+- **CI:** a new `browser-e2e` job (pinned actions, no secrets) installs Chromium, runs the journeys and uploads
+  failure traces. A governance test requires the job.
+- **Dependency:** `playwright-core` 1.56.1 (Apache-2.0, development only, no install scripts), recorded in
+  `docs/dependencies.md`.
+- `scripts/server.mjs` now exports `createStaticServer()`; a new test proves that traversal, encoded traversal and
+  symlink escapes return 404.
+- **Bugs found and fixed:**
+  1. Projects saved before the `notes` field existed could not be imported. Both project models now
+     migrate them, with unit, parity and browser tests.
+  2. The studio did not actually work offline after one visit: only 6 shell files were precached. The build
+     now writes `precache.json`, and the service worker precaches every web asset (221 entries). The offline
+     journey stops the server to prove it, because Chromium's offline emulation does not block 127.0.0.1.
+- **Open item for Phase 8 (fixed in Phase 8):** the Signals plots had no accessible name.
+
+### Phase 5 — coverage and test quality (2026-10-04)
+
+- **Coverage** (`npm run coverage`, `scripts/coverage.mjs`) uses Node's built-in V8 coverage; there is no new
+  dependency. Files that no test loads count as 0 %. Thresholds per risk group are in
+  `coverage-thresholds.json`, set just below the measured baseline. CI fails if a threshold is missed or is
+  lowered compared with `main`.
+- **Measured baseline** (lines / branches / functions):
+  - all: 83.4 / 81.3 / 81.4
+  - packages: 98.5 / 85.4 / 93.9
+  - browser-ui: 56.0 / 65.3 / 56.6. 12 browser-only files are covered only by e2e tests.
+  - persistence: 100 / 77.3 / 93.5. This was 89.9 / 75 / 67.9 before the new store tests.
+- **New tests:**
+  - `tests/store.test.mjs` (7 tests) covers persistence, quota failure, undo/redo, replace and sync.
+  - `tests/property.test.mjs` (10 seeded property and fuzz tests) covers FFT, Boolean minimisation, units and subnets. It also fuzzes project validation and the VCD, Touchstone, Intel HEX, Verilog and PCAP/PCAPNG parsers.
+  - `tests/test-quality.test.mjs` tests the coverage and mutation tools themselves.
+- **Mutation check** (`npm run test:mutation`) runs 8 targeted mutants on high-risk lines; all 8 are killed.
+  - It found one real gap: no test proved that the browser never grants device permissions. A test now covers it.
+  - The tests must pass on unmutated code first, so a broken suite cannot count as a "kill".
+- **Documents:** `docs/testing/test-categories.md` explains what each test category proves and lists every skipped test with its reason.
+
+### Phase 6 — security (2026-10-04)
+
+Done earlier on this branch: CodeQL, Dependabot, pinned actions, CSP, session-only API keys, and escaping probes.
+
+New in this phase:
+- **Threat model** (`docs/security/threat-model.md`): it maps assets, the 11 trust boundaries, untrusted inputs, controls and the tests that prove them. It also lists the known gaps.
+- **AI data flow** (`docs/security/ai-data-flow.md`) lists exactly what is sent, when, and how replies are treated.
+  - **Change:** the circuit netlist given to the AI used the project name as its title. It now uses "OpenENTC circuit", so the project name never leaves the computer.
+- **Device permissions:**
+  - Grants now expire after one hour by default (`grantTtlMs`). They can be revoked per permission or all at once (`revokePermission`, `revokeAll`).
+  - **Bug fixed:** `revokeTarget('COM4')` also removed a grant for the target `usb:COM4`, because grants were matched by string suffix. Grants are now stored per permission and per exact target.
+  - Desktop project grants were already cleared on project close (Rust `close_project_session`).
+- **Diagnostic report** (`createDiagnosticReport` in `packages/errors`):
+  - It copies only allow-listed fields: counts instead of project content, tool ids and versions instead of paths, and "key set" true/false instead of the key.
+  - It then redacts everything again. Redaction now also removes e-mail addresses.
+  - The UI for it comes in Phase 9.
+- **CI `security-audit` job:** runs `npm audit` for the workspace and the desktop shell, and `cargo audit` (cargo-audit 0.22.2, pinned, `--locked`).
+- **Parser fuzzing** was added in Phase 5 (`tests/property.test.mjs`).
+
+### Phase 7 — numerical and academic credibility (2026-10-04)
+
+- **Validation manifest** (`validation/manifest.json`): 25 entries, each with the engine, the reference, the tolerance and the enforcing test.
+  - References: ngspice 42, SciPy 1.17, scikit-image 0.26, NumPy 2, closed forms and textbook examples.
+  - A test checks that every engine and test exists, that every external tool has a version, and that no entry claims an independent review without a record.
+  - Every entry is `self-checked`.
+- **Capability ledger:** every capability has a new required `review` field. All 119 are `not-independently-reviewed`. The schema and tests require a `docs/reviews/<id>.md` record before a capability can be marked reviewed.
+- **Circuit solver diagnostics:**
+  - DC results report the Newton iteration count, whether a GMIN shunt was added and whether source stepping was used. The Circuit Lab shows this with an "Educational model" note.
+  - A non-convergence error now names the iteration limit and the node still moving, and keeps the details as context.
+  - New warning for non-physical results: for example, 1 A forced into a reverse-biased diode used to report 10¹² V silently; it now warns.
+- **Lab-record PDF:** every page footer says "simulated with educational models, not measured data".
+- **Documents:** `docs/expert-review-checklist.md` and `docs/testing/numerical-validation.md`.
+- **Coverage:** the errors-and-redaction branch threshold was raised from 86 to 88, after the Phase 6 tests.
+- **Not done:** no automated test reaches the non-convergence error. I could not build a small circuit that fails to converge, because source stepping rescues the candidates I tried. The message logic is covered only by review.
+
+### Phase 8 — accessibility and responsive UX (2026-10-04)
+
+- **Automated checks:** `axe-core` 4.13.0 (MPL-2.0, dev only, pinned, no dependencies) runs in the new `tests/e2e/accessibility.e2e.mjs` (7 tests).
+  - It covers WCAG 2.0/2.1/2.2 A and AA rules on home and all 43 modules in both themes, plus the command palette, the help dialog and the assistant panel.
+  - The same file checks text alternatives on every graphic, the skip link, and reflow at 390 px and 768 px.
+- **The first axe run found:**
+  - light-theme contrast failures on 166 elements in 35 modules;
+  - 15 unlabelled code editors and 12 unlabelled RTOS task inputs;
+  - 3 unlabelled logic-analyser selects;
+  - low-contrast meter captions;
+  - nested interactive controls on circuit parts;
+  - 12 kinds of chart with no text alternative, including the Signals plots (the Phase 4 open item).
+
+  All of these are fixed: there are now 0 violations.
+- **Regression check:** removing one restored label from the built app makes the test fail.
+- **Skip link:** "Skip to the lab" is the first Tab stop and moves focus to the workspace.
+- **Maturity badge:** every lab header now shows "Alpha · educational". Its tooltip explains that the models are simplified and not independently reviewed.
+- **Documented exception:** circuit pins are smaller than the WCAG 2.5.8 target size. The inspector's wire buttons are the equivalent control.
+- **`docs/accessibility.md`** states that this is **not** a WCAG conformance claim and lists the gaps: only default views are scanned, and no screen reader has been tested.
+- **Already present:** the command palette (Ctrl+K) is the global search, and the top bar shows the save status. The feedback entry point moves to Phase 9, together with the diagnostics export.
+
+### Phase 9 — onboarding, help and diagnostics (2026-10-04)
+
+- **First-run guide** on Mission control, with four steps: load an example, run a simulation, read the limits and export.
+  - Progress is remembered per browser in `localStorage`. If storage fails, the guide simply reappears.
+  - The guide can be hidden.
+- **Example library:** the 9 circuit examples load straight into the Circuit Lab. Cards also link to the 8051, Arduino, Verilog, RTOS, network-theory, PLC and SDR example menus in their labs.
+- **Help panel:** a "Know the limits" section covers alpha status, educational models, no independent review, browser-only storage and no hardware in the browser. The panel also lists the undo and redo shortcuts and has a Diagnostics button.
+- **Diagnostics centre**, opened from Help or the command palette:
+  - It shows health (storage, offline cache, network, desktop, tools) and the recent errors with recovery hints.
+  - It previews the exact report built by `createDiagnosticReport` (Phase 6). The report has no keys, names, paths or project content.
+  - The report can be copied or downloaded, and recent errors can be cleared.
+  - "Report a problem" opens the GitHub issue forms (`noopener`). Nothing is sent automatically.
+- **Error toasts** now include the recovery hint. This was a Phase 3 known limitation.
+- **User guides:** `docs/user-guide/getting-started.md` and `docs/user-guide/troubleshooting.md`.
+- **Tests:** `tests/e2e/onboarding.e2e.mjs` (3 journeys). One of them checks that the downloaded report equals the preview and contains neither the API key nor the project name. The diagnostics dialog is included in the axe checks.
+
+### Phase 10 — CI and external tool integration (2026-10-04)
+
+- **New `external-tools` job** (ubuntu-24.04) installs ngspice, GHDL, Verilator, Yosys and nextpnr-ice40. These are the same versions as the reference environment (Ubuntu 24.04 packages).
+  - It runs `scripts/external-tools-report.mjs`, which combines the version probes, the HDL smoke flow, the live ngspice comparison, the arduino-cli/kicad-cli probes and the real-process runner tests.
+  - Each check gets exactly one state: passed, failed, **unavailable** (tool not configured; never a pass) or skipped.
+  - The results go into the job summary and an uploaded JSON report.
+- **Local run** with the tools configured: 15 checks passed and 2 were unavailable (arduino-cli and kicad-cli are not installed). Without tools, every tool row reports unavailable, and only the process-runner tests run.
+- **New `desktop-windows-build` job:** Rust unit tests, then an unsigned NSIS installer, uploaded as an artifact.
+- **The `security-audit` job** now also generates the native SBOM and runs the licence audit, and uploads the SBOM. Local run: 437 crates, 0 unresolved licences.
+- **Documents:** `docs/testing/ci.md` lists every job, what it proves, the four states, and what CI does not prove.
+- **Tests:** a governance test checks that the jobs exist and that every action is pinned by SHA. A unit test checks that "unavailable" is never reported as a pass.
+
+### Phase 11 — performance and recovery (2026-10-04)
+
+**Performance budgets**, documented in `docs/PERFORMANCE-BUDGETS.md`:
+- `tests/performance.test.mjs` sets budgets for six engine operations: DC, Newton, transient, AC, FFT and project validation.
+- `tests/e2e/performance.e2e.mjs` checks start-up and the time to open each lab.
+- `scripts/bundle-budget.mjs` makes the build fail if the web assets grow past 3.5 MB in total or 256 KB in one file.
+
+**Two real regressions found and fixed:**
+- **FFT:** `fft()` was a direct O(n²) DFT (4096 samples ≈ 500 ms). It is now a radix-2 FFT, with a table-based DFT for other lengths (≈ 2 ms). It is checked against a direct DFT for 14 lengths, and the old code fails the new budget.
+- **Biomedical lab:** it took ≈ 1 s to open because two maxima were recomputed for every sample. It now opens in under 50 ms.
+
+**Recovery: backup inspection and restore**
+- `inspectBackups`, `readBackup`, `restoreBackup` and `discardBackup` in `src/core/project-storage.js` cover the migration, corrupt and interrupted-write copies that the storage layer already kept but did not show.
+- Listing backups never changes storage. Restoring validates and migrates the backup like an import.
+- **UI:** a "Backups in this browser" section in the diagnostics centre lets the user:
+  - open a valid backup (Ctrl+Z returns to the replaced project);
+  - download the original bytes, for salvage;
+  - delete a backup, which asks for confirmation.
+- **Tests:** 5 unit tests in `tests/backups.test.mjs` and 2 journeys in `tests/e2e/recovery.e2e.mjs`. The existing recovery tests still pass: corrupt storage, interrupted write, quota failure and legacy migration.
+
+### Phase 12 — release preparation (2026-10-04)
+
+- **`scripts/release-manifest.mjs`** replaces `verify-release-bundle.mjs`. The old script had hard-coded SHA-256 values for the native SBOM and notices that went stale in Phase 1, and it always required a Windows executable.
+  - `prepare` writes `dist/RELEASE-MANIFEST.json`: every artifact with size and SHA-256, the source commit and changed files, `signed: false`, and the gate status.
+  - `verify` re-hashes the browser build and every listed artifact, and refuses a manifest prepared from uncommitted changes.
+  - Desktop builds are optional unless `--require windows,linux` is given.
+  - A test checks that the script contains no literal hashes.
+- **`npm run release:reproducible`** builds twice and compares every file. Local result: 344 files, identical. The file list was already sorted.
+- **CI:** both desktop jobs now run `release:prepare` plus `verify --require <os>` after building, and the Linux job also checks reproducibility. The manifest is uploaded with the builds.
+- **`release/gates.json`** lists the 7 external gates, all `pending`. A test refuses `done` without an evidence file.
+- **Documents:** the release checklist was rewritten (automated gates versus external gates), the release policy updated, and draft release notes added in `docs/releases/0.1.0-alpha.1-draft.md`. Nothing was tagged or released.
+- **Local check:** `release:prepare` then `release:verify` found all integrity checks correct (6 artifacts, including a Linux desktop binary from an earlier local build). It refused only because the tree had uncommitted changes, which is correct.
+
+### Phase 13 — governance and final verification (2026-10-04)
+
+**Governance documents** in `docs/governance/`:
+- `roadmap.md`: beta entry criteria tied to the external gates; no new labs.
+- `backlog.md`: 14 prioritised items, each with its source.
+- `review-responsibilities.md`: the review and evidence each kind of change needs.
+- `classroom-pilot-plan.md`: **planned, not started**, with safeguards and exit criteria.
+
+**Feature-status matrix:** `docs/feature-status.md` is generated by `scripts/feature-status.mjs` from the capability ledger and the validation manifest. A test keeps it current. It shows 105 built-in, 13 unavailable and 1 unsupported capabilities, with 0 of 119 independently reviewed.
+
+**Final report:** `docs/modernization-final-report.md` compares everything with the baseline.
+
+**Final verification:**
+- `npm run verify`: 829 tests, 0 fail, 12 opt-in skips.
+- e2e 37/37; coverage thresholds met; mutation 8/8 killed.
+- External tools: 15 passed, 2 unavailable.
+- npm audit and cargo audit: 0 vulnerabilities.
+- `cargo test --lib` 39 passed.
+- Reproducible build; release integrity verified on a clean tree.
+- Hosted run 104 passed every job.
+
+## Remaining work
+
+The modernization programme is complete. What remains is outside software work and needs people, credentials, machines or hardware (see External actions). The engineering backlog is in `docs/governance/backlog.md`.
+
+## Verification evidence
+
+| Date | Phase | Evidence |
+|---|---|---|
+| 2026-10-04 | Final (hosted) | **Run 105** on the Phase 13 commit passed all 8 jobs (https://github.com/shrutikbalwan/OpenENTC-Studio/actions/runs/37180393935). |
+| 2026-10-04 | Final | Local: `npm run verify` 829 tests (817 pass, 0 fail, 12 skipped); e2e 37/37; coverage met; mutation 8/8; external tools 15 passed and 2 unavailable; npm and cargo audit 0 vulnerabilities; `cargo test --lib` 39 passed; reproducible build; release integrity verified. **Hosted run 104** (Phase 12 commit) passed all jobs, including the Windows and Linux release dry runs (https://github.com/shrutikbalwan/OpenENTC-Studio/actions/runs/37179846899). |
+| 2026-10-04 | 12 | `npm run verify` passed. `release:reproducible`: 344 files, identical. `release:prepare` then `release:verify`: integrity correct; it refused only because of uncommitted changes, as designed. |
+| 2026-10-04 | 11 | `npm run verify` passed; `npm run test:e2e` 37/37; coverage thresholds met (persistence branches raised to 79). The FFT budget fails against the old code (517 ms against a 40 ms budget). |
+| 2026-10-04 | 10 (hosted) | **Run 102 passed every job**, including the new ones: in `External tools`, ngspice 42, GHDL 4.1, Verilator 5.020, Yosys 0.33 and nextpnr 0.6 were installed, and 15 checks passed while 2 were unavailable (arduino-cli and kicad-cli); `Windows desktop build (unsigned)` built the NSIS installer; `Dependency audit` included the SBOM and licence audit (https://github.com/shrutikbalwan/OpenENTC-Studio/actions/runs/37178748898). Runs 99 and 100 (Phases 7 and 8) also passed. |
+| 2026-10-04 | 9 | `npm run verify` passed; `npm run test:e2e` 34/34. |
+| 2026-10-04 | 8 | `npm run verify` passed; `npm run test:e2e` 31/31; axe: 0 violations on 44 views in both themes. Removing one label from the built app makes the test fail. |
+| 2026-10-04 | 6 (hosted) | Hosted run 98 passed all jobs: Verify on Ubuntu and Windows, browser journeys, coverage and mutation, the dependency audit and the Linux desktop build (https://github.com/shrutikbalwan/OpenENTC-Studio/actions/runs/37176834262). |
+| 2026-10-04 | 7 | `npm run verify` passed (all tests, 0 fail); `npm run test:e2e` 24/24; `npm run coverage` thresholds met (circuit-solver branches 94.5, threshold 94). |
+| 2026-10-04 | 6 | `npm run verify` passed (all tests, 0 fail). `npm audit`: 0 vulnerabilities (workspace and desktop). `cargo audit` 0.22.2 on 437 crates: 0 vulnerabilities and 3 warnings, all transitive through Tauri's GTK stack: `proc-macro-error` 1.0.4 is unmaintained (RUSTSEC-2024-0370), `glib` 0.18.5 is unsound in `VariantStrIter` (RUSTSEC-2024-0429), and `yoke-derive` 0.8.3 is yanked. The new tests fail against the old code (the suffix-revoke case and the project name in the netlist). |
+| 2026-10-04 | 5 | `npm run verify` 792 tests (780 pass, 0 fail, 12 skipped); `npm run coverage` thresholds met; `npm run test:mutation` 8/8 killed; `npm run test:e2e` 24/24 pass. **Hosted run 96:** `Verify` on Ubuntu and Windows and the browser journeys passed, but the new `Coverage and mutation checks` job failed. Some tests read `dist/`, and the job did not build first. When reproduced locally, the coverage gate also caught untested branches in the Phase 6 diagnostics code. Fixed by adding a build step and more tests; the threshold was not lowered. |
+| 2026-10-03 | 4 | `npm run test:e2e`: 24 journeys, 24 pass, about 36 s (Chromium 141). The offline and migration journeys fail against the pre-fix code (mutation-checked). **Hosted CI:** the `Browser journeys (Chromium)` job passed in run 93 (https://github.com/shrutikbalwan/OpenENTC-Studio/actions/runs/37157935257), and `Verify (ubuntu-latest)` passed there too. |
+| 2026-10-03 | CI correction | **Hosted `Verify (windows-latest)` failed in runs 84–92** (since commit `455634d`): the new `tests/refactor-move.test.mjs` exposed a Windows path bug in `scripts/refactor-move.mjs` (absolute imports written for `C:\` paths). Earlier phase reports of "verify passed" referred to local runs only. Fixed in `796d627`; the confirming hosted run is recorded below. Hosted CI is now checked after each push. |
+| 2026-10-03 | 3 | `npm run verify` 764 tests (752 pass, 0 fail, 12 skipped); typecheck 134 files; `ui-sweep --compare` 0 changed views; injection probe clean; modal focus trap and Escape verified in Chromium; a circuit validation error shows "R2 must have a resistance greater than zero." |
+| 2026-10-03 | 2 | After the final move: `npm run verify` 756 tests (744 pass, 0 fail, 12 skipped); `ui:check` clean; `ui-sweep --compare` against the pre-Phase-2 snapshot: 0 changed views out of 180 (1 view detected as live); injection probe clean across 43 modules; quick start reads 6 V; API-key flow unchanged. |
+| 2026-10-03 | 1 | `npm run verify` 698 tests (686 pass, 0 fail, 12 skipped); `browser:smoke` passed; `cargo test` 39 passed; `native:sbom` and `license:audit` ran (0 unresolved licences); quick start walked in Chromium. GitHub's licence detection cannot be run locally; the file matches the official text byte for byte. |
+| 2026-10-03 | 0 | `npm test` 689 tests (677 pass, 0 fail, 12 skipped); with ngspice-42 and process tests enabled, 687 pass and 2 skipped; `hdl:smoke` 8/8 stages passed; `browser:smoke` passed; cargo test 39 passed; audits 0 vulnerabilities. Details in the baseline. |
+
+## Known limitations
+
+- The workspaces and shell (about 950 KB) are not yet type-checked; `.d.ts` contracts are not verified against their implementations (see `docs/architecture/types-and-errors.md`).
+
+- Workspaces keep rendering and event binding in one module, and the whole page still re-renders on every change (unchanged behaviour; see `docs/architecture/ui-modules.md`).
+
+- Browser checks need Chromium with `--no-sandbox` when run as root (container-specific).
+- External-tool evidence comes from one container's tool versions, not from CI.
+- `cargo audit` warnings for `glib` 0.18 (unsound iterator) and `proc-macro-error` (unmaintained) come from Tauri's Linux GTK3 bindings. They cannot be fixed until Tauri moves off GTK3. The app does not call `VariantStrIter`.
+- No independent security review or penetration test has been done.
+- No physical hardware, clean machine, code signing or independent expert review is available in this environment.
+
+## Decisions and rationale
+
+| Decision | Why |
+|---|---|
+| Continue on the existing hardening branch | It already has the CI, CodeQL, CSP and credential work that Phases 1 and 6 ask for. Redoing it would duplicate effort, and those commits are not merged yet. |
+| Write a small in-repo analyser instead of adding a tool such as madge or dependency-cruiser | No new dependency is needed, and it understands this file's render/bind convention. |
+| Keep `LICENSE` as pure GPL text and move the project notice to `NOTICE` | GitHub's detector (licensee) matches the licence file against the official text; a preamble lowers the match. |
+| Move code verbatim with a checker-based tool, and prove identical HTML per view | A hand rewrite of 940 KB could not be reviewed. Identical output is a strong, cheap check. See ADR 0002. |
+| Measure coverage with Node's built-in V8 coverage, not c8 or istanbul | No new dependency. The lcov output is enough for per-group thresholds. |
+| Write a small mutation script instead of using Stryker | Stryker is a large dependency tree. Eight hand-picked mutants on security-critical lines give most of the value. |
+| Extract shared components before any workspace | Shared components are used by 8–94 declarations each. Moving them first makes each workspace move small. |
+
+## External actions still required
+
+| Action | Owner |
+|---|---|
+| Enable branch protection, private vulnerability reporting and secret scanning in GitHub settings (not verified) | repository owner |
+| Code signing, clean-machine installs, hardware qualification, accessibility audit, expert review, licence review, classroom pilot (`release/gates.json`) | maintainers and reviewers |
+| Physical Arduino/FPGA tests, clean-machine install tests, code signing | maintainer with hardware and credentials |
+| Independent numerical and teaching review | qualified human reviewers |

@@ -1,6 +1,7 @@
 // @ts-check
 
 import { createProject, importProject, MAX_PROJECT_BYTES, PROJECT_VERSION, validateProject } from './project.js';
+import { StorageError } from '../../packages/errors/src/index.mjs';
 
 /** @typedef {import('../../packages/project-model/src/types.d.ts').OpenEntcProject} OpenEntcProject */
 /** @typedef {{ getItem(key: string): string | null, setItem(key: string, value: string): void, removeItem?(key: string): void }} StorageLike */
@@ -73,7 +74,7 @@ export function loadStoredProject(storage, key, { backupKey = `${key}${STORAGE_B
         previousBackup = storage.getItem(backupKey);
         storage.setItem(backupKey, raw);
         storage.setItem(key, serialized);
-        if (storage.getItem(key) !== serialized) throw new Error('Migrated project write could not be verified.');
+        if (storage.getItem(key) !== serialized) throw new StorageError('Migrated project write could not be verified.');
       } catch (error) {
         try { storage.setItem(key, raw); } catch { /* preserve the original record when storage is failing */ }
         try { if (previousBackup === null) storage.removeItem?.(backupKey); else storage.setItem(backupKey, previousBackup); } catch { /* preserve the original migration error */ }
@@ -109,9 +110,9 @@ export function saveStoredProject(storage, key, project) {
   try {
     previous = storage.getItem(key);
     storage.setItem(temporaryKey, serialized);
-    if (storage.getItem(temporaryKey) !== serialized) throw new Error('Temporary project write could not be verified.');
+    if (storage.getItem(temporaryKey) !== serialized) throw new StorageError('Temporary project write could not be verified.');
     storage.setItem(key, serialized);
-    if (storage.getItem(key) !== serialized) throw new Error('Project write could not be verified.');
+    if (storage.getItem(key) !== serialized) throw new StorageError('Project write could not be verified.');
     storage.removeItem?.(temporaryKey);
   } catch (error) {
     try {
@@ -131,3 +132,63 @@ export function importStoredProjectText(text) {
 }
 
 export function storageVersion() { return PROJECT_VERSION; }
+
+/** @typedef {{ kind: 'migration' | 'corrupt' | 'interrupted-write', key: string, bytes: number, valid: boolean, name?: string, savedVersion?: unknown, updatedAt?: string, components?: number, error?: string }} BackupInfo */
+
+/** @param {string} key */
+const backupKeys = (key) => /** @type {const} */ ([['migration', `${key}${STORAGE_BACKUP_SUFFIX}`], ['corrupt', `${key}${STORAGE_CORRUPT_SUFFIX}`], ['interrupted-write', `${key}${STORAGE_TEMP_SUFFIX}`]]);
+
+/**
+ * List the backups loadStoredProject and saveStoredProject keep, without changing storage. Each is
+ * checked the same way an import is (validation and migration), so `valid` means it can be restored.
+ * @param {StorageLike} storage
+ * @param {string} key
+ * @returns {BackupInfo[]}
+ */
+export function inspectBackups(storage, key) {
+  /** @type {BackupInfo[]} */
+  const found = [];
+  for (const [kind, backupKey] of backupKeys(key)) {
+    let raw = null;
+    try { raw = storage.getItem(backupKey); } catch { continue; }
+    if (!raw) continue;
+    const entry = { kind, key: backupKey, bytes: raw.length };
+    try {
+      const parsed = JSON.parse(raw);
+      const project = validateProject(parsed);
+      found.push({ ...entry, valid: true, name: project.name, savedVersion: parsed?.version, updatedAt: project.updatedAt, components: project.circuit.components.length });
+    } catch (error) {
+      found.push({ ...entry, valid: false, error: errorMessage(error, 'The backup is not a valid project.') });
+    }
+  }
+  return found;
+}
+
+/**
+ * The raw text of one backup (for download), or null.
+ * @param {StorageLike} storage @param {string} key @param {BackupInfo['kind']} kind
+ */
+export function readBackup(storage, key, kind) {
+  const entry = backupKeys(key).find(([candidate]) => candidate === kind);
+  if (!entry) throw new RangeError(`Unknown backup kind: ${String(kind)}.`);
+  return storage.getItem(entry[1]);
+}
+
+/**
+ * Validate (and migrate) one backup for restoring. Storage is not changed; the caller replaces the
+ * open project, which saves it and keeps the previous project in undo history.
+ * @param {StorageLike} storage @param {string} key @param {BackupInfo['kind']} kind
+ * @returns {OpenEntcProject}
+ */
+export function restoreBackup(storage, key, kind) {
+  const raw = readBackup(storage, key, kind);
+  if (!raw) throw new StorageError('That backup no longer exists.');
+  return importStoredProjectText(raw);
+}
+
+/** @param {StorageLike} storage @param {string} key @param {BackupInfo['kind']} kind */
+export function discardBackup(storage, key, kind) {
+  const entry = backupKeys(key).find(([candidate]) => candidate === kind);
+  if (!entry) throw new RangeError(`Unknown backup kind: ${String(kind)}.`);
+  storage.removeItem?.(entry[1]);
+}

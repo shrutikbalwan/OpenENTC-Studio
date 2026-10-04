@@ -46,18 +46,6 @@ export const modules = [
   { id: 'learn', name: 'Learning Hub', short: 'Learn', icon: '◫', color: '#facc15', description: 'Eight ENTC tracks of short lessons linked to the labs, quizzes with fresh numbers every attempt, viva practice and verified lab checkpoints.' }
 ];
 
-const legacyComponentPalette = [
-  { type: 'voltage', label: 'DC source', symbol: 'V', defaultValue: 5, unit: 'V' },
-  { type: 'current', label: 'Current source', symbol: 'I', defaultValue: 0.001, unit: 'A' },
-  { type: 'switch', label: 'Switch', symbol: 'S', defaultValue: 1, unit: 'state' },
-  { type: 'resistor', label: 'Resistor', symbol: 'R', defaultValue: 1000, unit: 'Ω' },
-  { type: 'capacitor', label: 'Capacitor', symbol: 'C', defaultValue: 0.000001, unit: 'F' },
-  { type: 'inductor', label: 'Inductor', symbol: 'L', defaultValue: 0.001, unit: 'H' },
-  { type: 'diode', label: 'Diode', symbol: 'D', defaultValue: 0.7, unit: 'Vf' },
-  { type: 'led', label: 'LED', symbol: '↗', defaultValue: 2, unit: 'Vf' },
-  { type: 'ground', label: 'Ground', symbol: '⏚', defaultValue: 0, unit: 'V' }
-];
-
 validateComponentDefinitions(COMPONENT_DEFINITIONS);
 export { COMPONENT_DEFINITION_VERSION };
 export const componentPalette = COMPONENT_DEFINITIONS.map(({ type, label, symbol, defaultValue, unit }) => ({ type, label, symbol, defaultValue, unit }));

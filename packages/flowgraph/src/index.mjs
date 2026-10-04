@@ -1,3 +1,5 @@
+// Bounded, typed dataflow graphs (blocks, ports, connections) with validation, topological
+// ordering and execution, used by the SDR editor.
 const MAX_BLOCKS = 512;
 const MAX_CONNECTIONS = 2048;
 const MAX_TEXT = 200;

@@ -48,3 +48,7 @@ export declare function notify(message: string, tone?: string): void;
 export declare function recordLearningAttempt(id: string, passed: boolean): Record<string, unknown>;
 export declare function replaceProject(project: OpenEntcProject): void;
 export declare function synchronizeOpenProject(project: OpenEntcProject): OpenEntcProject;
+export declare function projectBackups(): import('./project-storage.js').BackupInfo[];
+export declare function readProjectBackup(kind: import('./project-storage.js').BackupInfo['kind']): string | null;
+export declare function restoreProjectBackup(kind: import('./project-storage.js').BackupInfo['kind']): OpenEntcProject;
+export declare function discardProjectBackup(kind: import('./project-storage.js').BackupInfo['kind']): void;

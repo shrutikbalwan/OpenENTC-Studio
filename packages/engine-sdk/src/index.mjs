@@ -1,3 +1,6 @@
+// External-engine adapter SDK: job state machine, cancellation, manifests, discovery, and adapters
+// for ngspice, Arduino CLI, GHDL, Verilator, Yosys, nextpnr, KiCad, PlatformIO, Renode, qucsator-
+// rf and TShark. Adapters build argument arrays only and never invoke a shell.
 import { createDiagnostic, DIAGNOSTIC_CODES } from '../../diagnostics/src/index.mjs';
 
 export const JOB_STATES = Object.freeze(['queued', 'preparing', 'running', 'cancelling', 'succeeded', 'failed', 'cancelled']);

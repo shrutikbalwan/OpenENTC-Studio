@@ -5,6 +5,7 @@ import { bodeMetrics, circuitResultCsv, circuitTraces, decadeTicks, decimate, li
 import { simulateAC, simulateDC, simulateTransient } from '../src/engines/circuit-engine.js';
 import { exampleCircuits } from '../src/data/example-circuits.js';
 import { createProject, validateProject } from '../src/core/project.js';
+import { readUiSource } from './helpers/ui-source.mjs';
 
 const near = (actual, expected, tolerance, message) => assert.ok(Math.abs(actual - expected) <= tolerance, `${message}: ${actual} vs ${expected}`);
 const part = (id, type, value, n1, n2) => ({ id, type, label: id, value, unit: '', n1, n2 });
@@ -83,7 +84,7 @@ test('every example circuit is a valid project circuit that its configured analy
 });
 
 test('Circuit Lab offers built-in DC, transient and AC analyses with plots and examples', async () => {
-  const app = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  const app = readUiSource();
   assert.match(app, /data-builtin-field="analysis"/);
   assert.match(app, /simulateTransient\(components, wires, netLabels/);
   assert.match(app, /simulateAC\(components, wires, netLabels/);

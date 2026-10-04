@@ -8,10 +8,43 @@ The browser preview runs only built-in capabilities and has no native process, f
 
 This is still an unsigned development build. Do not treat it as a trusted public release until clean-machine verification, supported-OS qualification, signing, licence review, and the remaining release checklist are complete.
 
+## Threat model
+
+Trust boundaries, untrusted inputs and their controls are listed in `docs/security/threat-model.md`. What the AI assistant sends and receives is in `docs/security/ai-data-flow.md`.
+
 ## AI assistant
 
-The optional AI lab partner sends the user's questions — and, only if they allow it, the current lab's inputs and results — to the OpenAI-compatible service they configure. The API key is kept in the browser's localStorage, is never written to projects or exports, and is sent only to that service. Base URLs must use https, except plain http to localhost for local servers such as Ollama. Model replies are rendered as escaped text; tool calls run only the built-in, side-effect-free calculators.
+The optional AI lab partner sends the user's questions to the OpenAI-compatible service they configure. If they allow it, it also sends the current lab's inputs and results.
+
+- **API key storage.** The key is held in memory and forgotten on reload. If the user ticks *Keep the key until this tab closes*, it is also kept in `sessionStorage`. It is never written to `localStorage`, project files, exports or logs. Older versions stored it in `localStorage`; on startup that copy is deleted without being read into memory, and the user is told once.
+- **Desktop app.** The same rules apply. OS credential storage (Windows Credential Manager, macOS Keychain, libsecret) was considered but needs a new native plugin, so it awaits a dependency and licence review.
+- **Base URL.**
+  - It must use https; plain http is allowed only for `localhost` and `127.0.0.1` (local servers such as Ollama).
+  - It must not contain user info, a query string or a fragment.
+- **Requests.** They never follow redirects, never send cookies and send no referrer, so the key reaches only the configured host.
+- **Error messages.** These are redacted: the key and anything shaped like a bearer token or provider key become `[redacted]`.
+- **Replies.** Model replies are escaped before rendering (`src/core/html.js`).
+- **Tool calls.** They run only the built-in, side-effect-free calculators. At most 8 calls per step, and oversized arguments are refused.
+
+## Browser hardening
+
+- **Content Security Policy** in `index.html` and `tauri.conf.json`. Scripts come only from the app itself, inline scripts and event handlers are blocked, and `object` and `base` are disabled. See `docs/security/CSP.md`.
+- **Escaping.** All markup is built through `esc()` and `safeUrl()` in `src/core/html.js`.
+- **Probes.** `tests/browser-security.test.mjs` covers escaping, URL schemes, assistant replies, credentials and the CSP. The opt-in browser probe `tests/e2e/injection-probe.mjs` feeds hostile strings through:
+  - the project name and component labels;
+  - saved lab inputs;
+  - an imported VCD file;
+  - the serial monitor and an AI reply.
 
 ## Reporting a vulnerability
 
-Do not disclose security vulnerabilities in a public issue or attach sensitive projects, captures, credentials or device data. Use GitHub private vulnerability reporting when it is enabled for this repository. If it is not available, ask the maintainers for a private reporting channel without including exploit details in the public request. A dedicated security contact has not yet been published; this is a known release-process gap, not an invitation to report publicly.
+Do not disclose security vulnerabilities in a public issue, and do not attach sensitive projects, captures, credentials or device data.
+
+Report privately through GitHub: open the repository's **Security** tab and choose **Report a vulnerability** (private vulnerability reporting). The repository owner must enable this feature under *Settings → Code security*. Until it is confirmed enabled, use the *Security contact request* issue form, which only asks for a private channel and must contain no technical details. Owner setup steps are in `docs/security-contact-setup.md`. We aim to acknowledge reports within 7 days and to agree a disclosure date with the reporter.
+
+## Secrets
+
+- Never commit tokens, API keys, signing certificates or passwords. Signing material belongs only in the protected release environment (see `docs/governance/RELEASE-POLICY.md`).
+- The repository owner should enable GitHub **secret scanning** and **push protection** (*Settings → Code security*). These are owner settings and cannot be enabled from source.
+- If a secret is committed, treat it as compromised: revoke and rotate it first, then remove it from history. Removing it from history alone is not enough.
+- CI workflows run with read-only `contents` permission, check out without persisting credentials, and use no repository secrets. Pull requests from forks therefore cannot reach any credential.

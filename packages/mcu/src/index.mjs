@@ -1,3 +1,6 @@
+// Microcontroller emulation: 8051 assembler, CPU and trainer peripherals; ATmega328P core and
+// Arduino Uno board; Intel HEX; logic-analyser channels with UART, SPI and I2C decoders and VCD
+// exchange.
 export { BITS, INSTRUCTIONS, OPCODES, SFR, bitName, directName, disassemble, instructionSize } from './i8051/isa.mjs';
 export { AssemblyError, assemble, toImage } from './i8051/assembler.mjs';
 export { Cpu8051 } from './i8051/cpu.mjs';

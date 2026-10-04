@@ -1,7 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile as readFileRaw } from 'node:fs/promises';
 import { createDesktopBridge, DESKTOP_UNAVAILABLE_CODE } from '../src/core/desktop-bridge.js';
+import { readUiSource } from './helpers/ui-source.mjs';
+
+// rustfmt may wrap a call or method chain over several lines and add trailing commas. The source
+// assertions below check token sequences, so Rust files are read with that layout folded away:
+// whitespace runs become one space, padding inside brackets and before "." goes, and a trailing
+// comma before a closing bracket is dropped. The tokens each assertion requires are unchanged.
+const normalizeRust = (text) => text.replace(/\s+/g, ' ').replace(/([([]) /g, '$1').replace(/ ([)\].])/g, '$1').replace(/,([)\]])/g, '$1');
+async function readFile(url, encoding) {
+  const text = await readFileRaw(url, encoding);
+  return String(url).endsWith('.rs') ? normalizeRust(text) : text;
+}
 
 test('Tauri shell starts with a least-privilege core-only capability', async () => {
   const capability = JSON.parse(await readFile(new URL('../apps/desktop/src-tauri/capabilities/default.json', import.meta.url), 'utf8'));
@@ -23,7 +34,7 @@ test('Tauri shell does not grant process, filesystem, network, or device plugins
 
 test('desktop project opening uses a native folder picker without browser filesystem privileges', async () => {
   const source = await readFile(new URL('../apps/desktop/src-tauri/src/lib.rs', import.meta.url), 'utf8');
-  const app = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  const app = readUiSource();
   assert.match(source, /async fn pick_project_directory/);
   assert.match(source, /blocking_pick_folder/);
   assert.match(source, /tauri_plugin_dialog::init/);
@@ -253,7 +264,7 @@ test('project switching validates the target before revoking the current session
   const lib = await readFile(new URL('../apps/desktop/src-tauri/src/lib.rs', import.meta.url), 'utf8');
   assert.match(project, /pub fn validate_project\(root: &str\)/);
   assert.match(lib, /native_project::validate_project\(&root\)\?/);
-  const openBody = lib.match(/fn open_project\([\s\S]*?\r?\n}\r?\n\r?\n?pub fn run/)[0];
+  const openBody = lib.match(/fn open_project\([\s\S]*?\} pub fn run/)[0];
   assert.ok(openBody.indexOf('native_project::validate_project(&root)?') < openBody.indexOf('runtime.processes.cancel_and_remove_project(&project_id)?'));
 });
 
@@ -292,7 +303,7 @@ test('desktop job declarations preserve native project ownership metadata', asyn
 
 test('native project open constructs its grant before mutating session state', async () => {
   const source = await readFile(new URL('../apps/desktop/src-tauri/src/native_project.rs', import.meta.url), 'utf8');
-  const openBody = source.match(/fn open_project_session\([\s\S]*?\r?\n}\r?\n\r?\npub fn open_project/)[0];
+  const openBody = source.match(/fn open_project_session\([\s\S]*?\} pub fn open_project/)[0];
   assert.match(openBody, /let grant = ProjectGrant::new/);
   assert.ok(openBody.indexOf('let grant = ProjectGrant::new') < openBody.indexOf('state.root.lock'));
   assert.match(openBody, /state\.grant\.lock[\s\S]*Some\(grant\)/);
@@ -597,7 +608,7 @@ test('native serial transport is target-authorized, bounded and closed with proj
 });
 
 test('top-level project actions use the optional desktop bridge and preserve browser denial', async () => {
-  const source = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  const source = readUiSource();
   assert.match(source, /data-action="desktop-open"/);
   assert.match(source, /data-action="desktop-save"/);
   assert.match(source, /desktopBridge\.available/);
@@ -607,7 +618,7 @@ test('top-level project actions use the optional desktop bridge and preserve bro
 });
 
 test('toolchain workspace refreshes only through the read-only desktop detection bridge', async () => {
-  const source = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  const source = readUiSource();
   const registry = await readFile(new URL('../src/core/engine-registry.js', import.meta.url), 'utf8');
   assert.match(source, /data-action="refresh-detection"/);
   assert.match(source, /refreshEngineDetection/);
@@ -617,7 +628,7 @@ test('toolchain workspace refreshes only through the read-only desktop detection
 });
 
 test('project job monitor drains scoped events before rendering lifecycle records', async () => {
-  const source = await readFile(new URL('../src/app.js', import.meta.url), 'utf8');
+  const source = readUiSource();
   const store = await readFile(new URL('../src/core/store.js', import.meta.url), 'utf8');
   assert.match(source, /desktopBridge\.drainEvents\(project\.project_id\)/);
   assert.match(source, /desktopEvents/);

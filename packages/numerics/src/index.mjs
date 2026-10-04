@@ -1,3 +1,5 @@
+// Numerical kernels: signals, windows, FFT, convolution, resampling, polynomials, complex
+// arithmetic and digital filter design (Butterworth, Chebyshev I, windowed-sinc FIR).
 export * from './polynomial.mjs';
 export * from './filters.mjs';
 
@@ -104,11 +106,51 @@ export function resample(signal, targetSampleRate) {
   return signal.kind === 'time-series' ? createSignal(output, { sampleRate: targetSampleRate, units: signal.units, start: signal.start }) : output;
 }
 
+// Iterative radix-2 Cooley-Tukey FFT (O(n log n)) for power-of-two lengths.
+function radix2(samples) {
+  const n = samples.length;
+  const real = Float64Array.from(samples); const imaginary = new Float64Array(n);
+  for (let i = 1, j = 0; i < n; i += 1) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) { const swap = real[i]; real[i] = real[j]; real[j] = swap; }
+  }
+  for (let size = 2; size <= n; size <<= 1) {
+    const half = size >> 1; const step = -2 * Math.PI / size;
+    for (let k = 0; k < half; k += 1) {
+      const wr = Math.cos(step * k); const wi = Math.sin(step * k);
+      for (let start = 0; start < n; start += size) {
+        const a = start + k; const b = a + half;
+        const tr = wr * real[b] - wi * imaginary[b]; const ti = wr * imaginary[b] + wi * real[b];
+        real[b] = real[a] - tr; imaginary[b] = imaginary[a] - ti;
+        real[a] += tr; imaginary[a] += ti;
+      }
+    }
+  }
+  return { real, imaginary };
+}
+
+// Direct DFT for other lengths, with one table of twiddle factors instead of a cos/sin per term.
+function tableDft(samples) {
+  const n = samples.length;
+  const cos = Float64Array.from({ length: n }, (_, m) => Math.cos(-2 * Math.PI * m / n));
+  const sin = Float64Array.from({ length: n }, (_, m) => Math.sin(-2 * Math.PI * m / n));
+  const real = new Float64Array(n); const imaginary = new Float64Array(n);
+  for (let k = 0; k < n; k += 1) {
+    let re = 0; let im = 0;
+    for (let j = 0, m = 0; j < n; j += 1, m = (m + k) % n) { re += samples[j] * cos[m]; im += samples[j] * sin[m]; }
+    real[k] = re; imaginary[k] = im;
+  }
+  return { real, imaginary };
+}
+
 export function fft(signal) {
   const data = signal.data || signal;
   if (!Array.isArray(data) && !ArrayBuffer.isView(data)) throw new TypeError('FFT input must be a signal or array.');
   if (!data.length || data.length > MAX_FFT_SAMPLES) throw new RangeError(`FFT supports 1-${MAX_FFT_SAMPLES} samples.`);
-  const real = new Float64Array(data.length); const imaginary = new Float64Array(data.length);
-  for (let k = 0; k < data.length; k += 1) for (let n = 0; n < data.length; n += 1) { const angle = -2 * Math.PI * k * n / data.length; real[k] += finite(data[n], 'sample') * Math.cos(angle); imaginary[k] += finite(data[n], 'sample') * Math.sin(angle); }
+  const n = data.length;
+  const samples = Float64Array.from(data, (value) => finite(value, 'sample'));
+  const { real, imaginary } = (n & (n - 1)) === 0 ? radix2(samples) : tableDft(samples);
   return Object.freeze({ kind: 'spectrum', real, imaginary, frequencies: Float64Array.from({ length: data.length }, (_, index) => index * ((signal.sampleRate || 1) / data.length)), sampleRate: signal.sampleRate || 1, units: signal.units || '1' });
 }

@@ -1,3 +1,4 @@
+import { NativeToolError } from '../../packages/errors/src/index.mjs';
 /**
  * Optional Tauri bridge. The browser preview never fabricates native access:
  * when the Tauri global invoke function is absent, every native operation
@@ -10,8 +11,7 @@ function resolveInvoke() {
 }
 
 function unavailable() {
-  const error = new Error('Native desktop services are unavailable in the browser preview.');
-  error.code = DESKTOP_UNAVAILABLE_CODE;
+  const error = new NativeToolError('Native desktop services are unavailable in the browser preview.', { code: DESKTOP_UNAVAILABLE_CODE, recovery: 'Use the desktop app for native tools; the browser preview cannot run them.' });
   return Promise.reject(error);
 }
 

@@ -7,6 +7,11 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same branch or pull request supersedes an older run.
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     name: Verify (${{ matrix.os }})
@@ -18,9 +23,11 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
@@ -29,13 +36,203 @@ jobs:
       - name: Run complete verification
         run: npm run verify
 
+  browser-e2e:
+    name: Browser journeys (Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Chromium for Playwright
+        run: npx playwright-core install --with-deps chromium
+      - name: Run browser journeys
+        run: npm run test:e2e
+      - name: Upload failure traces and screenshots
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: e2e-failure-traces
+          path: test-results/e2e/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  coverage:
+    name: Coverage and mutation checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          # Full history so the thresholds can be compared with the main branch.
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build the browser app (some tests inspect dist/)
+        run: npm run build
+      - name: Check coverage thresholds (never lower than main)
+        run: node scripts/coverage.mjs --compare-base origin/main
+      - name: Check that tests kill targeted mutants
+        run: npm run test:mutation
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-report
+          path: coverage/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  security-audit:
+    name: Dependency audit (npm and Cargo)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - name: Audit npm dependencies (workspace)
+        run: npm audit --audit-level=low
+      - name: Audit npm dependencies (desktop shell)
+        working-directory: apps/desktop
+        run: npm audit --audit-level=low
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d # stable branch
+        with:
+          toolchain: stable
+      - name: Install cargo-audit (pinned)
+        run: cargo install cargo-audit --version 0.22.2 --locked
+      - name: Audit Cargo dependencies
+        working-directory: apps/desktop/src-tauri
+        run: cargo audit
+      - name: Generate the native SBOM and audit licences
+        run: |
+          npm run build
+          npm run native:sbom
+          npm run license:audit
+      - name: Upload SBOM and notices
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: native-sbom
+          path: |
+            dist/NATIVE-BUILD-SBOM.spdx.json
+            dist/NATIVE-THIRD-PARTY-NOTICES.txt
+          if-no-files-found: error
+          retention-days: 30
+
+  external-tools:
+    name: External tools (ngspice, GHDL, Verilator, Yosys, nextpnr)
+    # Pinned image: the reference tool versions (ngspice 42, GHDL 4.1, Verilator 5.020, Yosys 0.33,
+    # nextpnr 0.6) are the Ubuntu 24.04 packages.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install the engineering tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ngspice ghdl verilator yosys nextpnr-ice40
+      - name: Run every external-tool check and report passed, failed, unavailable or skipped
+        run: |
+          export OPENENTC_NGSPICE="$(command -v ngspice)"
+          export OPENENTC_GHDL="$(command -v ghdl)"
+          export OPENENTC_VERILATOR="$(command -v verilator)"
+          export OPENENTC_YOSYS="$(command -v yosys)"
+          export OPENENTC_NEXTPNR_ICE40="$(command -v nextpnr-ice40)"
+          node scripts/external-tools-report.mjs
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: external-tools-report
+          path: external-tools-report.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  desktop-windows-build:
+    name: Windows desktop build (unsigned)
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d # stable branch
+        with:
+          toolchain: stable
+      - name: Install workspace dependencies
+        run: |
+          npm ci
+          npm --prefix apps/desktop ci
+      - name: Run Rust unit tests
+        working-directory: apps/desktop/src-tauri
+        run: cargo test --lib
+      - name: Build the unsigned NSIS installer
+        env:
+          RUSTFLAGS: -A dead_code
+        run: npm --prefix apps/desktop run build:installer
+      - name: Release dry run (manifest and integrity; external gates stay pending)
+        shell: bash
+        run: |
+          npm run release:prepare
+          node scripts/release-manifest.mjs verify --require windows
+      - name: Upload the Windows build
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: openentc-studio-windows-unsigned
+          path: |
+            apps/desktop/src-tauri/target/release/openentc-studio.exe
+            apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+            dist/RELEASE-MANIFEST.json
+          if-no-files-found: error
+          retention-days: 14
+
   desktop-linux-build:
     name: Linux desktop build
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Install Tauri Linux dependencies
         run: |
           sudo apt-get update
@@ -52,16 +249,25 @@ jobs:
             libfuse2 \
             patchelf
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
       - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d # stable branch
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+      - name: Check Rust formatting
+        working-directory: apps/desktop/src-tauri
+        run: cargo fmt --check
       - name: Install workspace dependencies
         run: |
           npm ci
           npm --prefix apps/desktop ci
+      - name: Run Rust unit tests
+        working-directory: apps/desktop/src-tauri
+        run: cargo test --lib
       - name: Build Linux desktop packages
         env:
           RUSTFLAGS: -A dead_code
@@ -81,12 +287,19 @@ jobs:
             test -x squashfs-root/usr/bin/openentc-studio
           )
           rm -rf "$extract_dir"
+      - name: Check that the browser build is reproducible
+        run: npm run release:reproducible
+      - name: Release dry run (manifest and integrity; external gates stay pending)
+        run: |
+          npm run release:prepare
+          node scripts/release-manifest.mjs verify --require linux
       - name: Upload Linux desktop packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openentc-studio-linux-packages
           path: |
             apps/desktop/src-tauri/target/release/openentc-studio
             apps/desktop/src-tauri/target/release/bundle/deb/*.deb
             apps/desktop/src-tauri/target/release/bundle/appimage/*.AppImage
+            dist/RELEASE-MANIFEST.json
           if-no-files-found: error

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { checkBundleBudget } from './bundle-budget.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const output = resolve(root, 'dist');
@@ -28,6 +29,7 @@ for (const entry of await readdir(resolve(root, 'packages'), { withFileTypes: tr
 }
 await cp(resolve(root, 'assets'), resolve(output, 'assets'), { recursive: true });
 await cp(resolve(root, 'LICENSE'), resolve(output, 'LICENSE'));
+await cp(resolve(root, 'NOTICE'), resolve(output, 'NOTICE'));
 await writeFile(resolve(output, 'THIRD-PARTY-NOTICES.txt'), 'OpenENTC Studio browser preview\n\nNo third-party engine binaries or libraries are bundled in this artifact. External toolchains remain user-managed and subject to their own upstream licence terms.\n');
 await writeFile(resolve(output, 'BUILD-METADATA.json'), `${JSON.stringify({
   product: 'OpenENTC Studio',
@@ -58,6 +60,17 @@ async function filesUnder(directory, prefix = '') {
   }
   return files;
 }
+
+// Offline support: every web asset the app can load is precached by the service worker on install,
+// so the studio works offline after one visit (ES modules imported before the worker took control
+// are otherwise never cached).
+const WEB_ASSET = /\.(html|js|mjs|css|svg|png|webmanifest)$/;
+const precache = (await filesUnder(output)).map((file) => file.path).filter((path) => WEB_ASSET.test(path) && path !== 'sw.js').map((path) => `./${path}`);
+await writeFile(resolve(output, 'precache.json'), `${JSON.stringify(['./', ...precache], null, 2)}\n`);
+
+const assets = await Promise.all((await filesUnder(output)).filter((file) => WEB_ASSET.test(file.path)).map(async (file) => ({ path: file.path, bytes: (await stat(file.fullPath)).size })));
+const budget = checkBundleBudget(assets);
+if (budget.problems.length) throw new Error(`Bundle budget exceeded (scripts/bundle-budget.mjs):\n  ${budget.problems.join('\n  ')}`);
 
 const manifest = [];
 for (const file of await filesUnder(output)) {

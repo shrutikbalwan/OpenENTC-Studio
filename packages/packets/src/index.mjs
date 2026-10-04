@@ -1,3 +1,4 @@
+// Bounded PCAP and PCAPNG capture parsers.
 const MAX_CAPTURE_BYTES = 256 * 1024 * 1024;
 const MAX_PACKETS = 1_000_000;
 

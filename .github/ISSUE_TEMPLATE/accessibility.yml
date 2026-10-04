@@ -1,0 +1,46 @@
+name: Accessibility problem
+description: Report something that is hard or impossible to use with a keyboard, screen reader, zoom, high contrast or reduced motion
+title: "[Accessibility]: "
+labels: ["accessibility"]
+body:
+  - type: textarea
+    id: barrier
+    attributes:
+      label: What is the barrier?
+      description: What were you trying to do, and what stopped you?
+    validations:
+      required: true
+  - type: input
+    id: location
+    attributes:
+      label: Where in the app?
+      placeholder: "Circuit Lab → Run DC analysis button"
+    validations:
+      required: true
+  - type: textarea
+    id: technology
+    attributes:
+      label: Assistive technology and setup
+      description: Screen reader and version, browser and version, OS, zoom level, high-contrast or reduced-motion settings, keyboard-only use.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps, starting from opening the app.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+      description: For example, the expected spoken label, focus position or keyboard shortcut.
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: OpenENTC version or commit
+    validations:
+      required: false

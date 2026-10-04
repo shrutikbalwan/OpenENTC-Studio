@@ -3,6 +3,7 @@ export declare const PROVIDERS: Readonly<Record<string, Provider>>;
 export declare const MODES: Readonly<Record<string, string>>;
 export declare const LANGUAGES: Readonly<Record<string, string>>;
 export declare function validateBaseUrl(text: string): string;
+export declare function redactSecrets(text: string, secrets?: string[]): string;
 export declare const TOOL_DEFINITIONS: readonly { name: string; description: string; parameters: Record<string, unknown> }[];
 export interface ToolContext { lab?: () => unknown; labName?: string; lessons?: { title: string; summary: string[]; formulas: string[]; lab?: { label: string } }[]; viva?: [string, string][] }
 export declare function executeTool(name: string, args: Record<string, any>, context?: ToolContext): string;

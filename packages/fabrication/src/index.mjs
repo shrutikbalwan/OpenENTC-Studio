@@ -1,3 +1,4 @@
+// PCB fabrication manifest (BOM, Gerber, drill, position files) and a pre-order checklist.
 const KINDS = Object.freeze(['bom', 'gerber', 'drill', 'position']);
 const MAX_ARTIFACTS = 4096;
 const MAX_TEXT = 4096;

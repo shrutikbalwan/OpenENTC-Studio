@@ -1,3 +1,4 @@
+// Network topology validation and graph metrics.
 export function validateTopology(topology) {
   if (!topology || typeof topology !== 'object' || typeof topology.id !== 'string' || !topology.id.trim()) throw new TypeError('Topology id is required.');
   if (!Array.isArray(topology.nodes) || topology.nodes.length > 10_000 || topology.nodes.some((node) => !node || typeof node.id !== 'string' || !node.id.trim())) throw new TypeError('Topology nodes are invalid.');
